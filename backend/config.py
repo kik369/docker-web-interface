@@ -1,18 +1,53 @@
 import os
+from dataclasses import dataclass
+from typing import Any, Dict
 
 
+@dataclass
 class Config:
-    # Flask settings
-    FLASK_ENV = os.getenv("FLASK_ENV", "production")
-    DEBUG = FLASK_ENV == "development"
+    """Application configuration."""
 
-    # Docker command settings
-    DOCKER_PS_FORMAT = (
-        "table {{.ID}}\t{{.Image}}\t{{.Command}}\t{{.CreatedAt}}\t"
-        "{{.RunningFor}}\t{{.State}}\t{{.Status}}\t{{.Size}}\t{{.Names}}\t"
-        "{{.Mounts}}\t{{.Networks}}\t{{.Ports}}\t{{.Labels}}"
+    # Server settings
+    DEBUG: bool = bool(int(os.getenv("DEBUG", "0")))
+    PORT: int = int(os.getenv("PORT", "5000"))
+    HOST: str = os.getenv("HOST", "0.0.0.0")
+
+    # Docker settings
+    DOCKER_PS_FORMAT: str = os.getenv(
+        "DOCKER_PS_FORMAT",
+        "{{.ID}}\t{{.Names}}\t{{.Image}}\t{{.Status}}\t{{.CreatedAt}}\t{{.Ports}}",
     )
 
-    # Application settings
-    REFRESH_INTERVAL = int(os.getenv("REFRESH_INTERVAL", "30"))  # seconds
-    MAX_REQUESTS_PER_MINUTE = int(os.getenv("MAX_REQUESTS_PER_MINUTE", "60"))
+    # Rate limiting
+    MAX_REQUESTS_PER_MINUTE: int = int(os.getenv("MAX_REQUESTS_PER_MINUTE", "60"))
+
+    # Frontend settings
+    REFRESH_INTERVAL: int = int(os.getenv("REFRESH_INTERVAL", "30"))
+
+    # CORS settings
+    CORS_ORIGINS: list[str] = os.getenv("CORS_ORIGINS", "*").split(",")
+
+    @classmethod
+    def to_dict(cls) -> Dict[str, Any]:
+        """Convert config to dictionary."""
+        return {
+            key: getattr(cls, key)
+            for key in dir(cls)
+            if not key.startswith("_") and not callable(getattr(cls, key))
+        }
+
+    @classmethod
+    def validate(cls) -> None:
+        """Validate configuration values."""
+        if cls.MAX_REQUESTS_PER_MINUTE < 1:
+            raise ValueError("MAX_REQUESTS_PER_MINUTE must be greater than 0")
+
+        if cls.REFRESH_INTERVAL < 1:
+            raise ValueError("REFRESH_INTERVAL must be greater than 0")
+
+        if cls.PORT < 1 or cls.PORT > 65535:
+            raise ValueError("PORT must be between 1 and 65535")
+
+
+# Validate configuration on import
+Config.validate()
