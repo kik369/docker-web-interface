@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { HiInformationCircle, HiDocument } from 'react-icons/hi';
 import { ContainerRowProps } from '../types/docker';
 import { useContainers } from '../hooks/useContainers';
 
@@ -42,16 +43,18 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                 <td className="p-3 text-sm space-x-2">
                     <button
                         onClick={onToggleExpand}
-                        className="text-blue-400 hover:text-blue-300 focus:outline-none"
+                        className="text-blue-400 hover:text-blue-300 focus:outline-none inline-flex items-center space-x-1"
                     >
-                        {isExpanded ? 'Hide Details' : 'Show Details'}
+                        <HiInformationCircle className="h-5 w-5" />
+                        <span>{isExpanded ? 'Hide Details' : 'Show Details'}</span>
                     </button>
                     <button
                         onClick={handleViewLogs}
-                        className="text-blue-400 hover:text-blue-300 focus:outline-none"
+                        className="text-blue-400 hover:text-blue-300 focus:outline-none inline-flex items-center space-x-1"
                         disabled={isLoadingLogs}
                     >
-                        {isLoadingLogs ? 'Loading...' : 'View Logs'}
+                        <HiDocument className="h-5 w-5" />
+                        <span>{isLoadingLogs ? 'Loading...' : 'View Logs'}</span>
                     </button>
                 </td>
             </tr>

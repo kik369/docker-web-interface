@@ -89,7 +89,6 @@ function App() {
                     containers={containers}
                     isLoading={loading}
                     error={error}
-                    onRefresh={fetchData}
                 />
             </div>
         </div>

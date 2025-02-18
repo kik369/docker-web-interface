@@ -7,7 +7,6 @@ export const ContainerList: React.FC<ContainerListProps> = ({
     containers,
     isLoading,
     error,
-    onRefresh,
 }) => {
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
     const [searchTerm, setSearchTerm] = useState('');
@@ -63,13 +62,6 @@ export const ContainerList: React.FC<ContainerListProps> = ({
         <div className="space-y-4">
             <div className="flex justify-between items-center">
                 <SearchBar value={searchTerm} onChange={setSearchTerm} />
-                <button
-                    onClick={onRefresh}
-                    className="px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors"
-                    disabled={isLoading}
-                >
-                    {isLoading ? 'Refreshing...' : 'Refresh'}
-                </button>
             </div>
 
             {isLoading && (

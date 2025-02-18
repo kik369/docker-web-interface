@@ -33,7 +33,6 @@ export interface ContainerListProps {
     containers: Container[];
     isLoading: boolean;
     error: string | null;
-    onRefresh: () => void;
 }
 
 export interface ContainerRowProps {
