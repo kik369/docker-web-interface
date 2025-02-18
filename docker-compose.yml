@@ -9,6 +9,7 @@ services:
         volumes:
             - ./backend:/app
             - /var/run/docker.sock:/var/run/docker.sock
+        user: root
         command: gunicorn -b 0.0.0.0:5000 docker_monitor:app
         container_name: docker_web_api
         develop:

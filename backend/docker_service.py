@@ -27,12 +27,17 @@ class Container:
         """Create a Container instance from a docker ps output line."""
         try:
             id_, name, image, status, created, ports = output_line.strip().split("\t")
+            # Docker's date format is like: "2025-02-18 17:01:46 +0000 UTC"
+            # Remove the UTC suffix and parse
+            created_str = created.replace(" UTC", "")
+            created_dt = datetime.strptime(created_str, "%Y-%m-%d %H:%M:%S %z")
+
             return cls(
                 id=id_,
                 name=name,
                 image=image,
                 status=status,
-                created=datetime.fromisoformat(created),
+                created=created_dt,
                 ports=ports,
             )
         except ValueError as e:

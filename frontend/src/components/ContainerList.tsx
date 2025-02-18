@@ -3,26 +3,6 @@ import { Container, ContainerListProps, SortConfig } from '../types/docker';
 import { ContainerRow } from './ContainerRow';
 import { SearchBar } from './SearchBar';
 
-interface ParsedContainer extends Container {
-    command?: string;
-    createdat?: string;
-    runningfor?: string;
-    state?: string;
-    size?: string;
-    mounts?: string;
-    networks?: string;
-    platform?: string;
-    driver?: string;
-    localvolumes?: string;
-    labels?: string;
-    hostconfig_networkmode?: string;
-    imageid?: string;
-}
-
-interface HeaderMap {
-    [key: string]: string;
-}
-
 export const ContainerList: React.FC<ContainerListProps> = ({
     containers,
     isLoading,

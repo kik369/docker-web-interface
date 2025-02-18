@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Background from './components/Background';
-import ContainerList from './components/ContainerList';
+import { ContainerList } from './components/ContainerList';
+import { Container } from './types/docker';
 
 function App() {
-    const [containerData, setContainerData] = useState('');
+    const [containers, setContainers] = useState<Container[]>([]);
     const [error, setError] = useState('');
     const [status, setStatus] = useState('success');
     const [loading, setLoading] = useState(false);
@@ -24,11 +25,12 @@ function App() {
                 );
             }
 
-            setContainerData(result.data);
+            setContainers(result.data);
             setError('');
             setStatus('success');
-        } catch (err) {
-            setError(err.message);
+        } catch (err: unknown) {
+            const errorMessage = err instanceof Error ? err.message : 'An unexpected error occurred';
+            setError(errorMessage);
             setStatus('error');
         } finally {
             setLoading(false);
@@ -83,7 +85,12 @@ function App() {
                     </div>
                 )}
 
-                <ContainerList containerData={containerData} />
+                <ContainerList
+                    containers={containers}
+                    isLoading={loading}
+                    error={error}
+                    onRefresh={fetchData}
+                />
             </div>
         </div>
     );

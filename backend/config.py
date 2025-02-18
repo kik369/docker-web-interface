@@ -1,5 +1,5 @@
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Dict
 
 
@@ -25,7 +25,9 @@ class Config:
     REFRESH_INTERVAL: int = int(os.getenv("REFRESH_INTERVAL", "30"))
 
     # CORS settings
-    CORS_ORIGINS: list[str] = os.getenv("CORS_ORIGINS", "*").split(",")
+    CORS_ORIGINS: list[str] = field(
+        default_factory=lambda: os.getenv("CORS_ORIGINS", "*").split(",")
+    )
 
     @classmethod
     def to_dict(cls) -> Dict[str, Any]:

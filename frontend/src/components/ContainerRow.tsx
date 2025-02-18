@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Container, ContainerRowProps } from '../types/docker';
+import { ContainerRowProps } from '../types/docker';
 import { useContainers } from '../hooks/useContainers';
 
 export const ContainerRow: React.FC<ContainerRowProps> = ({

@@ -146,6 +146,9 @@ def create_app() -> Flask:
     return flask_app.app
 
 
+# Create the application instance for Gunicorn
+app = create_app()
+
 if __name__ == "__main__":
     flask_app = FlaskApp()
     flask_app.run()
