@@ -1,0 +1,47 @@
+services:
+    api:
+        build: ./backend
+        ports:
+            - '5000:5000'
+        environment:
+            - FLASK_ENV=development
+            - FLASK_APP=docker_monitor.py
+        volumes:
+            - ./backend:/app
+            - /var/run/docker.sock:/var/run/docker.sock
+        command: gunicorn -b 0.0.0.0:5000 docker_monitor:app
+        container_name: docker_web_api
+        develop:
+            watch:
+                - action: sync
+                  path: ./backend
+                  target: /app
+                  ignore:
+                      - '__pycache__/'
+                      - '*.pyc'
+                - action: rebuild
+                  path: ./backend/requirements.txt
+
+    frontend:
+        build: ./frontend
+        ports:
+            - '3001:3000'
+        volumes:
+            - ./frontend:/app
+            - /app/node_modules
+        environment:
+            - REACT_APP_API_URL=http://localhost:5000
+            - WATCHPACK_POLLING=true
+        container_name: docker_web_frontend
+        develop:
+            watch:
+                - action: sync
+                  path: ./frontend/src
+                  target: /app/src
+                  ignore:
+                      - node_modules/
+                - action: sync
+                  path: ./frontend/public
+                  target: /app/public
+                - action: rebuild
+                  path: ./frontend/package.json
