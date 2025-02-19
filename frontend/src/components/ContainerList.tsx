@@ -107,6 +107,17 @@ export const ContainerList: React.FC<ContainerListProps> = ({
     return (
         <div className="container-list">
             <SearchBar value={searchTerm} onChange={setSearchTerm} />
+            <div className="sort-header">
+                <button onClick={() => handleSort('name')} className="sort-button">
+                    Name {sortConfig.key === 'name' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                </button>
+                <button onClick={() => handleSort('status')} className="sort-button">
+                    Status {sortConfig.key === 'status' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                </button>
+                <button onClick={() => handleSort('state')} className="sort-button">
+                    State {sortConfig.key === 'state' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
+                </button>
+            </div>
             {Object.entries(filteredAndSortedContainers).map(([projectName, projectContainers]) => (
                 <div key={projectName} className="compose-project-group">
                     <h3 className="compose-project-title">

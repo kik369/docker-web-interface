@@ -7,6 +7,7 @@ from config import Config
 from docker_service import Container, DockerService
 from flask import Flask, Response, jsonify
 from flask_cors import CORS
+from werkzeug.exceptions import HTTPException
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 # Configure logging
@@ -136,6 +137,8 @@ class FlaskApp:
 
         @self.app.errorhandler(Exception)
         def handle_error(error: Exception) -> Response:
+            if isinstance(error, HTTPException):
+                return self.error_response(error.description, status_code=error.code)
             logger.error(f"Unhandled error: {str(error)}", exc_info=True)
             return self.error_response("An unexpected error occurred")
 
