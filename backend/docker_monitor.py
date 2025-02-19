@@ -5,7 +5,7 @@ from typing import Any, Callable, Dict
 
 from config import Config
 from docker_service import Container, DockerService
-from flask import Flask, Response, jsonify, render_template
+from flask import Flask, Response, jsonify
 from flask_cors import CORS
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -90,23 +90,6 @@ class FlaskApp:
     def setup_routes(self) -> None:
         """Set up application routes."""
 
-        @self.app.route("/")
-        @self.rate_limit
-        def index() -> str:
-            containers, error = self.docker_service.get_all_containers()
-
-            if error:
-                logger.error(f"Error fetching container data: {error}")
-                return render_template(
-                    "index.html", error=error, refresh_interval=Config.REFRESH_INTERVAL
-                )
-
-            return render_template(
-                "index.html",
-                containers=containers,
-                refresh_interval=Config.REFRESH_INTERVAL,
-            )
-
         @self.app.route("/api/containers")
         @self.rate_limit
         def get_containers() -> Response:
@@ -130,39 +113,26 @@ class FlaskApp:
 
             return self.success_response({"logs": logs})
 
-        @self.app.route("/api/containers/<container_id>/start", methods=["POST"])
+        @self.app.route("/api/containers/<container_id>/<action>", methods=["POST"])
         @self.rate_limit
-        def start_container(container_id: str) -> Response:
-            success, error = self.docker_service.start_container(container_id)
-            if not success:
-                return self.error_response(error or "Failed to start container")
-            return self.success_response({"message": "Container started successfully"})
+        def container_action(container_id: str, action: str) -> Response:
+            if action not in ["start", "stop", "restart", "rebuild"]:
+                return self.error_response(f"Invalid action: {action}", 400)
 
-        @self.app.route("/api/containers/<container_id>/stop", methods=["POST"])
-        @self.rate_limit
-        def stop_container(container_id: str) -> Response:
-            success, error = self.docker_service.stop_container(container_id)
-            if not success:
-                return self.error_response(error or "Failed to stop container")
-            return self.success_response({"message": "Container stopped successfully"})
+            action_map = {
+                "start": self.docker_service.start_container,
+                "stop": self.docker_service.stop_container,
+                "restart": self.docker_service.restart_container,
+                "rebuild": self.docker_service.rebuild_container,
+            }
 
-        @self.app.route("/api/containers/<container_id>/restart", methods=["POST"])
-        @self.rate_limit
-        def restart_container(container_id: str) -> Response:
-            success, error = self.docker_service.restart_container(container_id)
+            success, error = action_map[action](container_id)
             if not success:
-                return self.error_response(error or "Failed to restart container")
+                return self.error_response(error or f"Failed to {action} container")
+
             return self.success_response(
-                {"message": "Container restarted successfully"}
+                {"message": f"Container {action}ed successfully"}
             )
-
-        @self.app.route("/api/containers/<container_id>/rebuild", methods=["POST"])
-        @self.rate_limit
-        def rebuild_container(container_id: str) -> Response:
-            success, error = self.docker_service.rebuild_container(container_id)
-            if not success:
-                return self.error_response(error or "Failed to rebuild container")
-            return self.success_response({"message": "Container rebuilt successfully"})
 
         @self.app.errorhandler(Exception)
         def handle_error(error: Exception) -> Response:

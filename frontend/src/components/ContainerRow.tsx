@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { HiDocument, HiPlay, HiStop, HiRefresh, HiCog } from 'react-icons/hi';
 import { ContainerRowProps } from '../types/docker';
 import { logger } from '../services/logging';
+import { config } from '../config';
 
 const getStatusColor = (state: string | undefined): string => {
     const stateLower = (state || '').toLowerCase();
@@ -42,7 +43,7 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
             if (!isExpanded) {
                 onToggleExpand();
             }
-            const response = await fetch(`http://localhost:5000/api/containers/${container.id}/logs`);
+            const response = await fetch(`${config.API_URL}/api/containers/${container.id}/logs`);
             const data = await response.json();
 
             if (!response.ok) {

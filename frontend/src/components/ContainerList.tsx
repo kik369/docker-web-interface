@@ -3,6 +3,7 @@ import { Container, ContainerListProps, SortConfig } from '../types/docker';
 import { ContainerRow } from './ContainerRow';
 import { SearchBar } from './SearchBar';
 import { logger } from '../services/logging';
+import { config } from '../config';
 
 interface GroupedContainers {
     [key: string]: Container[];
@@ -75,7 +76,7 @@ export const ContainerList: React.FC<ContainerListProps> = ({
     const handleContainerAction = async (containerId: string, action: string) => {
         try {
             logger.info(`Initiating ${action} action for container`, { containerId, action });
-            const response = await fetch(`http://localhost:5000/api/containers/${containerId}/${action}`, {
+            const response = await fetch(`${config.API_URL}/api/containers/${containerId}/${action}`, {
                 method: 'POST',
             });
             const data = await response.json();
