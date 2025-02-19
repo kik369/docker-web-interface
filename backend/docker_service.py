@@ -5,8 +5,6 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import List, Optional, Protocol, Tuple
 
-from config import Config
-
 logger = logging.getLogger(__name__)
 
 
@@ -23,14 +21,24 @@ class Container:
     state: str
     created: datetime
     ports: str
+    compose_project: Optional[str] = None
+    compose_service: Optional[str] = None
 
     @classmethod
     def from_docker_output(cls, output_line: str) -> "Container":
         """Create a Container instance from a docker ps output line."""
         try:
-            id_, name, image, status, state, created, ports = output_line.strip().split(
-                "\t"
-            )
+            (
+                id_,
+                name,
+                image,
+                status,
+                state,
+                created,
+                ports,
+                compose_project,
+                compose_service,
+            ) = output_line.strip().split("\t")
 
             # Clean up and normalize the state
             state = state.strip().lower()
@@ -57,6 +65,8 @@ class Container:
                 status=status,
                 created=created_dt,
                 ports=ports or "",
+                compose_project=compose_project or None,
+                compose_service=compose_service or None,
             )
         except ValueError as e:
             logger.error(f"Failed to parse container data: {e}")
@@ -94,52 +104,58 @@ class DockerService:
         self.command_executor = command_executor or ShellCommandExecutor()
 
     def get_all_containers(self) -> Tuple[Optional[List[Container]], Optional[str]]:
-        """
-        Get information about all Docker containers (both running and stopped).
-
-        Returns:
-            Tuple[Optional[List[Container]], Optional[str]]: A tuple containing (containers, error)
-        """
+        """Get all containers with their details."""
         try:
-            # Using docker ps -a to show all containers and --no-trunc to show full output
-            command = f"docker ps -a --no-trunc --format '{Config.DOCKER_PS_FORMAT}'"
-            logger.info(f"Executing command: {command}")
-            output, error = self.command_executor.execute(command)
-
+            # Using --no-trunc to ensure we get full values
+            cmd = (
+                "docker ps -a --no-trunc --format '"
+                "{{.ID}}\t"
+                "{{.Names}}\t"
+                "{{.Image}}\t"
+                "{{.Status}}\t"
+                "{{.State}}\t"
+                "{{.CreatedAt}}\t"
+                "{{.Ports}}\t"
+                '{{.Label "com.docker.compose.project"}}\t'
+                '{{.Label "com.docker.compose.service"}}'
+                "'"
+            )
+            output, error = self.command_executor.execute(cmd)
             if error:
-                logger.error(f"Command error: {error}")
                 return None, error
-
-            logger.info(f"Raw docker output:\n{output}")
-
-            if not output.strip():
-                logger.info("No containers found")
-                return [], None
 
             containers = []
             for line in output.strip().split("\n"):
-                try:
-                    logger.debug(f"Processing container line: {line}")
-                    fields = line.strip().split("\t")
-                    logger.info(f"Split fields: {fields}")
-                    if len(fields) != 7:
-                        logger.warning(
-                            f"Expected 7 fields, got {len(fields)}: {fields}"
-                        )
+                if line:
+                    try:
+                        container = Container.from_docker_output(line)
+                        # If the container name contains our project prefix, ensure it's grouped
+                        if (
+                            container.compose_project is None
+                            or container.compose_project == ""
+                        ) and "docker_web_" in container.name:
+                            if "-" in container.name:
+                                # For containers like docker_web_interface-grafana-1
+                                container.compose_project = "docker_web_interface"
+                                container.compose_service = container.name.split("-")[
+                                    1
+                                ].split("_")[0]
+                            else:
+                                # For containers like docker_web_frontend
+                                container.compose_project = "docker_web_interface"
+                                container.compose_service = container.name.replace(
+                                    "docker_web_", ""
+                                )
+                        containers.append(container)
+                    except ValueError as e:
+                        logger.error(f"Error parsing container: {e}")
                         continue
-                    container = Container.from_docker_output(line)
-                    logger.info(f"Created container object: {container}")
-                    containers.append(container)
-                except ValueError as e:
-                    logger.warning(f"Skipping invalid container data: {e}")
-                    continue
 
-            logger.info(f"Found {len(containers)} containers")
             return containers, None
-
         except Exception as e:
-            logger.error(f"Failed to get container information: {str(e)}")
-            return None, f"Failed to get container information: {str(e)}"
+            error_msg = f"Failed to get containers: {str(e)}"
+            logger.error(error_msg)
+            return None, error_msg
 
     def get_container_logs(
         self, container_id: str, lines: int = 100

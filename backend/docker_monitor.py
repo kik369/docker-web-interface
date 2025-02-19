@@ -22,6 +22,7 @@ class FlaskApp:
         self.setup_app()
         self.docker_service = DockerService()
         self.request_counts: Dict[datetime, int] = {}
+        self.setup_routes()  # Set up routes during initialization
 
     def setup_app(self) -> None:
         """Configure Flask application."""
@@ -170,14 +171,12 @@ class FlaskApp:
 
     def run(self) -> None:
         """Run the Flask application."""
-        self.setup_routes()
         self.app.run(host="0.0.0.0", port=Config.PORT, debug=Config.DEBUG)
 
 
 def create_app() -> Flask:
     """Create and configure the Flask application."""
     flask_app = FlaskApp()
-    flask_app.setup_routes()
     return flask_app.app
 
 

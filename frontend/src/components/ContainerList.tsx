@@ -4,8 +4,12 @@ import { ContainerRow } from './ContainerRow';
 import { SearchBar } from './SearchBar';
 import { logger } from '../services/logging';
 
+interface GroupedContainers {
+    [key: string]: Container[];
+}
+
 export const ContainerList: React.FC<ContainerListProps> = ({
-    containers,
+    containers = [],
     isLoading,
     error,
 }) => {
@@ -36,19 +40,36 @@ export const ContainerList: React.FC<ContainerListProps> = ({
     }, []);
 
     const filteredAndSortedContainers = React.useMemo(() => {
-        return containers
-            .filter(container =>
-                Object.values(container).some(value =>
-                    value.toLowerCase().includes(searchTerm.toLowerCase())
-                )
+        if (!Array.isArray(containers)) {
+            return {};
+        }
+
+        const filtered = containers.filter(container =>
+            Object.values(container).some(value =>
+                String(value).toLowerCase().includes(searchTerm.toLowerCase())
             )
-            .sort((a, b) => {
-                if (!sortConfig.key) return 0;
-                const aValue = a[sortConfig.key];
-                const bValue = b[sortConfig.key];
-                const compareResult = aValue.localeCompare(bValue);
+        );
+
+        if (sortConfig.key) {
+            filtered.sort((a, b) => {
+                const aValue = a[sortConfig.key!];
+                const bValue = b[sortConfig.key!];
+                const compareResult = String(aValue).localeCompare(String(bValue));
                 return sortConfig.direction === 'asc' ? compareResult : -compareResult;
             });
+        }
+
+        // Group containers by compose project
+        const grouped: GroupedContainers = filtered.reduce((acc, container) => {
+            const projectKey = container.compose_project || 'Standalone Containers';
+            if (!acc[projectKey]) {
+                acc[projectKey] = [];
+            }
+            acc[projectKey].push(container);
+            return acc;
+        }, {} as GroupedContainers);
+
+        return grouped;
     }, [containers, searchTerm, sortConfig]);
 
     const handleContainerAction = async (containerId: string, action: string) => {
@@ -74,35 +95,35 @@ export const ContainerList: React.FC<ContainerListProps> = ({
         }
     };
 
+    if (isLoading) {
+        return <div className="loading">Loading containers...</div>;
+    }
+
+    if (error) {
+        return <div className="error">Error: {error}</div>;
+    }
+
     return (
-        <div className="relative p-6 rounded-lg overflow-hidden" style={{
-            backgroundColor: 'rgba(17, 25, 40, 0.75)',
-            backdropFilter: 'blur(16px) saturate(180%)',
-            WebkitBackdropFilter: 'blur(16px) saturate(180%)',
-            border: '1px solid rgba(255, 255, 255, 0.125)'
-        }}>
-            {error ? (
-                <div className="text-red-500">Error: {error}</div>
-            ) : (
-                <>
-                    <SearchBar value={searchTerm} onChange={setSearchTerm} />
-                    {isLoading ? (
-                        <div className="text-white">Loading...</div>
-                    ) : (
-                        <div className="space-y-4">
-                            {filteredAndSortedContainers.map(container => (
-                                <ContainerRow
-                                    key={container.id}
-                                    container={container}
-                                    isExpanded={expandedRows.has(container.id)}
-                                    onToggleExpand={() => toggleRowExpansion(container.id)}
-                                    onAction={handleContainerAction}
-                                />
-                            ))}
-                        </div>
-                    )}
-                </>
-            )}
+        <div className="container-list">
+            <SearchBar value={searchTerm} onChange={setSearchTerm} />
+            {Object.entries(filteredAndSortedContainers).map(([projectName, projectContainers]) => (
+                <div key={projectName} className="compose-project-group">
+                    <h3 className="compose-project-title">
+                        {projectName} ({projectContainers.length} containers)
+                    </h3>
+                    <div className="container-group">
+                        {projectContainers.map(container => (
+                            <ContainerRow
+                                key={container.id}
+                                container={container}
+                                isExpanded={expandedRows.has(container.id)}
+                                onToggleExpand={() => toggleRowExpansion(container.id)}
+                                onAction={handleContainerAction}
+                            />
+                        ))}
+                    </div>
+                </div>
+            ))}
         </div>
     );
 };

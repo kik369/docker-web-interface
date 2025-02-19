@@ -6,6 +6,8 @@ export interface Container {
     state: string;
     created: string;
     ports: string;
+    compose_project: string | null;
+    compose_service: string | null;
 }
 
 export interface ContainerDetails extends Container {
