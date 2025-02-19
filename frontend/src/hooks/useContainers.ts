@@ -44,6 +44,37 @@ export const useContainers = () => {
         }
     }, []);
 
+    const performContainerAction = useCallback(async (containerId: string, action: string) => {
+        try {
+            const response = await fetch(`${config.API_URL}/api/containers/${containerId}/${action}`, {
+                method: 'POST',
+            });
+            const result: ApiResponse<{ message: string }> = await response.json();
+
+            if (!response.ok) {
+                throw new Error(result.error || `Failed to ${action} container`);
+            }
+
+            // Refresh container list after action
+            await fetchContainers();
+            return result.data.message;
+        } catch (err) {
+            throw new Error(err instanceof Error ? err.message : `Failed to ${action} container`);
+        }
+    }, [fetchContainers]);
+
+    const startContainer = useCallback((containerId: string) =>
+        performContainerAction(containerId, 'start'), [performContainerAction]);
+
+    const stopContainer = useCallback((containerId: string) =>
+        performContainerAction(containerId, 'stop'), [performContainerAction]);
+
+    const restartContainer = useCallback((containerId: string) =>
+        performContainerAction(containerId, 'restart'), [performContainerAction]);
+
+    const rebuildContainer = useCallback((containerId: string) =>
+        performContainerAction(containerId, 'rebuild'), [performContainerAction]);
+
     useEffect(() => {
         fetchContainers();
         const interval = setInterval(fetchContainers, config.REFRESH_INTERVAL);
@@ -56,5 +87,9 @@ export const useContainers = () => {
         error,
         refresh: fetchContainers,
         fetchContainerLogs,
+        startContainer,
+        stopContainer,
+        restartContainer,
+        rebuildContainer,
     };
 };

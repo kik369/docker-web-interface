@@ -15,7 +15,7 @@ class Config:
     # Docker settings
     DOCKER_PS_FORMAT: str = os.getenv(
         "DOCKER_PS_FORMAT",
-        "{{.ID}}\t{{.Names}}\t{{.Image}}\t{{.Status}}\t{{.CreatedAt}}\t{{.Ports}}",
+        "{{.ID}}\t{{.Names}}\t{{.Image}}\t{{.Status}}\t{{.State}}\t{{.CreatedAt}}\t{{.Ports}}",
     )
 
     # Rate limiting

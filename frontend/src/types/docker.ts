@@ -3,13 +3,13 @@ export interface Container {
     name: string;
     image: string;
     status: string;
+    state: string;
     created: string;
     ports: string;
 }
 
 export interface ContainerDetails extends Container {
     command?: string;
-    state?: string;
     size?: string;
     mounts?: string;
     networks?: string;
