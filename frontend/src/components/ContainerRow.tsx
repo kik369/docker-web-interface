@@ -40,6 +40,9 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
 
         try {
             setIsLoadingLogs(true);
+            if (!isExpanded) {
+                onToggleExpand();
+            }
             const containerLogs = await fetchContainerLogs(container.id);
             setLogs(containerLogs);
             setShowLogs(true);
@@ -169,12 +172,12 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                             <DetailRow label="Created" value={container.created} />
                             <DetailRow label="Ports" value={container.ports} />
                             {showLogs && logs && (
-                                <div className="col-span-2 mt-4">
-                                    <h4 className="text-gray-400 mb-2">Container Logs</h4>
-                                    <pre className="bg-gray-800 p-3 rounded-lg overflow-x-auto text-white font-mono text-xs">
+                                <>
+                                    <p className="text-gray-400 pr-4">Container Logs</p>
+                                    <pre className="text-white bg-gray-800 p-3 rounded-lg overflow-x-auto font-mono text-xs">
                                         {logs}
                                     </pre>
-                                </div>
+                                </>
                             )}
                         </div>
                     </td>
