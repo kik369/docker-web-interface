@@ -54,6 +54,6 @@ htmlcov/
 .pytest_cache/
 
 # Logging
-backend/logs/*
-grafana/*
-prometheus/*
+logs/
+grafana/
+prometheus/
