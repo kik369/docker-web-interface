@@ -51,18 +51,18 @@ export const ContainerList: React.FC<ContainerListProps> = ({
             )
         );
 
-        if (sortConfig.key) {
-            filtered.sort((a, b) => {
-                const aValue = a[sortConfig.key!];
-                const bValue = b[sortConfig.key!];
-                const compareResult = String(aValue).localeCompare(String(bValue));
-                return sortConfig.direction === 'asc' ? compareResult : -compareResult;
-            });
-        }
+        // First sort containers by their service name within each project
+        filtered.sort((a, b) => {
+            const aService = a.compose_service || a.name;
+            const bService = b.compose_service || b.name;
+            return aService.localeCompare(bService);
+        });
 
-        // Group containers by compose project
+        // Then group containers by compose project
         const grouped: GroupedContainers = filtered.reduce((acc, container) => {
+            // Ensure we use the actual compose project name if available
             const projectKey = container.compose_project || 'Standalone Containers';
+
             if (!acc[projectKey]) {
                 acc[projectKey] = [];
             }
@@ -70,8 +70,20 @@ export const ContainerList: React.FC<ContainerListProps> = ({
             return acc;
         }, {} as GroupedContainers);
 
-        return grouped;
-    }, [containers, searchTerm, sortConfig]);
+        // Move Standalone Containers to the end and sort other projects alphabetically
+        const orderedGroups: GroupedContainers = {};
+        Object.keys(grouped)
+            .sort((a, b) => {
+                if (a === 'Standalone Containers') return 1;
+                if (b === 'Standalone Containers') return -1;
+                return a.localeCompare(b);
+            })
+            .forEach(key => {
+                orderedGroups[key] = grouped[key];
+            });
+
+        return orderedGroups;
+    }, [containers, searchTerm]);
 
     const handleContainerAction = async (containerId: string, action: string) => {
         try {
@@ -107,23 +119,20 @@ export const ContainerList: React.FC<ContainerListProps> = ({
     return (
         <div className="container-list">
             <SearchBar value={searchTerm} onChange={setSearchTerm} />
-            <div className="sort-header">
-                <button onClick={() => handleSort('name')} className="sort-button">
-                    Name {sortConfig.key === 'name' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                </button>
-                <button onClick={() => handleSort('status')} className="sort-button">
-                    Status {sortConfig.key === 'status' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                </button>
-                <button onClick={() => handleSort('state')} className="sort-button">
-                    State {sortConfig.key === 'state' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                </button>
+            <div className="sort-header mb-4">
+                <h2 className="text-xl font-semibold text-white mb-2">Container Groups</h2>
             </div>
             {Object.entries(filteredAndSortedContainers).map(([projectName, projectContainers]) => (
-                <div key={projectName} className="compose-project-group">
-                    <h3 className="compose-project-title">
-                        {projectName} ({projectContainers.length} containers)
-                    </h3>
-                    <div className="container-group">
+                <div key={projectName} className="compose-project-group mb-6">
+                    <div className="compose-project-header flex items-center justify-between mb-4">
+                        <h3 className="compose-project-title flex items-center">
+                            <span className="text-xl font-semibold">{projectName}</span>
+                            <span className="ml-3 px-2 py-1 bg-blue-500 text-white text-sm rounded-full">
+                                {projectContainers.length} {projectContainers.length === 1 ? 'container' : 'containers'}
+                            </span>
+                        </h3>
+                    </div>
+                    <div className="container-group grid gap-4">
                         {projectContainers.map(container => (
                             <ContainerRow
                                 key={container.id}

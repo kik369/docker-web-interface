@@ -106,56 +106,104 @@ class DockerService:
     def get_all_containers(self) -> Tuple[Optional[List[Container]], Optional[str]]:
         """Get all containers with their details."""
         try:
-            # Using --no-trunc to ensure we get full values
-            cmd = (
-                "docker ps -a --no-trunc --format '"
-                "{{.ID}}\t"
-                "{{.Names}}\t"
-                "{{.Image}}\t"
-                "{{.Status}}\t"
-                "{{.State}}\t"
-                "{{.CreatedAt}}\t"
-                "{{.Ports}}\t"
-                '{{.Label "com.docker.compose.project"}}\t'
-                '{{.Label "com.docker.compose.service"}}'
-                "'"
-            )
+            # Get all containers with their full details
+            cmd = "docker ps -a --format '{{.ID}}'"
             output, error = self.command_executor.execute(cmd)
             if error:
                 return None, error
 
             containers = []
-            for line in output.strip().split("\n"):
-                if line:
+            container_ids = [cid for cid in output.strip().split("\n") if cid]
+
+            if not container_ids:
+                return [], None
+
+            # Get detailed info for all containers at once
+            inspect_cmd = f"docker inspect {' '.join(container_ids)}"
+            inspect_output, inspect_error = self.command_executor.execute(inspect_cmd)
+            if inspect_error:
+                logger.error(f"Failed to inspect containers: {inspect_error}")
+                return None, inspect_error
+
+            try:
+                containers_info = json.loads(inspect_output)
+                for container_info in containers_info:
                     try:
-                        container = Container.from_docker_output(line)
-                        # If the container name contains our project prefix, ensure it's grouped
-                        if (
-                            container.compose_project is None
-                            or container.compose_project == ""
-                        ) and "docker_web_" in container.name:
-                            if "-" in container.name:
-                                # For containers like docker_web_interface-grafana-1
+                        # Extract labels
+                        labels = container_info.get("Config", {}).get("Labels", {})
+
+                        # Get compose project and service from labels
+                        compose_project = labels.get("com.docker.compose.project", "")
+                        compose_service = labels.get("com.docker.compose.service", "")
+
+                        # Create the container object
+                        container = Container(
+                            id=container_info["Id"],
+                            name=container_info["Name"].lstrip("/"),
+                            image=container_info["Config"]["Image"],
+                            status=container_info["State"]["Status"],
+                            state=container_info["State"]["Status"],
+                            created=datetime.strptime(
+                                container_info["Created"].split(".")[0],
+                                "%Y-%m-%dT%H:%M:%S",
+                            ),
+                            ports=self._format_ports(container_info),
+                            compose_project=compose_project or None,
+                            compose_service=compose_service or None,
+                        )
+
+                        # Only try to infer project/service if not already set by labels
+                        if not compose_project:
+                            name = container.name
+                            if "docker_web_" in name or name in [
+                                "grafana",
+                                "prometheus",
+                            ]:
                                 container.compose_project = "docker_web_interface"
-                                container.compose_service = container.name.split("-")[
-                                    1
-                                ].split("_")[0]
+                                if "-" in name:
+                                    service_name = name.split("-")[1]
+                                    if "_" in service_name:
+                                        service_name = service_name.split("_")[0]
+                                    container.compose_service = service_name
+                                else:
+                                    service_name = name.replace("docker_web_", "")
+                                    container.compose_service = service_name
                             else:
-                                # For containers like docker_web_frontend
-                                container.compose_project = "docker_web_interface"
-                                container.compose_service = container.name.replace(
-                                    "docker_web_", ""
-                                )
+                                container.compose_project = "Standalone Containers"
+                                container.compose_service = name
+
                         containers.append(container)
-                    except ValueError as e:
-                        logger.error(f"Error parsing container: {e}")
+                    except Exception as e:
+                        logger.error(
+                            f"Failed to process container {container_info.get('Id', 'unknown')}: {str(e)}"
+                        )
                         continue
 
+            except json.JSONDecodeError as e:
+                error_msg = f"Failed to parse container inspection data: {str(e)}"
+                logger.error(error_msg)
+                return None, error_msg
+
             return containers, None
+
         except Exception as e:
             error_msg = f"Failed to get containers: {str(e)}"
             logger.error(error_msg)
             return None, error_msg
+
+    def _format_ports(self, container_info: dict) -> str:
+        """Format port mappings from container info."""
+        ports = []
+        port_bindings = container_info.get("HostConfig", {}).get("PortBindings", {})
+
+        for container_port, host_bindings in port_bindings.items():
+            if host_bindings:
+                for binding in host_bindings:
+                    host_port = binding.get("HostPort", "")
+                    if host_port:
+                        ports.append(f"{host_port}->{container_port}")
+
+        return ", ".join(ports) if ports else ""
 
     def get_container_logs(
         self, container_id: str, lines: int = 100

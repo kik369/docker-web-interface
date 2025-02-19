@@ -79,63 +79,77 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
     };
 
     return (
-        <div className="bg-white rounded-lg shadow-md overflow-hidden">
+        <div className="bg-gray-800 rounded-lg shadow-lg overflow-hidden border border-gray-700">
             <div className="p-4">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
                         <div className={`w-3 h-3 rounded-full ${getStatusColor(container.state)}`} />
-                        <h3 className="text-lg font-semibold">{container.name}</h3>
+                        <div>
+                            <div className="flex items-center space-x-2">
+                                <h3 className="text-lg font-semibold text-white">{container.name}</h3>
+                                {container.compose_service && container.compose_service !== container.name && (
+                                    <span className="px-2 py-0.5 bg-blue-500 text-white text-xs rounded-full">
+                                        {container.compose_service}
+                                    </span>
+                                )}
+                            </div>
+                            <p className="text-sm text-gray-400">Image: {container.image}</p>
+                        </div>
                     </div>
                     <div className="flex items-center space-x-2">
                         <button
                             onClick={handleViewLogs}
-                            className="p-2 text-gray-500 hover:text-gray-700"
+                            className="p-2 text-gray-400 hover:text-white transition-colors"
                             disabled={isLoadingLogs}
+                            title="View Logs"
                         >
                             <HiDocument className="w-5 h-5" />
                         </button>
                         <button
                             onClick={() => handleAction('start')}
-                            className="p-2 text-gray-500 hover:text-green-600"
+                            className="p-2 text-gray-400 hover:text-green-400 transition-colors"
                             disabled={isActionLoading !== null || container.state === 'running'}
+                            title="Start Container"
                         >
                             <HiPlay className="w-5 h-5" />
                         </button>
                         <button
                             onClick={() => handleAction('stop')}
-                            className="p-2 text-gray-500 hover:text-red-600"
+                            className="p-2 text-gray-400 hover:text-red-400 transition-colors"
                             disabled={isActionLoading !== null || container.state !== 'running'}
+                            title="Stop Container"
                         >
                             <HiStop className="w-5 h-5" />
                         </button>
                         <button
                             onClick={() => handleAction('restart')}
-                            className="p-2 text-gray-500 hover:text-blue-600"
+                            className="p-2 text-gray-400 hover:text-blue-400 transition-colors"
                             disabled={isActionLoading !== null}
+                            title="Restart Container"
                         >
                             <HiRefresh className="w-5 h-5" />
                         </button>
                         <button
                             onClick={() => handleAction('rebuild')}
-                            className="p-2 text-gray-500 hover:text-purple-600"
+                            className="p-2 text-gray-400 hover:text-purple-400 transition-colors"
                             disabled={isActionLoading !== null}
+                            title="Rebuild Container"
                         >
                             <HiCog className="w-5 h-5" />
                         </button>
                     </div>
                 </div>
-                <div className="mt-2">
-                    <p className="text-sm text-gray-500">Image: {container.image}</p>
-                    <p className="text-sm text-gray-500">Status: {container.status}</p>
+                <div className="mt-2 space-y-1">
+                    <p className="text-sm text-gray-400">Status: <span className="text-gray-300">{container.status}</span></p>
                     {container.ports && (
-                        <p className="text-sm text-gray-500">Ports: {container.ports}</p>
+                        <p className="text-sm text-gray-400">Ports: <span className="text-gray-300">{container.ports}</span></p>
                     )}
                 </div>
             </div>
             {showLogs && (
                 <div className="px-4 pb-4">
-                    <div className="bg-gray-100 p-4 rounded">
-                        <pre className="text-sm whitespace-pre-wrap">{logs}</pre>
+                    <div className="bg-gray-900 p-4 rounded border border-gray-700">
+                        <pre className="text-sm text-gray-300 whitespace-pre-wrap">{logs}</pre>
                     </div>
                 </div>
             )}
