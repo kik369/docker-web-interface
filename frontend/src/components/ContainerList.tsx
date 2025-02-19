@@ -50,63 +50,34 @@ export const ContainerList: React.FC<ContainerListProps> = ({
             });
     }, [containers, searchTerm, sortConfig]);
 
-    if (error) {
-        return (
-            <div className="bg-red-500/10 border border-red-500 rounded-lg p-4 my-4">
-                <p className="text-red-500">{error}</p>
-            </div>
-        );
-    }
-
     return (
-        <div className="space-y-4">
-            <div className="flex justify-between items-center">
-                <SearchBar value={searchTerm} onChange={setSearchTerm} />
-            </div>
-
-            {isLoading && (
-                <div className="flex justify-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-                </div>
+        <div className="relative p-6 rounded-lg overflow-hidden" style={{
+            backgroundColor: 'rgba(17, 25, 40, 0.75)',
+            backdropFilter: 'blur(16px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(16px) saturate(180%)',
+            border: '1px solid rgba(255, 255, 255, 0.125)'
+        }}>
+            {error ? (
+                <div className="text-red-500">Error: {error}</div>
+            ) : (
+                <>
+                    <SearchBar value={searchTerm} onChange={setSearchTerm} />
+                    {isLoading ? (
+                        <div className="text-white">Loading...</div>
+                    ) : (
+                        <div className="space-y-4">
+                            {filteredAndSortedContainers.map(container => (
+                                <ContainerRow
+                                    key={container.id}
+                                    container={container}
+                                    isExpanded={expandedRows.has(container.id)}
+                                    onToggleExpand={() => toggleRowExpansion(container.id)}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </>
             )}
-
-            <div className="overflow-x-auto rounded-lg">
-                <table className="min-w-full bg-gray-800/80 backdrop-blur-sm">
-                    <thead>
-                        <tr>
-                            <th className="p-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                                <button
-                                    className="hover:text-white focus:outline-none"
-                                    onClick={() => handleSort('name')}
-                                >
-                                    Name {sortConfig.key === 'name' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                                </button>
-                            </th>
-                            <th className="p-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                                <button
-                                    className="hover:text-white focus:outline-none"
-                                    onClick={() => handleSort('status')}
-                                >
-                                    Status {sortConfig.key === 'status' && (sortConfig.direction === 'asc' ? '↑' : '↓')}
-                                </button>
-                            </th>
-                            <th className="p-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">
-                                Actions
-                            </th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-700">
-                        {filteredAndSortedContainers.map(container => (
-                            <ContainerRow
-                                key={container.id}
-                                container={container}
-                                isExpanded={expandedRows.has(container.id)}
-                                onToggleExpand={() => toggleRowExpansion(container.id)}
-                            />
-                        ))}
-                    </tbody>
-                </table>
-            </div>
         </div>
     );
 };
