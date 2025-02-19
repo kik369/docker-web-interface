@@ -1,17 +1,20 @@
 services:
-    api:
+    backend:
         build: ./backend
         ports:
             - '5000:5000'
         environment:
             - FLASK_ENV=development
             - FLASK_APP=docker_monitor.py
+            - LOG_LEVEL=INFO
+            - LOG_FORMAT=json
+            - PYTHONPATH=/app
         volumes:
             - ./backend:/app
             - /var/run/docker.sock:/var/run/docker.sock
         user: root
         command: gunicorn -b 0.0.0.0:5000 docker_monitor:app
-        container_name: docker_web_api
+        container_name: docker_web_backend
         develop:
             watch:
                 - action: sync
@@ -22,16 +25,22 @@ services:
                       - '*.pyc'
                 - action: rebuild
                   path: ./backend/requirements.txt
+        depends_on:
+            - prometheus
 
     frontend:
-        build: ./frontend
+        build:
+            context: ./frontend
+            dockerfile: Dockerfile
         ports:
-            - '3001:3000'
+            - '3002:3000'
         volumes:
             - ./frontend:/app
             - /app/node_modules
         environment:
             - REACT_APP_API_URL=http://localhost:5000
+            - REACT_APP_LOG_LEVEL=info
+            - REACT_APP_SEND_LOGS_TO_BACKEND=true
             - WATCHPACK_POLLING=true
         container_name: docker_web_frontend
         develop:
@@ -46,3 +55,35 @@ services:
                   target: /app/public
                 - action: rebuild
                   path: ./frontend/package.json
+        depends_on:
+            - backend
+
+    prometheus:
+        image: prom/prometheus:latest
+        ports:
+            - '9090:9090'
+        volumes:
+            - ./prometheus:/etc/prometheus
+            - prometheus_data:/prometheus
+        command:
+            - '--config.file=/etc/prometheus/prometheus.yml'
+            - '--storage.tsdb.path=/prometheus'
+            - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+            - '--web.console.templates=/usr/share/prometheus/consoles'
+
+    grafana:
+        image: grafana/grafana:latest
+        ports:
+            - '3001:3000'
+        volumes:
+            - grafana_data:/var/lib/grafana
+            - ./grafana/provisioning:/etc/grafana/provisioning
+        environment:
+            - GF_SECURITY_ADMIN_PASSWORD=admin
+            - GF_USERS_ALLOW_SIGN_UP=false
+        depends_on:
+            - prometheus
+
+volumes:
+    prometheus_data:
+    grafana_data:

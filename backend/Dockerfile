@@ -14,13 +14,12 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 COPY . /app
-RUN pip install --no-cache-dir -r requirements.txt
+
+# Install dependencies and the backend package in development mode
+RUN pip install --no-cache-dir -r requirements.txt && \
+    pip install -e .
 
 EXPOSE 5000
 
-# Use Flask development server when FLASK_ENV is development
-CMD if [ "$FLASK_ENV" = "development" ]; then \
-    flask run --host=0.0.0.0 --port=5000 --debug; \
-    else \
-    gunicorn -b 0.0.0.0:5000 docker_monitor:app; \
-    fi
+# Start the application with gunicorn
+CMD ["gunicorn", "-b", "0.0.0.0:5000", "docker_monitor:app"]

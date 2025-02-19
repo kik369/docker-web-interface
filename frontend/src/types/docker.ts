@@ -39,6 +39,7 @@ export interface ContainerRowProps {
     container: Container;
     isExpanded: boolean;
     onToggleExpand: () => void;
+    onAction: (containerId: string, action: string) => Promise<void>;
 }
 
 export interface SortConfig {

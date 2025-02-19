@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { Container, ContainerListProps, SortConfig } from '../types/docker';
 import { ContainerRow } from './ContainerRow';
 import { SearchBar } from './SearchBar';
+import { logger } from '../services/logging';
 
 export const ContainerList: React.FC<ContainerListProps> = ({
     containers,
@@ -50,6 +51,29 @@ export const ContainerList: React.FC<ContainerListProps> = ({
             });
     }, [containers, searchTerm, sortConfig]);
 
+    const handleContainerAction = async (containerId: string, action: string) => {
+        try {
+            logger.info(`Initiating ${action} action for container`, { containerId, action });
+            const response = await fetch(`http://localhost:5000/api/containers/${containerId}/${action}`, {
+                method: 'POST',
+            });
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || `Failed to ${action} container`);
+            }
+
+            logger.info(`Successfully completed ${action} action for container`, { containerId, action });
+        } catch (err) {
+            const errorMessage = err instanceof Error ? err.message : `Failed to ${action} container`;
+            logger.error(`Error during ${action} action for container`, err instanceof Error ? err : undefined, {
+                containerId,
+                action
+            });
+            throw new Error(errorMessage);
+        }
+    };
+
     return (
         <div className="relative p-6 rounded-lg overflow-hidden" style={{
             backgroundColor: 'rgba(17, 25, 40, 0.75)',
@@ -72,6 +96,7 @@ export const ContainerList: React.FC<ContainerListProps> = ({
                                     container={container}
                                     isExpanded={expandedRows.has(container.id)}
                                     onToggleExpand={() => toggleRowExpansion(container.id)}
+                                    onAction={handleContainerAction}
                                 />
                             ))}
                         </div>

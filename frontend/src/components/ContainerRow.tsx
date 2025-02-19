@@ -1,12 +1,10 @@
 import React, { useState } from 'react';
-import { HiInformationCircle, HiDocument, HiPlay, HiStop, HiRefresh, HiCog } from 'react-icons/hi';
-import { Transition, Popover } from '@headlessui/react';
+import { HiDocument, HiPlay, HiStop, HiRefresh, HiCog } from 'react-icons/hi';
 import { ContainerRowProps } from '../types/docker';
-import { useContainers } from '../hooks/useContainers';
+import { logger } from '../services/logging';
 
-const getStatusColor = (state: string | undefined, status: string | undefined): string => {
+const getStatusColor = (state: string | undefined): string => {
     const stateLower = (state || '').toLowerCase();
-    const statusLower = (status || '').toLowerCase();
 
     if (stateLower === 'running') {
         return 'bg-green-500';
@@ -24,12 +22,12 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
     container,
     isExpanded,
     onToggleExpand,
+    onAction
 }) => {
     const [logs, setLogs] = useState<string>('');
     const [showLogs, setShowLogs] = useState(false);
     const [isLoadingLogs, setIsLoadingLogs] = useState(false);
     const [isActionLoading, setIsActionLoading] = useState<string | null>(null);
-    const { fetchContainerLogs, startContainer, stopContainer, restartContainer, rebuildContainer } = useContainers();
 
     const handleViewLogs = async () => {
         if (showLogs) {
@@ -39,162 +37,107 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
         }
 
         try {
+            logger.info('Fetching container logs', { containerId: container.id });
             setIsLoadingLogs(true);
             if (!isExpanded) {
                 onToggleExpand();
             }
-            const containerLogs = await fetchContainerLogs(container.id);
-            setLogs(containerLogs);
+            const response = await fetch(`http://localhost:5000/api/containers/${container.id}/logs`);
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to fetch logs');
+            }
+
+            setLogs(data.data.logs);
             setShowLogs(true);
-        } catch (error) {
-            console.error('Failed to fetch logs:', error);
-            setLogs('Failed to fetch container logs');
+            logger.info('Successfully fetched container logs', { containerId: container.id });
+        } catch (err) {
+            logger.error('Failed to fetch container logs', err instanceof Error ? err : undefined, {
+                containerId: container.id
+            });
+            console.error('Failed to fetch logs:', err);
         } finally {
             setIsLoadingLogs(false);
         }
     };
 
-    const handleAction = async (action: string, actionFn: (id: string) => Promise<string>) => {
+    const handleAction = async (action: string) => {
         try {
             setIsActionLoading(action);
-            await actionFn(container.id);
-        } catch (error) {
-            console.error(`Failed to ${action} container:`, error);
+            await onAction(container.id, action);
+        } catch (err) {
+            logger.error(`Failed to perform ${action} action`, err instanceof Error ? err : undefined, {
+                containerId: container.id,
+                action
+            });
+            console.error(`Failed to ${action} container:`, err);
         } finally {
             setIsActionLoading(null);
         }
     };
 
-    const isRunning = (container.state || '').toLowerCase() === 'running';
-    const containerState = container.state || 'unknown';
-    const containerStatus = container.status || '';
-
     return (
-        <>
-            <tr className="hover:bg-gray-700/50">
-                <td className="p-3 text-sm text-white flex items-center space-x-2">
-                    <Popover className="relative">
-                        <Popover.Button className="focus:outline-none">
-                            <div className={`w-2.5 h-2.5 rounded-full ${getStatusColor(container.state, container.status)}`} />
-                        </Popover.Button>
-                        <Transition
-                            enter="transition duration-100 ease-out"
-                            enterFrom="transform scale-95 opacity-0"
-                            enterTo="transform scale-100 opacity-100"
-                            leave="transition duration-75 ease-out"
-                            leaveFrom="transform scale-100 opacity-100"
-                            leaveTo="transform scale-95 opacity-0"
-                        >
-                            <Popover.Panel className="absolute z-10 px-2 py-1 text-xs bg-gray-800 text-white rounded shadow-lg mt-1">
-                                <div>
-                                    <span className="font-semibold">State:</span> {containerState}
-                                </div>
-                                {containerStatus && (
-                                    <div>
-                                        <span className="font-semibold">Status:</span> {containerStatus}
-                                    </div>
-                                )}
-                            </Popover.Panel>
-                        </Transition>
-                    </Popover>
-                    <span>{container.name}</span>
-                </td>
-                <td className="p-3 text-sm">
-                    <span
-                        className={`px-2 py-1 rounded-full text-xs ${isRunning
-                            ? 'bg-green-500/20 text-green-300'
-                            : 'bg-yellow-500/20 text-yellow-300'
-                            }`}
-                    >
-                        {containerState}{containerStatus ? ` (${containerStatus})` : ''}
-                    </span>
-                </td>
-                <td className="p-3 text-sm space-x-2">
-                    <button
-                        onClick={onToggleExpand}
-                        className="text-blue-400 hover:text-blue-300 focus:outline-none inline-flex items-center space-x-1"
-                    >
-                        <HiInformationCircle className="h-5 w-5" />
-                        <span>{isExpanded ? 'Hide Details' : 'Show Details'}</span>
-                    </button>
-                    <button
-                        onClick={handleViewLogs}
-                        className="text-blue-400 hover:text-blue-300 focus:outline-none inline-flex items-center space-x-1"
-                        disabled={isLoadingLogs}
-                    >
-                        <HiDocument className="h-5 w-5" />
-                        <span>{isLoadingLogs ? 'Loading...' : showLogs ? 'Hide Logs' : 'Show Logs'}</span>
-                    </button>
-                    {!isRunning && (
+        <div className="bg-white rounded-lg shadow-md overflow-hidden">
+            <div className="p-4">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                        <div className={`w-3 h-3 rounded-full ${getStatusColor(container.state)}`} />
+                        <h3 className="text-lg font-semibold">{container.name}</h3>
+                    </div>
+                    <div className="flex items-center space-x-2">
                         <button
-                            onClick={() => handleAction('start', startContainer)}
-                            className="text-green-400 hover:text-green-300 focus:outline-none inline-flex items-center space-x-1"
-                            disabled={!!isActionLoading}
+                            onClick={handleViewLogs}
+                            className="p-2 text-gray-500 hover:text-gray-700"
+                            disabled={isLoadingLogs}
                         >
-                            <HiPlay className="h-5 w-5" />
-                            <span>{isActionLoading === 'start' ? 'Starting...' : 'Start'}</span>
+                            <HiDocument className="w-5 h-5" />
                         </button>
-                    )}
-                    {isRunning && (
                         <button
-                            onClick={() => handleAction('stop', stopContainer)}
-                            className="text-red-400 hover:text-red-300 focus:outline-none inline-flex items-center space-x-1"
-                            disabled={!!isActionLoading}
+                            onClick={() => handleAction('start')}
+                            className="p-2 text-gray-500 hover:text-green-600"
+                            disabled={isActionLoading !== null || container.state === 'running'}
                         >
-                            <HiStop className="h-5 w-5" />
-                            <span>{isActionLoading === 'stop' ? 'Stopping...' : 'Stop'}</span>
+                            <HiPlay className="w-5 h-5" />
                         </button>
+                        <button
+                            onClick={() => handleAction('stop')}
+                            className="p-2 text-gray-500 hover:text-red-600"
+                            disabled={isActionLoading !== null || container.state !== 'running'}
+                        >
+                            <HiStop className="w-5 h-5" />
+                        </button>
+                        <button
+                            onClick={() => handleAction('restart')}
+                            className="p-2 text-gray-500 hover:text-blue-600"
+                            disabled={isActionLoading !== null}
+                        >
+                            <HiRefresh className="w-5 h-5" />
+                        </button>
+                        <button
+                            onClick={() => handleAction('rebuild')}
+                            className="p-2 text-gray-500 hover:text-purple-600"
+                            disabled={isActionLoading !== null}
+                        >
+                            <HiCog className="w-5 h-5" />
+                        </button>
+                    </div>
+                </div>
+                <div className="mt-2">
+                    <p className="text-sm text-gray-500">Image: {container.image}</p>
+                    <p className="text-sm text-gray-500">Status: {container.status}</p>
+                    {container.ports && (
+                        <p className="text-sm text-gray-500">Ports: {container.ports}</p>
                     )}
-                    <button
-                        onClick={() => handleAction('restart', restartContainer)}
-                        className="text-yellow-400 hover:text-yellow-300 focus:outline-none inline-flex items-center space-x-1"
-                        disabled={!!isActionLoading}
-                    >
-                        <HiRefresh className="h-5 w-5" />
-                        <span>{isActionLoading === 'restart' ? 'Restarting...' : 'Restart'}</span>
-                    </button>
-                    <button
-                        onClick={() => handleAction('rebuild', rebuildContainer)}
-                        className="text-purple-400 hover:text-purple-300 focus:outline-none inline-flex items-center space-x-1"
-                        disabled={!!isActionLoading}
-                    >
-                        <HiCog className="h-5 w-5" />
-                        <span>{isActionLoading === 'rebuild' ? 'Rebuilding...' : 'Rebuild'}</span>
-                    </button>
-                </td>
-            </tr>
-            {isExpanded && (
-                <tr className="bg-gray-900/50">
-                    <td colSpan={3} className="p-4">
-                        <div className="grid grid-cols-[200px_1fr] gap-y-3 text-sm">
-                            <DetailRow label="Container ID" value={container.id} />
-                            <DetailRow label="Image" value={container.image} />
-                            <DetailRow label="Created" value={container.created} />
-                            <DetailRow label="Ports" value={container.ports} />
-                            {showLogs && logs && (
-                                <>
-                                    <p className="text-gray-400 pr-4">Container Logs</p>
-                                    <pre className="text-white bg-gray-800 p-3 rounded-lg overflow-x-auto font-mono text-xs">
-                                        {logs}
-                                    </pre>
-                                </>
-                            )}
-                        </div>
-                    </td>
-                </tr>
+                </div>
+            </div>
+            {showLogs && (
+                <div className="px-4 pb-4">
+                    <div className="bg-gray-100 p-4 rounded">
+                        <pre className="text-sm whitespace-pre-wrap">{logs}</pre>
+                    </div>
+                </div>
             )}
-        </>
+        </div>
     );
 };
-
-interface DetailRowProps {
-    label: string;
-    value: string;
-}
-
-const DetailRow: React.FC<DetailRowProps> = ({ label, value }) => (
-    <>
-        <p className="text-gray-400 pr-4 break-words">{label}</p>
-        <p className="text-white font-mono break-words whitespace-pre-wrap">{value}</p>
-    </>
-);
