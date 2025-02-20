@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { Container, ContainerListProps, SortConfig } from '../types/docker';
+import { Container, ContainerListProps } from '../types/docker';
 import { ContainerRow } from './ContainerRow';
 import { SearchBar } from './SearchBar';
 import { logger } from '../services/logging';
@@ -16,10 +16,6 @@ export const ContainerList: React.FC<ContainerListProps> = ({
 }) => {
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
     const [searchTerm, setSearchTerm] = useState('');
-    const [sortConfig, setSortConfig] = useState<SortConfig>({
-        key: null,
-        direction: 'asc',
-    });
 
     const toggleRowExpansion = useCallback((containerId: string) => {
         setExpandedRows(prev => {
@@ -31,13 +27,6 @@ export const ContainerList: React.FC<ContainerListProps> = ({
             }
             return newSet;
         });
-    }, []);
-
-    const handleSort = useCallback((key: keyof Container) => {
-        setSortConfig(prev => ({
-            key,
-            direction: prev.key === key && prev.direction === 'asc' ? 'desc' : 'asc',
-        }));
     }, []);
 
     const filteredAndSortedContainers = React.useMemo(() => {
