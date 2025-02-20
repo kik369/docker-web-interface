@@ -99,14 +99,26 @@ class DockerService:
                         labels
                     )
 
+                    # Determine a more reliable state based on boolean flags
+                    if state_info.get("Restarting"):
+                        computed_state = "restarting"
+                    elif state_info.get("Running"):
+                        computed_state = "running"
+                    elif state_info.get("Paused"):
+                        computed_state = "paused"
+                    else:
+                        computed_state = "stopped"
+
                     container = Container(
                         id=docker_container.id,
                         name=docker_container.name,
                         image=docker_container.image.tags[0]
                         if docker_container.image.tags
                         else docker_container.image.id,
-                        status=state_info.get("Status", "unknown"),
-                        state=state_info.get("Status", "unknown"),
+                        status=state_info.get(
+                            "Status", "unknown"
+                        ),  # Keep the detailed status
+                        state=computed_state,  # Use the computed binary state
                         created=datetime.strptime(
                             container_info["Created"].split(".")[0], "%Y-%m-%dT%H:%M:%S"
                         ),
