@@ -4,7 +4,11 @@ import { ContainerRowProps } from '../types/docker';
 import { logger } from '../services/logging';
 import { config } from '../config';
 
-const getStatusColor = (state: string | undefined): string => {
+const getStatusColor = (state: string | undefined, isActionLoading: string | null): string => {
+    if (isActionLoading) {
+        return 'bg-yellow-500 animate-pulse';
+    }
+
     const stateLower = (state || '').toLowerCase();
 
     if (stateLower === 'running') {
@@ -74,8 +78,21 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
             });
             console.error(`Failed to ${action} container:`, err);
         } finally {
-            setIsActionLoading(null);
+            // Don't clear isActionLoading here - it will be cleared when the container state changes
+            // This keeps the loading state visible while polling occurs
+            if (action !== 'stop' && action !== 'start' && action !== 'restart' && action !== 'rebuild') {
+                setIsActionLoading(null);
+            }
         }
+    };
+
+    // Get the status text based on current state and loading state
+    const getStatusText = () => {
+        if (isActionLoading === 'stop') return 'Stopping...';
+        if (isActionLoading === 'start') return 'Starting...';
+        if (isActionLoading === 'restart') return 'Restarting...';
+        if (isActionLoading === 'rebuild') return 'Rebuilding...';
+        return container.status;
     };
 
     return (
@@ -83,7 +100,7 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
             <div className="p-4">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
-                        <div className={`w-3 h-3 rounded-full ${getStatusColor(container.state)}`} />
+                        <div className={`w-3 h-3 rounded-full ${getStatusColor(container.state, isActionLoading)}`} />
                         <div>
                             <div className="flex items-center space-x-2">
                                 <h3 className="text-lg font-semibold text-white">{container.name}</h3>
@@ -112,7 +129,7 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                                 disabled={isActionLoading !== null}
                                 title={`Stop container (docker stop ${container.name})`}
                             >
-                                <HiStop className="w-5 h-5" />
+                                <HiStop className={`w-5 h-5 ${isActionLoading === 'stop' ? 'animate-pulse' : ''}`} />
                             </button>
                         ) : (
                             <button
@@ -121,7 +138,7 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                                 disabled={isActionLoading !== null}
                                 title={`Start container (docker start ${container.name})`}
                             >
-                                <HiPlay className="w-5 h-5" />
+                                <HiPlay className={`w-5 h-5 ${isActionLoading === 'start' ? 'animate-pulse' : ''}`} />
                             </button>
                         )}
                         <button
@@ -130,7 +147,7 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                             disabled={isActionLoading !== null}
                             title={`Restart container (docker restart ${container.name})`}
                         >
-                            <HiRefresh className="w-5 h-5" />
+                            <HiRefresh className={`w-5 h-5 ${isActionLoading === 'restart' ? 'animate-pulse' : ''}`} />
                         </button>
                         <button
                             onClick={() => handleAction('rebuild')}
@@ -138,12 +155,12 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                             disabled={isActionLoading !== null}
                             title={`Rebuild container (docker pull ${container.image} && docker run ...)`}
                         >
-                            <HiCog className="w-5 h-5" />
+                            <HiCog className={`w-5 h-5 ${isActionLoading === 'rebuild' ? 'animate-pulse' : ''}`} />
                         </button>
                     </div>
                 </div>
                 <div className="mt-2 space-y-1">
-                    <p className="text-sm text-gray-400">Status: <span className="text-gray-300">{container.status}</span></p>
+                    <p className="text-sm text-gray-400">Status: <span className="text-gray-300">{getStatusText()}</span></p>
                     {container.ports && (
                         <p className="text-sm text-gray-400">Ports: <span className="text-gray-300">{container.ports}</span></p>
                     )}
