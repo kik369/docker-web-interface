@@ -4,6 +4,7 @@ import { ContainerRow } from './ContainerRow';
 import { SearchBar } from './SearchBar';
 import { logger } from '../services/logging';
 import { config } from '../config';
+import { useContainers } from '../hooks/useContainers';
 
 interface GroupedContainers {
     [key: string]: Container[];
@@ -16,6 +17,7 @@ export const ContainerList: React.FC<ContainerListProps> = ({
 }) => {
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
     const [searchTerm, setSearchTerm] = useState('');
+    const { actionStates, startContainer, stopContainer, restartContainer, rebuildContainer } = useContainers();
 
     const toggleRowExpansion = useCallback((containerId: string) => {
         setExpandedRows(prev => {
@@ -77,16 +79,25 @@ export const ContainerList: React.FC<ContainerListProps> = ({
     const handleContainerAction = async (containerId: string, action: string) => {
         try {
             logger.info(`Initiating ${action} action for container`, { containerId, action });
-            const response = await fetch(`${config.API_URL}/api/containers/${containerId}/${action}`, {
-                method: 'POST',
-            });
-            const data = await response.json();
 
-            if (!response.ok) {
-                throw new Error(data.error || `Failed to ${action} container`);
+            switch (action) {
+                case 'start':
+                    await startContainer(containerId);
+                    break;
+                case 'stop':
+                    await stopContainer(containerId);
+                    break;
+                case 'restart':
+                    await restartContainer(containerId);
+                    break;
+                case 'rebuild':
+                    await rebuildContainer(containerId);
+                    break;
+                default:
+                    throw new Error(`Unknown action: ${action}`);
             }
 
-            logger.info(`Successfully completed ${action} action for container`, { containerId, action });
+            logger.info(`Successfully initiated ${action} action for container`, { containerId, action });
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : `Failed to ${action} container`;
             logger.error(`Error during ${action} action for container`, err instanceof Error ? err : undefined, {
@@ -131,6 +142,7 @@ export const ContainerList: React.FC<ContainerListProps> = ({
                                 isExpanded={expandedRows.has(container.id)}
                                 onToggleExpand={() => toggleRowExpansion(container.id)}
                                 onAction={handleContainerAction}
+                                actionInProgress={actionStates[container.id] || null}
                             />
                         ))}
                     </div>

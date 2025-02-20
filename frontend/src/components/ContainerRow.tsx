@@ -27,12 +27,12 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
     container,
     isExpanded,
     onToggleExpand,
-    onAction
+    onAction,
+    actionInProgress
 }) => {
     const [logs, setLogs] = useState<string>('');
     const [showLogs, setShowLogs] = useState(false);
     const [isLoadingLogs, setIsLoadingLogs] = useState(false);
-    const [isActionLoading, setIsActionLoading] = useState<string | null>(null);
 
     const handleViewLogs = async () => {
         if (showLogs) {
@@ -69,7 +69,6 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
 
     const handleAction = async (action: string) => {
         try {
-            setIsActionLoading(action);
             await onAction(container.id, action);
         } catch (err) {
             logger.error(`Failed to perform ${action} action`, err instanceof Error ? err : undefined, {
@@ -77,22 +76,23 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                 action
             });
             console.error(`Failed to ${action} container:`, err);
-        } finally {
-            // Don't clear isActionLoading here - it will be cleared when the container state changes
-            // This keeps the loading state visible while polling occurs
-            if (action !== 'stop' && action !== 'start' && action !== 'restart' && action !== 'rebuild') {
-                setIsActionLoading(null);
-            }
         }
     };
 
     // Get the status text based on current state and loading state
     const getStatusText = () => {
-        if (isActionLoading === 'stop') return 'Stopping...';
-        if (isActionLoading === 'start') return 'Starting...';
-        if (isActionLoading === 'restart') return 'Restarting...';
-        if (isActionLoading === 'rebuild') return 'Rebuilding...';
-        return container.status;
+        switch (actionInProgress) {
+            case 'stop':
+                return 'Stopping...';
+            case 'start':
+                return 'Starting...';
+            case 'restart':
+                return 'Restarting...';
+            case 'rebuild':
+                return 'Rebuilding...';
+            default:
+                return container.status;
+        }
     };
 
     return (
@@ -100,7 +100,7 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
             <div className="p-4">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
-                        <div className={`w-3 h-3 rounded-full ${getStatusColor(container.state, isActionLoading)}`} />
+                        <div className={`w-3 h-3 rounded-full ${getStatusColor(container.state, actionInProgress)}`} />
                         <div>
                             <div className="flex items-center space-x-2">
                                 <h3 className="text-lg font-semibold text-white">{container.name}</h3>
@@ -126,36 +126,36 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                             <button
                                 onClick={() => handleAction('stop')}
                                 className="p-2 text-gray-400 hover:text-red-400 transition-colors"
-                                disabled={isActionLoading !== null}
+                                disabled={actionInProgress !== null}
                                 title={`Stop container (docker stop ${container.name})`}
                             >
-                                <HiStop className={`w-5 h-5 ${isActionLoading === 'stop' ? 'animate-pulse' : ''}`} />
+                                <HiStop className={`w-5 h-5 ${actionInProgress === 'stop' ? 'animate-pulse' : ''}`} />
                             </button>
                         ) : (
                             <button
                                 onClick={() => handleAction('start')}
                                 className="p-2 text-gray-400 hover:text-green-400 transition-colors"
-                                disabled={isActionLoading !== null}
+                                disabled={actionInProgress !== null}
                                 title={`Start container (docker start ${container.name})`}
                             >
-                                <HiPlay className={`w-5 h-5 ${isActionLoading === 'start' ? 'animate-pulse' : ''}`} />
+                                <HiPlay className={`w-5 h-5 ${actionInProgress === 'start' ? 'animate-pulse' : ''}`} />
                             </button>
                         )}
                         <button
                             onClick={() => handleAction('restart')}
                             className="p-2 text-gray-400 hover:text-blue-400 transition-colors"
-                            disabled={isActionLoading !== null}
+                            disabled={actionInProgress !== null}
                             title={`Restart container (docker restart ${container.name})`}
                         >
-                            <HiRefresh className={`w-5 h-5 ${isActionLoading === 'restart' ? 'animate-pulse' : ''}`} />
+                            <HiRefresh className={`w-5 h-5 ${actionInProgress === 'restart' ? 'animate-pulse' : ''}`} />
                         </button>
                         <button
                             onClick={() => handleAction('rebuild')}
                             className="p-2 text-gray-400 hover:text-purple-400 transition-colors"
-                            disabled={isActionLoading !== null}
+                            disabled={actionInProgress !== null}
                             title={`Rebuild container (docker pull ${container.image} && docker run ...)`}
                         >
-                            <HiCog className={`w-5 h-5 ${isActionLoading === 'rebuild' ? 'animate-pulse' : ''}`} />
+                            <HiCog className={`w-5 h-5 ${actionInProgress === 'rebuild' ? 'animate-pulse' : ''}`} />
                         </button>
                     </div>
                 </div>

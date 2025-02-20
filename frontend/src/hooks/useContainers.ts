@@ -6,6 +6,7 @@ export const useContainers = () => {
     const [containers, setContainers] = useState<Container[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [actionStates, setActionStates] = useState<Record<string, string | null>>({});
     const [pollingIntervals, setPollingIntervals] = useState<{ [key: string]: NodeJS.Timeout }>({});
 
     const fetchContainers = useCallback(async () => {
@@ -66,16 +67,16 @@ export const useContainers = () => {
                     const updatedContainer = result.data.find(c => c.id === containerId);
 
                     if (updatedContainer) {
-                        const shouldStopPolling = (
+                        const hasReachedDoneState = (
                             (action === 'stop' && updatedContainer.state !== 'running') ||
-                            (action === 'start' && updatedContainer.state === 'running') ||
-                            (action === 'restart' && updatedContainer.state === 'running') ||
-                            (action === 'rebuild' && updatedContainer.state === 'running')
+                            ((action === 'start' || action === 'restart' || action === 'rebuild') && updatedContainer.state === 'running')
                         );
 
-                        if (shouldStopPolling) {
+                        if (hasReachedDoneState) {
                             clearInterval(pollingIntervals[containerId]);
                             delete pollingIntervals[containerId];
+                            // Clear the action state when container reaches final state
+                            setActionStates(prev => ({ ...prev, [containerId]: null }));
                             setContainers(result.data);
                         }
                     }
@@ -87,6 +88,8 @@ export const useContainers = () => {
             if (attempts >= maxAttempts) {
                 clearInterval(pollingIntervals[containerId]);
                 delete pollingIntervals[containerId];
+                // Clear the action state on timeout
+                setActionStates(prev => ({ ...prev, [containerId]: null }));
                 // Do a final refresh
                 await fetchContainers();
             }
@@ -105,12 +108,17 @@ export const useContainers = () => {
 
     const performContainerAction = useCallback(async (containerId: string, action: string) => {
         try {
+            // Set action state before making the request
+            setActionStates(prev => ({ ...prev, [containerId]: action }));
+
             const response = await fetch(`${config.API_URL}/api/containers/${containerId}/${action}`, {
                 method: 'POST',
             });
             const result: ApiResponse<{ message: string }> = await response.json();
 
             if (!response.ok) {
+                // Clear action state on error
+                setActionStates(prev => ({ ...prev, [containerId]: null }));
                 throw new Error(result.error || `Failed to ${action} container`);
             }
 
@@ -149,6 +157,7 @@ export const useContainers = () => {
         containers,
         isLoading,
         error,
+        actionStates,
         refresh: fetchContainers,
         fetchContainerLogs,
         startContainer,
