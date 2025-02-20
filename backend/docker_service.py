@@ -232,3 +232,20 @@ class DockerService:
             error_msg = f"Failed to rebuild container: {str(e)}"
             logger.error(error_msg)
             return False, error_msg
+
+    def format_container_data(self, containers: list[Container]) -> list[dict]:
+        """Format container data for API response."""
+        return [
+            {
+                "id": container.id,
+                "name": container.name,
+                "image": container.image,
+                "status": container.status,
+                "state": container.state,
+                "created": container.created.isoformat(),
+                "ports": container.ports,
+                "compose_project": container.compose_project,
+                "compose_service": container.compose_service,
+            }
+            for container in containers
+        ]

@@ -84,6 +84,8 @@ class FlaskApp:
                 "state": container.state,
                 "created": container.created.isoformat(),
                 "ports": container.ports,
+                "compose_project": container.compose_project,
+                "compose_service": container.compose_service,
             }
             for container in containers
         ]
