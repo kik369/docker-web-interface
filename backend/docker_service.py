@@ -43,29 +43,42 @@ class DockerService:
 
         return ", ".join(ports) if ports else ""
 
-    def _extract_compose_info(
-        self, labels: dict
-    ) -> tuple[Optional[str], Optional[str]]:
-        """Extract Docker Compose project and service information from container labels."""
+    def _extract_compose_info(self, labels: dict) -> tuple[str, str]:
+        """
+        Extract Docker Compose project and service information from container labels.
+        Falls back to parsing the container name if labels are not set.
+        """
+        # Try to get values from the Compose labels.
         compose_project = labels.get("com.docker.compose.project")
         compose_service = labels.get("com.docker.compose.service")
 
-        # If not set by labels, try to infer from name
-        if not compose_project and not compose_service:
-            name = labels.get("com.docker.compose.container-name", "")
-            if "docker_web_" in name or name in ["grafana", "prometheus"]:
-                compose_project = "docker_web_interface"
-                if "-" in name:
-                    service_name = name.split("-")[1]
-                    if "_" in service_name:
-                        service_name = service_name.split("_")[0]
-                    compose_service = service_name
+        # If no project label is present, attempt to parse from the container name.
+        if not compose_project:
+            container_name = labels.get("com.docker.compose.container-name", "")
+            if container_name:
+                # Docker Compose container names typically follow the pattern: project_service_index
+                parts = container_name.split("_")
+                if len(parts) >= 2:
+                    compose_project = parts[0]
+                    compose_service = parts[1]
                 else:
-                    service_name = name.replace("docker_web_", "")
-                    compose_service = service_name
+                    compose_project = "Standalone Containers"
+                    compose_service = container_name
             else:
                 compose_project = "Standalone Containers"
-                compose_service = name
+                compose_service = "unknown"
+        else:
+            # If project exists but service is missing, try to infer service from container name.
+            if not compose_service:
+                container_name = labels.get("com.docker.compose.container-name", "")
+                if container_name:
+                    parts = container_name.split("_")
+                    if len(parts) >= 2:
+                        compose_service = parts[1]
+                    else:
+                        compose_service = container_name
+                else:
+                    compose_service = "unknown"
 
         return compose_project, compose_service
 
