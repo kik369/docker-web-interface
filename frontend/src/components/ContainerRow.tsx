@@ -79,7 +79,7 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
     };
 
     return (
-        <div className="bg-gray-800 rounded-lg shadow-lg overflow-hidden border border-gray-700">
+        <div className="bg-gray-800 rounded-lg shadow-lg overflow-hidden">
             <div className="p-4">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
@@ -101,31 +101,34 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                             onClick={handleViewLogs}
                             className="p-2 text-gray-400 hover:text-white transition-colors"
                             disabled={isLoadingLogs}
-                            title="View Logs"
+                            title={`Show logs (docker logs ${container.name})`}
                         >
                             <HiDocument className="w-5 h-5" />
                         </button>
-                        <button
-                            onClick={() => handleAction('start')}
-                            className="p-2 text-gray-400 hover:text-green-400 transition-colors"
-                            disabled={isActionLoading !== null || container.state === 'running'}
-                            title="Start Container"
-                        >
-                            <HiPlay className="w-5 h-5" />
-                        </button>
-                        <button
-                            onClick={() => handleAction('stop')}
-                            className="p-2 text-gray-400 hover:text-red-400 transition-colors"
-                            disabled={isActionLoading !== null || container.state !== 'running'}
-                            title="Stop Container"
-                        >
-                            <HiStop className="w-5 h-5" />
-                        </button>
+                        {container.state === 'running' ? (
+                            <button
+                                onClick={() => handleAction('stop')}
+                                className="p-2 text-gray-400 hover:text-red-400 transition-colors"
+                                disabled={isActionLoading !== null}
+                                title={`Stop container (docker stop ${container.name})`}
+                            >
+                                <HiStop className="w-5 h-5" />
+                            </button>
+                        ) : (
+                            <button
+                                onClick={() => handleAction('start')}
+                                className="p-2 text-gray-400 hover:text-green-400 transition-colors"
+                                disabled={isActionLoading !== null}
+                                title={`Start container (docker start ${container.name})`}
+                            >
+                                <HiPlay className="w-5 h-5" />
+                            </button>
+                        )}
                         <button
                             onClick={() => handleAction('restart')}
                             className="p-2 text-gray-400 hover:text-blue-400 transition-colors"
                             disabled={isActionLoading !== null}
-                            title="Restart Container"
+                            title={`Restart container (docker restart ${container.name})`}
                         >
                             <HiRefresh className="w-5 h-5" />
                         </button>
@@ -133,7 +136,7 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                             onClick={() => handleAction('rebuild')}
                             className="p-2 text-gray-400 hover:text-purple-400 transition-colors"
                             disabled={isActionLoading !== null}
-                            title="Rebuild Container"
+                            title={`Rebuild container (docker pull ${container.image} && docker run ...)`}
                         >
                             <HiCog className="w-5 h-5" />
                         </button>
@@ -148,7 +151,7 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
             </div>
             {showLogs && (
                 <div className="px-4 pb-4">
-                    <div className="bg-gray-900 p-4 rounded border border-gray-700">
+                    <div className="bg-gray-900 p-4 rounded">
                         <pre className="text-sm text-gray-300 whitespace-pre-wrap">{logs}</pre>
                     </div>
                 </div>

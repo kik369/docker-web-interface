@@ -107,9 +107,11 @@ export const ContainerList: React.FC<ContainerListProps> = ({
 
     return (
         <div className="container-list">
-            <SearchBar value={searchTerm} onChange={setSearchTerm} />
-            <div className="sort-header mb-4">
-                <h2 className="text-xl font-semibold text-white mb-2">Container Groups</h2>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
+                <h2 className="text-xl font-semibold text-white mb-2 sm:mb-0">Container Groups</h2>
+                <div className="mb-2 sm:mb-0 sm:ml-4">
+                    <SearchBar value={searchTerm} onChange={setSearchTerm} />
+                </div>
             </div>
             {Object.entries(filteredAndSortedContainers).map(([projectName, projectContainers]) => (
                 <div key={projectName} className="compose-project-group mb-6">
