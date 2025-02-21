@@ -5,8 +5,15 @@ import { SearchBar } from './SearchBar';
 import { logger } from '../services/logging';
 import { useContainers } from '../hooks/useContainers';
 import { HiChevronDown, HiChevronRight } from 'react-icons/hi';
-import { FaDocker, FaServer } from 'react-icons/fa';
+import { FaServer } from 'react-icons/fa';
 import { BiCube } from 'react-icons/bi';
+import { IconBaseProps } from 'react-icons';
+
+// Create wrapper components for icons
+const ServerIcon = (props: IconBaseProps): JSX.Element => <FaServer {...props} />;
+const CubeIcon = (props: IconBaseProps): JSX.Element => <BiCube {...props} />;
+const ChevronDownIcon = (props: IconBaseProps): JSX.Element => <HiChevronDown {...props} />;
+const ChevronRightIcon = (props: IconBaseProps): JSX.Element => <HiChevronRight {...props} />;
 
 interface GroupedContainers {
     [key: string]: Container[];
@@ -157,11 +164,11 @@ export const ContainerList: React.FC<ContainerListProps> = ({
                     <h2 className="text-xl font-semibold text-white mb-2 sm:mb-0">Docker Compose Applications</h2>
                     <div className="flex items-center gap-2">
                         <div className="flex items-center px-2 py-1 bg-blue-500 text-white text-sm rounded-full">
-                            <FaServer className="w-4 h-4 mr-1" />
+                            <ServerIcon className="w-4 h-4 mr-1" />
                             <span>{Object.keys(filteredAndSortedContainers).filter(key => key !== 'Standalone Containers').length}</span>
                         </div>
                         <div className="flex items-center px-2 py-1 bg-blue-500 text-white text-sm rounded-full">
-                            <BiCube className="w-4 h-4 mr-1" />
+                            <CubeIcon className="w-4 h-4 mr-1" />
                             <span>
                                 {Object.entries(filteredAndSortedContainers)
                                     .filter(([key]) => key !== 'Standalone Containers')
@@ -183,13 +190,13 @@ export const ContainerList: React.FC<ContainerListProps> = ({
                         >
                             <h3 className="compose-project-title flex items-center">
                                 {expandedGroups.has(projectName) ? (
-                                    <HiChevronDown className="w-5 h-5 mr-2 text-gray-400" />
+                                    <ChevronDownIcon className="w-5 h-5 mr-2 text-gray-400" />
                                 ) : (
-                                    <HiChevronRight className="w-5 h-5 mr-2 text-gray-400" />
+                                    <ChevronRightIcon className="w-5 h-5 mr-2 text-gray-400" />
                                 )}
                                 {projectName}
                                 <div className="flex items-center ml-3 px-2 py-1 bg-blue-500 text-white text-sm rounded-full">
-                                    <BiCube className="w-4 h-4 mr-1" />
+                                    <CubeIcon className="w-4 h-4 mr-1" />
                                     <span>{projectContainers.length}</span>
                                 </div>
                             </h3>
@@ -218,7 +225,7 @@ export const ContainerList: React.FC<ContainerListProps> = ({
                     <div className="flex items-center gap-2 mb-4">
                         <h2 className="text-xl font-semibold text-white">Standalone Containers</h2>
                         <div className="flex items-center px-2 py-1 bg-blue-500 text-white text-sm rounded-full">
-                            <BiCube className="w-4 h-4 mr-1" />
+                            <CubeIcon className="w-4 h-4 mr-1" />
                             <span>{filteredAndSortedContainers['Standalone Containers'].length}</span>
                         </div>
                     </div>

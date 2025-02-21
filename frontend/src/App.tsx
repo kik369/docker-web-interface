@@ -4,7 +4,6 @@ import Background from './components/Background';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Settings } from './components/Settings';
 import { useContainers } from './hooks/useContainers';
-import { config } from './config';
 import { getSettings, updateRateLimit, updateRefreshInterval } from './services/settings';
 import './App.css';
 

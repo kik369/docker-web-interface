@@ -153,7 +153,7 @@ export const useContainers = () => {
         return () => {
             Object.values(pollingIntervals).forEach(clearInterval);
         };
-    }, [fetchContainers]);
+    }, [fetchContainers, pollingIntervals]);
 
     return {
         containers,
