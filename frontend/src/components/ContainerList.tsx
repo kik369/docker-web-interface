@@ -3,7 +3,6 @@ import { Container, ContainerListProps } from '../types/docker';
 import { ContainerRow } from './ContainerRow';
 import { SearchBar } from './SearchBar';
 import { logger } from '../services/logging';
-import { config } from '../config';
 import { useContainers } from '../hooks/useContainers';
 
 interface GroupedContainers {
