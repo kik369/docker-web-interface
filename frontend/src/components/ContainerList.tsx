@@ -10,19 +10,19 @@ import { BiCube } from 'react-icons/bi';
 import { IconBaseProps } from 'react-icons';
 
 // Create wrapper components for icons
-const ServerIcon: React.FC<IconBaseProps> = (props) => (
+const ServerIcon: React.FC<IconBaseProps> = (props): React.JSX.Element => (
     <FaServer {...props} />
 );
 
-const CubeIcon: React.FC<IconBaseProps> = (props) => (
+const CubeIcon: React.FC<IconBaseProps> = (props): React.JSX.Element => (
     <BiCube {...props} />
 );
 
-const ChevronDownIcon: React.FC<IconBaseProps> = (props) => (
+const ChevronDownIcon: React.FC<IconBaseProps> = (props): React.JSX.Element => (
     <HiChevronDown {...props} />
 );
 
-const ChevronRightIcon: React.FC<IconBaseProps> = (props) => (
+const ChevronRightIcon: React.FC<IconBaseProps> = (props): React.JSX.Element => (
     <HiChevronRight {...props} />
 );
 

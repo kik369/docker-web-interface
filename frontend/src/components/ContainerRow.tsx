@@ -7,23 +7,23 @@ import { logger } from '../services/logging';
 import { config } from '../config';
 
 // Create wrapper components for icons
-const DocumentIcon: React.FC<IconBaseProps> = (props) => (
+const DocumentIcon: React.FC<IconBaseProps> = (props): React.JSX.Element => (
     <HiDocument {...props} />
 );
 
-const PlayIcon: React.FC<IconBaseProps> = (props) => (
+const PlayIcon: React.FC<IconBaseProps> = (props): React.JSX.Element => (
     <HiPlay {...props} />
 );
 
-const StopIcon: React.FC<IconBaseProps> = (props) => (
+const StopIcon: React.FC<IconBaseProps> = (props): React.JSX.Element => (
     <HiStop {...props} />
 );
 
-const RefreshIcon: React.FC<IconBaseProps> = (props) => (
+const RefreshIcon: React.FC<IconBaseProps> = (props): React.JSX.Element => (
     <HiRefresh {...props} />
 );
 
-const CogIcon: React.FC<IconBaseProps> = (props) => (
+const CogIcon: React.FC<IconBaseProps> = (props): React.JSX.Element => (
     <HiCog {...props} />
 );
 
