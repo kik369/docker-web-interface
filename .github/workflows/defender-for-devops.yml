@@ -40,8 +40,10 @@ jobs:
           dotnet-version: |
             5.0.x
             6.0.x
+      - name: Clear npm cache
+        run: npm cache clean --force
       - name: Install ESLint
-        run: npm install --loglevel error eslint@8.56.0 @microsoft/eslint-plugin-sdl@0.2.2 @microsoft/eslint-formatter-sarif@3.1.0
+        run: npm install --loglevel verbose eslint@8.56.0 @microsoft/eslint-plugin-sdl@0.2.2 @microsoft/eslint-formatter-sarif@3.1.0
       - name: Run ESLint
         run: npx eslint . --ext .js,.ts
       - name: Run Microsoft Security DevOps
