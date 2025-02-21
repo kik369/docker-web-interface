@@ -1,0 +1,19 @@
+version: 2
+updates:
+  # For the backend (Python)
+  - package-ecosystem: "pip"
+    directory: "/kik369-docker-web-interface/backend"
+    schedule:
+      interval: "weekly"
+    versioning-strategy: "increase"
+    allow:
+      - dependency-type: "direct"
+
+  # For the frontend (Node.js)
+  - package-ecosystem: "npm"
+    directory: "/kik369-docker-web-interface/frontend"
+    schedule:
+      interval: "weekly"
+    versioning-strategy: "increase"
+    allow:
+      - dependency-type: "direct"
