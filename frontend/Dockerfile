@@ -4,11 +4,11 @@ ENV NODE_OPTIONS=--openssl-legacy-provider
 
 WORKDIR /app
 COPY package.json ./
-RUN yarn cache clean && \
-    yarn install --force && \
-    yarn cache clean
+COPY package-lock.json ./
+
+RUN npm install --legacy-peer-deps
 
 COPY . .
 
 EXPOSE 3000
-CMD ["yarn", "start"]
+CMD ["npm", "start"]
