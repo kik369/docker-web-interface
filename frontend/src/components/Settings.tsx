@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 interface SettingsProps {
     onSave: (settings: { refreshInterval: number, rateLimit: number }) => void;
@@ -10,12 +10,30 @@ export const Settings: React.FC<SettingsProps> = ({ onSave, currentSettings }) =
     const [refreshInterval, setRefreshInterval] = useState(Math.round(currentSettings.refreshInterval));
     const [rateLimit, setRateLimit] = useState(currentSettings.rateLimit);
     const [showSavedMessage, setShowSavedMessage] = useState(false);
+    const settingsRef = useRef<HTMLDivElement>(null);
 
     // Update local state when currentSettings change
     useEffect(() => {
         setRefreshInterval(Math.round(currentSettings.refreshInterval));
         setRateLimit(currentSettings.rateLimit);
     }, [currentSettings]);
+
+    // Handle click outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (settingsRef.current && !settingsRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+
+        if (isOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, [isOpen]);
 
     // Auto-save when values change
     useEffect(() => {
@@ -36,7 +54,7 @@ export const Settings: React.FC<SettingsProps> = ({ onSave, currentSettings }) =
     }, [refreshInterval, rateLimit, onSave, currentSettings]);
 
     return (
-        <div className="relative">
+        <div className="relative" ref={settingsRef}>
             <button
                 onClick={() => setIsOpen(!isOpen)}
                 className="px-4 py-2 bg-gray-700 text-white rounded hover:bg-gray-600 transition-colors"
