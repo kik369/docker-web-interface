@@ -25,7 +25,7 @@ class Config:
     )
 
     # Rate limiting
-    MAX_REQUESTS_PER_MINUTE: int = int(os.getenv("MAX_REQUESTS_PER_MINUTE", "60"))
+    MAX_REQUESTS_PER_MINUTE: int = int(os.getenv("MAX_REQUESTS_PER_MINUTE", "1000"))
 
     # Frontend settings
     REFRESH_INTERVAL: int = int(os.getenv("REFRESH_INTERVAL", "30"))

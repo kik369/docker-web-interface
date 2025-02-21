@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import wraps
 from typing import Any, Callable, Dict
 
@@ -40,39 +40,42 @@ class FlaskApp:
             now = datetime.now()
             min_ago = now.replace(second=0, microsecond=0)
 
+            # Clean up old entries (keep only last 2 minutes)
+            self.request_counts = {
+                ts: count
+                for ts, count in self.request_counts.items()
+                if now - ts < timedelta(minutes=2)
+            }
+
             # Reset counts for a new minute
             if min_ago not in self.request_counts:
-                self.request_counts.clear()
                 self.request_counts[min_ago] = 1
             else:
                 self.request_counts[min_ago] += 1
 
+            # Check if rate limit is exceeded
             if self.request_counts[min_ago] > self.current_rate_limit:
-                return self.error_response("Rate limit exceeded", 429)
+                logger.warning(
+                    f"Rate limit exceeded: {self.request_counts[min_ago]} requests in the last minute (limit: {self.current_rate_limit})"
+                )
+                return self.error_response(
+                    f"Rate limit exceeded. Maximum {self.current_rate_limit} requests per minute allowed.",
+                    429,
+                )
 
             return f(*args, **kwargs)
 
         return decorated_function
 
-    def error_response(self, message: str, status_code: int = 500) -> Response:
-        """Create a standardized error response."""
-        return jsonify(
-            {
-                "error": message,
-                "status": "error",
-                "timestamp": datetime.utcnow().isoformat(),
-            }
-        ), status_code
+    def error_response(self, message: str, status_code: int = 400) -> Response:
+        """Return an error response."""
+        response = jsonify({"status": "error", "error": message})
+        response.status_code = status_code
+        return response
 
     def success_response(self, data: Any) -> Response:
-        """Create a standardized success response."""
-        return jsonify(
-            {
-                "data": data,
-                "status": "success",
-                "timestamp": datetime.utcnow().isoformat(),
-            }
-        )
+        """Return a success response."""
+        return jsonify({"status": "success", "data": data})
 
     def format_container_data(self, containers: list[Container]) -> list[dict]:
         """Format container data for API response."""

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { ContainerList } from './components/ContainerList';
 import Background from './components/Background';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -14,13 +14,13 @@ const loadSettings = () => {
     if (savedSettings) {
         const parsed = JSON.parse(savedSettings);
         return {
-            refreshInterval: parsed.refreshInterval,
+            refreshInterval: Math.round(parsed.refreshInterval),
             rateLimit: parsed.rateLimit
         };
     }
     return {
-        refreshInterval: config.REFRESH_INTERVAL / 1000,
-        rateLimit: 60 // Default rate limit
+        refreshInterval: 30, // Default 30 seconds
+        rateLimit: 1000 // Default rate limit
     };
 };
 
@@ -34,9 +34,13 @@ function App() {
         const fetchSettings = async () => {
             try {
                 const backendSettings = await getSettings();
-                setSettings(backendSettings);
-                setSecondsUntilRefresh(backendSettings.refreshInterval);
-                localStorage.setItem('app-settings', JSON.stringify(backendSettings));
+                const roundedSettings = {
+                    ...backendSettings,
+                    refreshInterval: Math.round(backendSettings.refreshInterval)
+                };
+                setSettings(roundedSettings);
+                setSecondsUntilRefresh(roundedSettings.refreshInterval);
+                localStorage.setItem('app-settings', JSON.stringify(roundedSettings));
             } catch (error) {
                 console.error('Failed to fetch settings:', error);
             }
@@ -50,12 +54,15 @@ function App() {
             await updateRateLimit(newSettings.rateLimit);
 
             // Update local settings
-            setSettings(newSettings);
-            localStorage.setItem('app-settings', JSON.stringify(newSettings));
-            setSecondsUntilRefresh(newSettings.refreshInterval);
+            const roundedSettings = {
+                ...newSettings,
+                refreshInterval: Math.round(newSettings.refreshInterval)
+            };
+            setSettings(roundedSettings);
+            localStorage.setItem('app-settings', JSON.stringify(roundedSettings));
+            setSecondsUntilRefresh(roundedSettings.refreshInterval);
         } catch (error) {
             console.error('Failed to save settings:', error);
-            // Optionally show an error message to the user
         }
     };
 
@@ -70,9 +77,10 @@ function App() {
         const countdownInterval = setInterval(() => {
             setSecondsUntilRefresh((prev: number) => {
                 if (prev <= 1) {
+                    refresh();
                     return settings.refreshInterval;
                 }
-                return prev - 1;
+                return Math.max(0, prev - 1);
             });
         }, 1000);
 
@@ -82,10 +90,23 @@ function App() {
         };
     }, [refresh, settings.refreshInterval]);
 
-    const handleManualRefresh = () => {
+    const handleManualRefresh = useCallback(() => {
         refresh();
         setSecondsUntilRefresh(settings.refreshInterval);
-    };
+    }, [refresh, settings.refreshInterval]);
+
+    // Add Ctrl+R handler
+    useEffect(() => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if ((event.ctrlKey || event.metaKey) && event.key === 'r') {
+                event.preventDefault();
+                handleManualRefresh();
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [handleManualRefresh]);
 
     return (
         <ErrorBoundary>
@@ -97,14 +118,8 @@ function App() {
                             Running Docker Containers
                         </h1>
                         <div className='flex items-center space-x-4'>
-                            <button
-                                onClick={handleManualRefresh}
-                                className='px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors'
-                            >
-                                Refresh
-                            </button>
                             <span className='text-sm text-gray-300'>
-                                Refresh in {secondsUntilRefresh}s
+                                Next refresh in {Math.max(0, Math.round(secondsUntilRefresh))}s
                             </span>
                             <Settings onSave={handleSettingsSave} currentSettings={settings} />
                         </div>
