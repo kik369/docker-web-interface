@@ -5,7 +5,7 @@ from typing import Any, Callable, Dict
 
 from config import Config
 from docker_service import Container, DockerService
-from flask import Flask, Response, jsonify
+from flask import Flask, Response, jsonify, request
 from flask_cors import CORS
 from werkzeug.exceptions import HTTPException
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -23,6 +23,7 @@ class FlaskApp:
         self.setup_app()
         self.docker_service = DockerService()
         self.request_counts: Dict[datetime, int] = {}
+        self.current_rate_limit = Config.MAX_REQUESTS_PER_MINUTE
         self.setup_routes()  # Set up routes during initialization
 
     def setup_app(self) -> None:
@@ -46,7 +47,7 @@ class FlaskApp:
             else:
                 self.request_counts[min_ago] += 1
 
-            if self.request_counts[min_ago] > Config.MAX_REQUESTS_PER_MINUTE:
+            if self.request_counts[min_ago] > self.current_rate_limit:
                 return self.error_response("Rate limit exceeded", 429)
 
             return f(*args, **kwargs)
@@ -135,6 +136,31 @@ class FlaskApp:
 
             return self.success_response(
                 {"message": f"Container {action}ed successfully"}
+            )
+
+        @self.app.route("/api/settings/rate-limit", methods=["POST"])
+        def update_rate_limit() -> Response:
+            try:
+                data = request.get_json()
+                new_rate_limit = int(data.get("rateLimit", self.current_rate_limit))
+
+                if new_rate_limit < 1:
+                    return self.error_response("Rate limit must be greater than 0", 400)
+
+                self.current_rate_limit = new_rate_limit
+                return self.success_response({"rateLimit": self.current_rate_limit})
+            except (TypeError, ValueError) as e:
+                return self.error_response(f"Invalid rate limit value: {str(e)}", 400)
+            except Exception as e:
+                return self.error_response(f"Failed to update rate limit: {str(e)}")
+
+        @self.app.route("/api/settings")
+        def get_settings() -> Response:
+            return self.success_response(
+                {
+                    "rateLimit": self.current_rate_limit,
+                    "refreshInterval": Config.REFRESH_INTERVAL,
+                }
             )
 
         @self.app.errorhandler(Exception)

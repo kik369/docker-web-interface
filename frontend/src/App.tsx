@@ -2,26 +2,75 @@ import React, { useEffect, useState } from 'react';
 import { ContainerList } from './components/ContainerList';
 import Background from './components/Background';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { Settings } from './components/Settings';
 import { useContainers } from './hooks/useContainers';
 import { config } from './config';
+import { getSettings, updateRateLimit } from './services/settings';
 import './App.css';
+
+// Load settings from localStorage or use defaults
+const loadSettings = () => {
+    const savedSettings = localStorage.getItem('app-settings');
+    if (savedSettings) {
+        const parsed = JSON.parse(savedSettings);
+        return {
+            refreshInterval: parsed.refreshInterval,
+            rateLimit: parsed.rateLimit
+        };
+    }
+    return {
+        refreshInterval: config.REFRESH_INTERVAL / 1000,
+        rateLimit: 60 // Default rate limit
+    };
+};
 
 function App() {
     const { containers, isLoading, error, refresh } = useContainers();
-    const [secondsUntilRefresh, setSecondsUntilRefresh] = useState(config.REFRESH_INTERVAL / 1000);
+    const [settings, setSettings] = useState(loadSettings);
+    const [secondsUntilRefresh, setSecondsUntilRefresh] = useState(settings.refreshInterval);
+
+    // Fetch initial settings from the backend
+    useEffect(() => {
+        const fetchSettings = async () => {
+            try {
+                const backendSettings = await getSettings();
+                setSettings(backendSettings);
+                setSecondsUntilRefresh(backendSettings.refreshInterval);
+                localStorage.setItem('app-settings', JSON.stringify(backendSettings));
+            } catch (error) {
+                console.error('Failed to fetch settings:', error);
+            }
+        };
+        fetchSettings();
+    }, []);
+
+    const handleSettingsSave = async (newSettings: { refreshInterval: number, rateLimit: number }) => {
+        try {
+            // Update rate limit in the backend
+            await updateRateLimit(newSettings.rateLimit);
+
+            // Update local settings
+            setSettings(newSettings);
+            localStorage.setItem('app-settings', JSON.stringify(newSettings));
+            setSecondsUntilRefresh(newSettings.refreshInterval);
+        } catch (error) {
+            console.error('Failed to save settings:', error);
+            // Optionally show an error message to the user
+        }
+    };
 
     useEffect(() => {
         // Auto refresh interval
         const refreshInterval = setInterval(() => {
             refresh();
-            setSecondsUntilRefresh(config.REFRESH_INTERVAL / 1000);
-        }, config.REFRESH_INTERVAL);
+            setSecondsUntilRefresh(settings.refreshInterval);
+        }, settings.refreshInterval * 1000);
 
         // Countdown interval
         const countdownInterval = setInterval(() => {
-            setSecondsUntilRefresh((prev) => {
+            setSecondsUntilRefresh((prev: number) => {
                 if (prev <= 1) {
-                    return config.REFRESH_INTERVAL / 1000;
+                    return settings.refreshInterval;
                 }
                 return prev - 1;
             });
@@ -31,11 +80,11 @@ function App() {
             clearInterval(refreshInterval);
             clearInterval(countdownInterval);
         };
-    }, [refresh]);
+    }, [refresh, settings.refreshInterval]);
 
     const handleManualRefresh = () => {
         refresh();
-        setSecondsUntilRefresh(config.REFRESH_INTERVAL / 1000);
+        setSecondsUntilRefresh(settings.refreshInterval);
     };
 
     return (
@@ -57,6 +106,7 @@ function App() {
                             <span className='text-sm text-gray-300'>
                                 Refresh in {secondsUntilRefresh}s
                             </span>
+                            <Settings onSave={handleSettingsSave} currentSettings={settings} />
                         </div>
                     </div>
                     <ContainerList

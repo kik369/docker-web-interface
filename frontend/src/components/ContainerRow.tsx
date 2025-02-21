@@ -7,11 +7,11 @@ import { logger } from '../services/logging';
 import { config } from '../config';
 
 // Create wrapper components for icons
-const DocumentIcon = (props: IconBaseProps): JSX.Element => <HiDocument {...props} />;
-const PlayIcon = (props: IconBaseProps): JSX.Element => <HiPlay {...props} />;
-const StopIcon = (props: IconBaseProps): JSX.Element => <HiStop {...props} />;
-const RefreshIcon = (props: IconBaseProps): JSX.Element => <HiRefresh {...props} />;
-const CogIcon = (props: IconBaseProps): JSX.Element => <HiCog {...props} />;
+const DocumentIcon = (props: IconBaseProps): React.ReactNode => <HiDocument {...props} />;
+const PlayIcon = (props: IconBaseProps): React.ReactNode => <HiPlay {...props} />;
+const StopIcon = (props: IconBaseProps): React.ReactNode => <HiStop {...props} />;
+const RefreshIcon = (props: IconBaseProps): React.ReactNode => <HiRefresh {...props} />;
+const CogIcon = (props: IconBaseProps): React.ReactNode => <HiCog {...props} />;
 
 const getStatusColor = (state: string | undefined, isActionLoading: string | null): string => {
     if (isActionLoading) {
