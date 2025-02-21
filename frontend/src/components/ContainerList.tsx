@@ -4,6 +4,7 @@ import { ContainerRow } from './ContainerRow';
 import { SearchBar } from './SearchBar';
 import { logger } from '../services/logging';
 import { useContainers } from '../hooks/useContainers';
+import { HiChevronDown, HiChevronRight } from 'react-icons/hi';
 
 interface GroupedContainers {
     [key: string]: Container[];
@@ -15,6 +16,7 @@ export const ContainerList: React.FC<ContainerListProps> = ({
     error,
 }) => {
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+    const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
     const [searchTerm, setSearchTerm] = useState('');
     const { actionStates, startContainer, stopContainer, restartContainer, rebuildContainer } = useContainers();
 
@@ -25,6 +27,18 @@ export const ContainerList: React.FC<ContainerListProps> = ({
                 newSet.delete(containerId);
             } else {
                 newSet.add(containerId);
+            }
+            return newSet;
+        });
+    }, []);
+
+    const toggleGroupExpansion = useCallback((groupName: string) => {
+        setExpandedGroups(prev => {
+            const newSet = new Set(prev);
+            if (prev.has(groupName)) {
+                newSet.delete(groupName);
+            } else {
+                newSet.add(groupName);
             }
             return newSet;
         });
@@ -125,26 +139,36 @@ export const ContainerList: React.FC<ContainerListProps> = ({
             </div>
             {Object.entries(filteredAndSortedContainers).map(([projectName, projectContainers]) => (
                 <div key={projectName} className="compose-project-group mb-6">
-                    <div className="compose-project-header flex items-center justify-between mb-4">
+                    <div
+                        className="compose-project-header flex items-center justify-between mb-4 cursor-pointer hover:bg-gray-700 p-2 rounded-lg transition-colors duration-200"
+                        onClick={() => toggleGroupExpansion(projectName)}
+                    >
                         <h3 className="compose-project-title flex items-center">
+                            {expandedGroups.has(projectName) ? (
+                                <HiChevronDown className="w-5 h-5 mr-2 text-gray-400" />
+                            ) : (
+                                <HiChevronRight className="w-5 h-5 mr-2 text-gray-400" />
+                            )}
                             <span className="text-xl font-semibold">{projectName}</span>
                             <span className="ml-3 px-2 py-1 bg-blue-500 text-white text-sm rounded-full">
                                 {projectContainers.length} {projectContainers.length === 1 ? 'container' : 'containers'}
                             </span>
                         </h3>
                     </div>
-                    <div className="container-group grid gap-4">
-                        {projectContainers.map(container => (
-                            <ContainerRow
-                                key={container.id}
-                                container={container}
-                                isExpanded={expandedRows.has(container.id)}
-                                onToggleExpand={() => toggleRowExpansion(container.id)}
-                                onAction={handleContainerAction}
-                                actionInProgress={actionStates[container.id] || null}
-                            />
-                        ))}
-                    </div>
+                    {expandedGroups.has(projectName) && (
+                        <div className="container-group grid gap-4">
+                            {projectContainers.map(container => (
+                                <ContainerRow
+                                    key={container.id}
+                                    container={container}
+                                    isExpanded={expandedRows.has(container.id)}
+                                    onToggleExpand={() => toggleRowExpansion(container.id)}
+                                    onAction={handleContainerAction}
+                                    actionInProgress={actionStates[container.id] || null}
+                                />
+                            ))}
+                        </div>
+                    )}
                 </div>
             ))}
         </div>
