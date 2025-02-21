@@ -1,88 +1,90 @@
 # Docker Web Interface
 
-Web-based Docker container monitoring interface built with Flask and React.
+A web-based interface for monitoring Docker containers, built with Flask and React.
 
-## Project Structure
+## Project Overview
 
-```
-docker_web_interface/
-├── backend/          # Flask API
-├── frontend/         # React frontend
-└── docker-compose.yml
-```
+This project provides a Docker container management interface through a Flask API and a React frontend. It allows users to view, manage, and interact with running containers. Key features include:
 
-## Setup & Run
+-   View running containers
+-   Start, stop, restart, or rebuild containers
+-   View logs for each container
+-   Refresh container list automatically
+-   Rate-limited API calls to prevent overloading
 
-Build and run with Docker Compose:
+## Architecture
 
-For development with watch mode (auto-reload on changes):
+-   **Backend**: Flask API that communicates with Docker to fetch container data and manage container states.
+-   **Frontend**: React application displaying container data and providing controls for container management.
+-   **Docker**: Used for containerization and handling environment-specific configurations.
+
+## Setup
+
+To set up the project with Docker Compose:
+
+1. Clone this repository.
+2. Run the following command to build and start containers:
+
+    ```bash
+    docker compose up --build -d
+    ```
+
+3. Access the interface at [http://localhost:3001](http://localhost:3001).
+
+### Development
+
+For development with auto-reload:
 
 ```bash
-docker compose watch
+docker compose up --watch
 ```
 
-For regular deployment:
+This will start the app in development mode, auto-reloading the backend and frontend on changes.
 
-```bash
-docker compose up --build -d
-```
+## Environment Variables
 
-Access the interface:
-
-```
-http://localhost:3001
-```
-
-## Configuration
-
-Environment variables in `docker-compose.yml`:
-
--   `FLASK_ENV`: development/production (default: production)
--   `REFRESH_INTERVAL`: auto-refresh interval in seconds (default: 30)
--   `MAX_REQUESTS_PER_MINUTE`: rate limit (default: 60)
+-   **FLASK_ENV**: Set to `development` or `production`. Default is `production`.
+-   **REFRESH_INTERVAL**: The interval (in seconds) between automatic container list refreshes. Default: `30`.
+-   **MAX_REQUESTS_PER_MINUTE**: Rate limit for API calls. Default: `60`.
 
 ## Docker Socket Access
 
-This application requires access to the Docker socket (`/var/run/docker.sock`), which is a Unix socket that serves as the API endpoint for Docker. Here's what this means:
-
-### What is the Docker Socket?
-
-The Docker socket is the primary way Docker daemon communicates with clients (like this application). It's a file on your system that allows programs to interact with Docker, enabling them to:
-
--   List containers
--   Monitor container states
--   Start/stop containers
--   Access container logs
--   And perform other Docker operations
-
-### Security Considerations
-
-⚠️ **Important**: Granting access to the Docker socket effectively gives root-level access to the host system. Consider the following:
-
--   Only run this application in trusted environments
--   Ensure proper file permissions on the Docker socket
--   Consider using Docker's API proxy or socket proxy for enhanced security
--   In production environments, consider using Docker's Remote API with TLS encryption
-
-### Required Setup
-
-The application needs the socket mounted as a volume, which is already configured in the `docker-compose.yml`:
+This project requires Docker socket access (`/var/run/docker.sock`) to interact with the Docker daemon. The socket is mounted in the `docker-compose.yml`:
 
 ```yaml
 volumes:
     - /var/run/docker.sock:/var/run/docker.sock
 ```
 
-For manual Docker runs, include the volume mount:
+Ensure proper security and permissions when using this in production.
 
-```bash
-docker run -v /var/run/docker.sock:/var/run/docker.sock ...
+## File Structure
+
+```
+docker_web_interface/
+├── backend/          # Flask API
+├── frontend/         # React frontend
+├── docker-compose.yml # Docker Compose configuration
 ```
 
-### Troubleshooting
+## Features
 
-If you encounter permission issues:
+-   **Backend**:
 
-1. Ensure your user is in the 'docker' group
-2. Check socket permissions (default: 660)
-3. Verify the socket exists at `/var/run/docker.sock`
+    -   `/api/containers`: Fetch all containers
+    -   `/api/containers/{id}/logs`: Fetch logs for a specific container
+    -   `/api/containers/{id}/{action}`: Manage container actions (`start`, `stop`, `restart`, `rebuild`)
+
+-   **Frontend**:
+    -   Displays container list, allows searching and filtering
+    -   Provides buttons for container actions (start, stop, restart, rebuild)
+    -   Auto-refreshes the container list based on the configured interval
+
+## Security Considerations
+
+-   **Docker Socket Access**: Granting access to the Docker socket provides root-level access to the system. Ensure the environment is trusted, and consider using Docker's Remote API for production.
+
+## Troubleshooting
+
+1. **Permission Issues**: Ensure your user is in the `docker` group and check socket permissions (`/var/run/docker.sock`).
+2. **Rate Limits**: The backend is rate-limited at `MAX_REQUESTS_PER_MINUTE` to avoid overload.
