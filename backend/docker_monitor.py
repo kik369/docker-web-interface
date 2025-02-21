@@ -94,6 +94,10 @@ class FlaskApp:
     def setup_routes(self) -> None:
         """Set up application routes."""
 
+        @self.app.route("/")
+        def root() -> Response:
+            return self.success_response({"message": "Backend is up and running"})
+
         @self.app.route("/api/containers")
         @self.rate_limit
         def get_containers() -> Response:
