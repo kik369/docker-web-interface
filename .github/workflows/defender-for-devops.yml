@@ -28,14 +28,13 @@ on:
 
 jobs:
   MSDO:
-    # currently only windows latest is supported
     runs-on: windows-latest
 
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v3
         with:
-          node-version: "16.x" # Ensure the correct Node.js version
+          node-version: "16.x"
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: |
