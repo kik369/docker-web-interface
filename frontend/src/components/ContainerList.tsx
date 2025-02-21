@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Container, ContainerListProps } from '../types/docker';
 import { ContainerRow } from './ContainerRow';
 import { SearchBar } from './SearchBar';
@@ -12,15 +12,34 @@ interface GroupedContainers {
     [key: string]: Container[];
 }
 
+const STORAGE_KEY = 'dockerWebInterface_expandedGroups';
+
 export const ContainerList: React.FC<ContainerListProps> = ({
     containers = [],
     isLoading,
     error,
 }) => {
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
-    const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+    const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => {
+        try {
+            const saved = localStorage.getItem(STORAGE_KEY);
+            return saved ? new Set(JSON.parse(saved)) : new Set();
+        } catch (err) {
+            logger.error('Failed to load expanded groups from localStorage:', err instanceof Error ? err : new Error(String(err)));
+            return new Set();
+        }
+    });
     const [searchTerm, setSearchTerm] = useState('');
     const { actionStates, startContainer, stopContainer, restartContainer, rebuildContainer } = useContainers();
+
+    // Save expanded groups to localStorage whenever they change
+    useEffect(() => {
+        try {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(expandedGroups)));
+        } catch (err) {
+            logger.error('Failed to save expanded groups to localStorage:', err instanceof Error ? err : new Error(String(err)));
+        }
+    }, [expandedGroups]);
 
     const toggleRowExpansion = useCallback((containerId: string) => {
         setExpandedRows(prev => {
