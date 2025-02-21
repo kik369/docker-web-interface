@@ -11,6 +11,8 @@ export const useContainers = () => {
 
     const fetchContainers = useCallback(async () => {
         try {
+            console.log('Fetching containers...');
+            setIsLoading(true);
             const response = await fetch(`${config.API_URL}/api/containers`);
             const result: ApiResponse<Container[]> = await response.json();
 
@@ -22,9 +24,11 @@ export const useContainers = () => {
                 throw new Error(result.error || 'Failed to fetch containers');
             }
 
+            console.log('Containers fetched successfully:', result.data.length);
             setContainers(result.data);
             setError(null);
         } catch (err) {
+            console.error('Error fetching containers:', err);
             setError(err instanceof Error ? err.message : 'An unexpected error occurred');
         } finally {
             setIsLoading(false);
@@ -145,13 +149,11 @@ export const useContainers = () => {
 
     useEffect(() => {
         fetchContainers();
-        const interval = setInterval(fetchContainers, config.REFRESH_INTERVAL);
+        // Clean up any active polling intervals
         return () => {
-            clearInterval(interval);
-            // Clean up any active polling intervals
             Object.values(pollingIntervals).forEach(clearInterval);
         };
-    }, [fetchContainers, pollingIntervals]);
+    }, [fetchContainers]);
 
     return {
         containers,

@@ -5,23 +5,29 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { Settings } from './components/Settings';
 import { useContainers } from './hooks/useContainers';
 import { config } from './config';
-import { getSettings, updateRateLimit } from './services/settings';
+import { getSettings, updateRateLimit, updateRefreshInterval } from './services/settings';
 import './App.css';
 
 // Load settings from localStorage or use defaults
 const loadSettings = () => {
     const savedSettings = localStorage.getItem('app-settings');
-    if (savedSettings) {
-        const parsed = JSON.parse(savedSettings);
-        return {
-            refreshInterval: Math.round(parsed.refreshInterval),
-            rateLimit: parsed.rateLimit
-        };
-    }
-    return {
+    const defaultSettings = {
         refreshInterval: 30, // Default 30 seconds
         rateLimit: 1000 // Default rate limit
     };
+
+    if (savedSettings) {
+        try {
+            const parsed = JSON.parse(savedSettings);
+            return {
+                refreshInterval: Math.max(5, Math.round(parsed.refreshInterval)) || defaultSettings.refreshInterval,
+                rateLimit: Math.max(1, parsed.rateLimit) || defaultSettings.rateLimit
+            };
+        } catch (e) {
+            return defaultSettings;
+        }
+    }
+    return defaultSettings;
 };
 
 function App() {
@@ -36,13 +42,17 @@ function App() {
                 const backendSettings = await getSettings();
                 const roundedSettings = {
                     ...backendSettings,
-                    refreshInterval: Math.round(backendSettings.refreshInterval)
+                    refreshInterval: Math.max(5, Math.round(backendSettings.refreshInterval))
                 };
                 setSettings(roundedSettings);
                 setSecondsUntilRefresh(roundedSettings.refreshInterval);
                 localStorage.setItem('app-settings', JSON.stringify(roundedSettings));
             } catch (error) {
                 console.error('Failed to fetch settings:', error);
+                // On error, keep using the local settings
+                const localSettings = loadSettings();
+                setSettings(localSettings);
+                setSecondsUntilRefresh(localSettings.refreshInterval);
             }
         };
         fetchSettings();
@@ -50,14 +60,18 @@ function App() {
 
     const handleSettingsSave = async (newSettings: { refreshInterval: number, rateLimit: number }) => {
         try {
-            // Update rate limit in the backend
-            await updateRateLimit(newSettings.rateLimit);
-
-            // Update local settings
             const roundedSettings = {
                 ...newSettings,
-                refreshInterval: Math.round(newSettings.refreshInterval)
+                refreshInterval: Math.max(5, Math.round(newSettings.refreshInterval))
             };
+
+            // Update both settings in the backend
+            await Promise.all([
+                updateRateLimit(roundedSettings.rateLimit),
+                updateRefreshInterval(roundedSettings.refreshInterval)
+            ]);
+
+            // Update local settings
             setSettings(roundedSettings);
             localStorage.setItem('app-settings', JSON.stringify(roundedSettings));
             setSecondsUntilRefresh(roundedSettings.refreshInterval);
@@ -66,32 +80,35 @@ function App() {
         }
     };
 
+    // Combine refresh and countdown into a single effect
     useEffect(() => {
-        // Auto refresh interval
-        const refreshInterval = setInterval(() => {
-            refresh();
-            setSecondsUntilRefresh(settings.refreshInterval);
-        }, settings.refreshInterval * 1000);
+        let lastRefreshTime = Date.now();
 
-        // Countdown interval
-        const countdownInterval = setInterval(() => {
-            setSecondsUntilRefresh((prev: number) => {
-                if (prev <= 1) {
-                    refresh();
-                    return settings.refreshInterval;
-                }
-                return Math.max(0, prev - 1);
-            });
+        const intervalId = setInterval(async () => {
+            const now = Date.now();
+            const timeSinceLastRefresh = Math.floor((now - lastRefreshTime) / 1000);
+            const nextRefresh = settings.refreshInterval - timeSinceLastRefresh;
+
+            if (nextRefresh <= 0) {
+                console.log('Triggering refresh...');
+                await refresh();
+                lastRefreshTime = Date.now(); // Update after refresh completes
+                setSecondsUntilRefresh(settings.refreshInterval);
+                console.log('Refresh complete, reset timer');
+            } else {
+                setSecondsUntilRefresh(nextRefresh);
+            }
         }, 1000);
 
-        return () => {
-            clearInterval(refreshInterval);
-            clearInterval(countdownInterval);
-        };
+        // Initial refresh
+        refresh();
+
+        return () => clearInterval(intervalId);
     }, [refresh, settings.refreshInterval]);
 
-    const handleManualRefresh = useCallback(() => {
-        refresh();
+    const handleManualRefresh = useCallback(async () => {
+        console.log('Manual refresh triggered');
+        await refresh();
         setSecondsUntilRefresh(settings.refreshInterval);
     }, [refresh, settings.refreshInterval]);
 

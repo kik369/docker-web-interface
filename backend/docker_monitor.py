@@ -24,6 +24,7 @@ class FlaskApp:
         self.docker_service = DockerService()
         self.request_counts: Dict[datetime, int] = {}
         self.current_rate_limit = Config.MAX_REQUESTS_PER_MINUTE
+        self.current_refresh_interval = Config.REFRESH_INTERVAL
         self.setup_routes()  # Set up routes during initialization
 
     def setup_app(self) -> None:
@@ -161,12 +162,40 @@ class FlaskApp:
             except Exception as e:
                 return self.error_response(f"Failed to update rate limit: {str(e)}")
 
+        @self.app.route("/api/settings/refresh-interval", methods=["POST"])
+        def update_refresh_interval() -> Response:
+            try:
+                data = request.get_json()
+                new_refresh_interval = int(
+                    data.get("refreshInterval", self.current_refresh_interval)
+                )
+
+                if new_refresh_interval < 5:
+                    return self.error_response(
+                        "Refresh interval must be at least 5 seconds", 400
+                    )
+
+                self.current_refresh_interval = new_refresh_interval
+                Config.REFRESH_INTERVAL = new_refresh_interval
+                return self.success_response(
+                    {"refreshInterval": self.current_refresh_interval * 1000}
+                )  # Convert to milliseconds
+            except (TypeError, ValueError) as e:
+                return self.error_response(
+                    f"Invalid refresh interval value: {str(e)}", 400
+                )
+            except Exception as e:
+                return self.error_response(
+                    f"Failed to update refresh interval: {str(e)}"
+                )
+
         @self.app.route("/api/settings")
         def get_settings() -> Response:
             return self.success_response(
                 {
                     "rateLimit": self.current_rate_limit,
-                    "refreshInterval": Config.REFRESH_INTERVAL,
+                    "refreshInterval": self.current_refresh_interval
+                    * 1000,  # Convert to milliseconds for frontend
                 }
             )
 

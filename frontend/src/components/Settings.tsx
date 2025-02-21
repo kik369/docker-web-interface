@@ -20,16 +20,20 @@ export const Settings: React.FC<SettingsProps> = ({ onSave, currentSettings }) =
     // Auto-save when values change
     useEffect(() => {
         const timeoutId = setTimeout(() => {
-            onSave({
-                refreshInterval: Math.round(refreshInterval),
-                rateLimit
-            });
-            setShowSavedMessage(true);
-            setTimeout(() => setShowSavedMessage(false), 2000);
+            // Only save if values have actually changed
+            if (refreshInterval !== currentSettings.refreshInterval ||
+                rateLimit !== currentSettings.rateLimit) {
+                onSave({
+                    refreshInterval: Math.round(refreshInterval),
+                    rateLimit
+                });
+                setShowSavedMessage(true);
+                setTimeout(() => setShowSavedMessage(false), 2000);
+            }
         }, 500);
 
         return () => clearTimeout(timeoutId);
-    }, [refreshInterval, rateLimit, onSave]);
+    }, [refreshInterval, rateLimit, onSave, currentSettings]);
 
     return (
         <div className="relative">
