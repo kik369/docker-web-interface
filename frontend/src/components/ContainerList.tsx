@@ -10,10 +10,21 @@ import { BiCube } from 'react-icons/bi';
 import { IconBaseProps } from 'react-icons';
 
 // Create wrapper components for icons
-const ServerIcon = (props: IconBaseProps): JSX.Element => <FaServer {...props} />;
-const CubeIcon = (props: IconBaseProps): JSX.Element => <BiCube {...props} />;
-const ChevronDownIcon = (props: IconBaseProps): JSX.Element => <HiChevronDown {...props} />;
-const ChevronRightIcon = (props: IconBaseProps): JSX.Element => <HiChevronRight {...props} />;
+const ServerIcon: React.FC<IconBaseProps> = (props) => (
+    <FaServer {...props} />
+);
+
+const CubeIcon: React.FC<IconBaseProps> = (props) => (
+    <BiCube {...props} />
+);
+
+const ChevronDownIcon: React.FC<IconBaseProps> = (props) => (
+    <HiChevronDown {...props} />
+);
+
+const ChevronRightIcon: React.FC<IconBaseProps> = (props) => (
+    <HiChevronRight {...props} />
+);
 
 interface GroupedContainers {
     [key: string]: Container[];
