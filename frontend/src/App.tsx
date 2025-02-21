@@ -132,7 +132,7 @@ function App() {
                 <div className='container mx-auto p-4 relative'>
                     <div className='flex justify-between items-center mb-4'>
                         <h1 className='text-3xl font-bold text-white'>
-                            Running Docker Containers
+                            Docker Container Management
                         </h1>
                         <div className='flex items-center space-x-4'>
                             <span className='text-sm text-gray-300'>

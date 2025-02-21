@@ -5,6 +5,8 @@ import { SearchBar } from './SearchBar';
 import { logger } from '../services/logging';
 import { useContainers } from '../hooks/useContainers';
 import { HiChevronDown, HiChevronRight } from 'react-icons/hi';
+import { FaDocker, FaServer } from 'react-icons/fa';
+import { BiCube } from 'react-icons/bi';
 
 interface GroupedContainers {
     [key: string]: Container[];
@@ -132,45 +134,89 @@ export const ContainerList: React.FC<ContainerListProps> = ({
     return (
         <div className="container-list">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-white mb-2 sm:mb-0">Container Groups</h2>
+                <div className="flex items-center gap-4">
+                    <h2 className="text-xl font-semibold text-white mb-2 sm:mb-0">Docker Compose Applications</h2>
+                    <div className="flex items-center gap-2">
+                        <div className="flex items-center px-2 py-1 bg-blue-500 text-white text-sm rounded-full">
+                            <FaServer className="w-4 h-4 mr-1" />
+                            <span>{Object.keys(filteredAndSortedContainers).filter(key => key !== 'Standalone Containers').length}</span>
+                        </div>
+                        <div className="flex items-center px-2 py-1 bg-blue-500 text-white text-sm rounded-full">
+                            <BiCube className="w-4 h-4 mr-1" />
+                            <span>
+                                {Object.entries(filteredAndSortedContainers)
+                                    .filter(([key]) => key !== 'Standalone Containers')
+                                    .reduce((acc, [_, containers]) => acc + containers.length, 0)}
+                            </span>
+                        </div>
+                    </div>
+                </div>
                 <div className="mb-2 sm:mb-0 sm:ml-4">
                     <SearchBar value={searchTerm} onChange={setSearchTerm} />
                 </div>
             </div>
             {Object.entries(filteredAndSortedContainers).map(([projectName, projectContainers]) => (
-                <div key={projectName} className="compose-project-group mb-6">
-                    <div
-                        className="compose-project-header flex items-center justify-between mb-4 cursor-pointer hover:bg-gray-700 p-2 rounded-lg transition-colors duration-200"
-                        onClick={() => toggleGroupExpansion(projectName)}
-                    >
-                        <h3 className="compose-project-title flex items-center">
-                            {expandedGroups.has(projectName) ? (
-                                <HiChevronDown className="w-5 h-5 mr-2 text-gray-400" />
-                            ) : (
-                                <HiChevronRight className="w-5 h-5 mr-2 text-gray-400" />
-                            )}
-                            <span className="text-xl font-semibold">{projectName}</span>
-                            <span className="ml-3 px-2 py-1 bg-blue-500 text-white text-sm rounded-full">
-                                {projectContainers.length} {projectContainers.length === 1 ? 'container' : 'containers'}
-                            </span>
-                        </h3>
-                    </div>
-                    {expandedGroups.has(projectName) && (
-                        <div className="container-group grid gap-4">
-                            {projectContainers.map(container => (
-                                <ContainerRow
-                                    key={container.id}
-                                    container={container}
-                                    isExpanded={expandedRows.has(container.id)}
-                                    onToggleExpand={() => toggleRowExpansion(container.id)}
-                                    onAction={handleContainerAction}
-                                    actionInProgress={actionStates[container.id] || null}
-                                />
-                            ))}
+                projectName !== 'Standalone Containers' ? (
+                    <div key={projectName} className="compose-project-group mb-6">
+                        <div
+                            className="compose-project-header flex items-center justify-between mb-4 cursor-pointer hover:bg-gray-700 p-2 rounded-lg transition-colors duration-200"
+                            onClick={() => toggleGroupExpansion(projectName)}
+                        >
+                            <h3 className="compose-project-title flex items-center">
+                                {expandedGroups.has(projectName) ? (
+                                    <HiChevronDown className="w-5 h-5 mr-2 text-gray-400" />
+                                ) : (
+                                    <HiChevronRight className="w-5 h-5 mr-2 text-gray-400" />
+                                )}
+                                {projectName}
+                                <div className="flex items-center ml-3 px-2 py-1 bg-blue-500 text-white text-sm rounded-full">
+                                    <BiCube className="w-4 h-4 mr-1" />
+                                    <span>{projectContainers.length}</span>
+                                </div>
+                            </h3>
                         </div>
-                    )}
-                </div>
+                        {expandedGroups.has(projectName) && (
+                            <div className="container-group pl-4">
+                                {projectContainers.map(container => (
+                                    <ContainerRow
+                                        key={container.id}
+                                        container={container}
+                                        isExpanded={expandedRows.has(container.id)}
+                                        onToggleExpand={() => toggleRowExpansion(container.id)}
+                                        onAction={handleContainerAction}
+                                        actionInProgress={actionStates[container.id] || null}
+                                    />
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                ) : null
             ))}
+
+            {/* Standalone Containers Section */}
+            {filteredAndSortedContainers['Standalone Containers'] && (
+                <div className="mt-8">
+                    <div className="flex items-center gap-2 mb-4">
+                        <h2 className="text-xl font-semibold text-white">Standalone Containers</h2>
+                        <div className="flex items-center px-2 py-1 bg-blue-500 text-white text-sm rounded-full">
+                            <BiCube className="w-4 h-4 mr-1" />
+                            <span>{filteredAndSortedContainers['Standalone Containers'].length}</span>
+                        </div>
+                    </div>
+                    <div className="container-group">
+                        {filteredAndSortedContainers['Standalone Containers'].map(container => (
+                            <ContainerRow
+                                key={container.id}
+                                container={container}
+                                isExpanded={expandedRows.has(container.id)}
+                                onToggleExpand={() => toggleRowExpansion(container.id)}
+                                onAction={handleContainerAction}
+                                actionInProgress={actionStates[container.id] || null}
+                            />
+                        ))}
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
