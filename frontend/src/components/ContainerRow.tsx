@@ -1,8 +1,17 @@
-import React, { useState } from 'react';
+/// <reference types="react" />
+import React from 'react';
+import { IconBaseProps } from 'react-icons';
 import { HiDocument, HiPlay, HiStop, HiRefresh, HiCog } from 'react-icons/hi';
 import { ContainerRowProps } from '../types/docker';
 import { logger } from '../services/logging';
 import { config } from '../config';
+
+// Create wrapper components for icons
+const DocumentIcon = (props: IconBaseProps) => <HiDocument {...props} />;
+const PlayIcon = (props: IconBaseProps) => <HiPlay {...props} />;
+const StopIcon = (props: IconBaseProps) => <HiStop {...props} />;
+const RefreshIcon = (props: IconBaseProps) => <HiRefresh {...props} />;
+const CogIcon = (props: IconBaseProps) => <HiCog {...props} />;
 
 const getStatusColor = (state: string | undefined, isActionLoading: string | null): string => {
     if (isActionLoading) {
@@ -30,9 +39,9 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
     onAction,
     actionInProgress
 }) => {
-    const [logs, setLogs] = useState<string>('');
-    const [showLogs, setShowLogs] = useState(false);
-    const [isLoadingLogs, setIsLoadingLogs] = useState(false);
+    const [logs, setLogs] = React.useState<string>('');
+    const [showLogs, setShowLogs] = React.useState(false);
+    const [isLoadingLogs, setIsLoadingLogs] = React.useState(false);
 
     const handleViewLogs = async () => {
         if (showLogs) {
@@ -120,7 +129,7 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                             disabled={isLoadingLogs}
                             title={`Show logs (docker logs ${container.name})`}
                         >
-                            <HiDocument className="w-5 h-5" />
+                            <DocumentIcon className="w-5 h-5" />
                         </button>
                         {container.state === 'running' ? (
                             <button
@@ -129,7 +138,7 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                                 disabled={actionInProgress !== null}
                                 title={`Stop container (docker stop ${container.name})`}
                             >
-                                <HiStop className={`w-5 h-5 ${actionInProgress === 'stop' ? 'animate-pulse' : ''}`} />
+                                <StopIcon className={`w-5 h-5 ${actionInProgress === 'stop' ? 'animate-pulse' : ''}`} />
                             </button>
                         ) : (
                             <button
@@ -138,7 +147,7 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                                 disabled={actionInProgress !== null}
                                 title={`Start container (docker start ${container.name})`}
                             >
-                                <HiPlay className={`w-5 h-5 ${actionInProgress === 'start' ? 'animate-pulse' : ''}`} />
+                                <PlayIcon className={`w-5 h-5 ${actionInProgress === 'start' ? 'animate-pulse' : ''}`} />
                             </button>
                         )}
                         <button
@@ -147,7 +156,7 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                             disabled={actionInProgress !== null}
                             title={`Restart container (docker restart ${container.name})`}
                         >
-                            <HiRefresh className={`w-5 h-5 ${actionInProgress === 'restart' ? 'animate-pulse' : ''}`} />
+                            <RefreshIcon className={`w-5 h-5 ${actionInProgress === 'restart' ? 'animate-pulse' : ''}`} />
                         </button>
                         <button
                             onClick={() => handleAction('rebuild')}
@@ -155,7 +164,7 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                             disabled={actionInProgress !== null}
                             title={`Rebuild container (docker pull ${container.image} && docker run ...)`}
                         >
-                            <HiCog className={`w-5 h-5 ${actionInProgress === 'rebuild' ? 'animate-pulse' : ''}`} />
+                            <CogIcon className={`w-5 h-5 ${actionInProgress === 'rebuild' ? 'animate-pulse' : ''}`} />
                         </button>
                     </div>
                 </div>
