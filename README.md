@@ -34,10 +34,6 @@ graph TD
     A -->|WebSocket| B
     B -->|Docker SDK| C[Docker Engine]
     B -->|Metrics| D[Container Stats]
-    style A fill:#61dafb
-    style B fill:#000000
-    style C fill:#2496ed
-    style D fill:#2496ed
 ```
 
 1. **Frontend React**
