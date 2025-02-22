@@ -32,22 +32,30 @@ const TrashIcon: React.FC<IconBaseProps> = (props): React.JSX.Element => (
 );
 
 const getStatusColor = (state: string | undefined, isActionLoading: string | null): string => {
+    // If an action is in progress, show yellow pulsing indicator
     if (isActionLoading) {
         return 'bg-yellow-500 animate-pulse';
     }
 
     const stateLower = (state || '').toLowerCase();
 
-    if (stateLower === 'running') {
-        return 'bg-green-500';
-    } else if (stateLower === 'paused') {
-        return 'bg-yellow-500';
-    } else if (stateLower === 'exited' || stateLower === 'stopped' || stateLower === 'dead') {
-        return 'bg-red-500';
-    } else if (stateLower === 'created') {
-        return 'bg-blue-500';
+    // Map states to colors
+    switch (stateLower) {
+        case 'running':
+            return 'bg-green-500';
+        case 'paused':
+            return 'bg-yellow-500';
+        case 'exited':
+        case 'stopped':
+        case 'dead':
+            return 'bg-red-500';
+        case 'created':
+            return 'bg-blue-500';
+        case 'restarting':
+            return 'bg-yellow-500 animate-pulse';
+        default:
+            return 'bg-gray-500';
     }
-    return 'bg-gray-500';
 };
 
 export const ContainerRow: React.FC<ContainerRowProps> = ({
@@ -108,19 +116,27 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
 
     // Get the status text based on current state and loading state
     const getStatusText = () => {
-        switch (actionInProgress) {
-            case 'stop':
-                return 'Stopping...';
-            case 'start':
-                return 'Starting...';
-            case 'restart':
-                return 'Restarting...';
-            case 'rebuild':
-                return 'Rebuilding...';
-            default:
-                return container.status;
+        if (actionInProgress) {
+            switch (actionInProgress) {
+                case 'stop':
+                    return 'Stopping...';
+                case 'start':
+                    return 'Starting...';
+                case 'restart':
+                    return 'Restarting...';
+                case 'rebuild':
+                    return 'Rebuilding...';
+                default:
+                    return container.status;
+            }
         }
+
+        // When no action is in progress, show the actual container status
+        return container.status;
     };
+
+    // Determine if the container is actually running based on both state and status
+    const isContainerRunning = container.state === 'running';
 
     return (
         <div className="bg-gray-800 rounded-lg shadow-lg overflow-hidden">
@@ -150,7 +166,7 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                         >
                             <DocumentIcon className="w-5 h-5" />
                         </button>
-                        {container.state === 'running' ? (
+                        {isContainerRunning ? (
                             <button
                                 onClick={() => handleAction('stop')}
                                 className="p-2 text-gray-400 hover:text-red-400 transition-colors"

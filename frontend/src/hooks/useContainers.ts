@@ -71,17 +71,21 @@ export const useContainers = () => {
                     const updatedContainer = result.data.find(c => c.id === containerId);
 
                     if (updatedContainer) {
-                        const hasReachedDoneState = (
-                            (action === 'stop' && updatedContainer.state !== 'running') ||
-                            ((action === 'start' || action === 'restart' || action === 'rebuild') && updatedContainer.state === 'running')
+                        const hasReachedTargetState = (
+                            (action === 'stop' && (updatedContainer.state === 'stopped' || updatedContainer.state === 'exited')) ||
+                            (action === 'start' && updatedContainer.state === 'running') ||
+                            (action === 'restart' && updatedContainer.state === 'running') ||
+                            (action === 'rebuild' && updatedContainer.state === 'running')
                         );
 
-                        if (hasReachedDoneState) {
+                        if (hasReachedTargetState) {
+                            // Clear the interval and action state
                             clearInterval(pollingIntervals[containerId]);
                             delete pollingIntervals[containerId];
-                            // Clear the action state when container reaches final state
                             setActionStates(prev => ({ ...prev, [containerId]: null }));
-                            setContainers(result.data);
+
+                            // Trigger a full page refresh
+                            window.location.reload();
                         }
                     }
                 }
@@ -92,10 +96,9 @@ export const useContainers = () => {
             if (attempts >= maxAttempts) {
                 clearInterval(pollingIntervals[containerId]);
                 delete pollingIntervals[containerId];
-                // Clear the action state on timeout
                 setActionStates(prev => ({ ...prev, [containerId]: null }));
-                // Do a final refresh
-                await fetchContainers();
+                // Trigger a full page refresh even if we hit max attempts
+                window.location.reload();
             }
         }, 1000);
 
@@ -108,7 +111,7 @@ export const useContainers = () => {
         return () => {
             clearInterval(interval);
         };
-    }, [pollingIntervals, fetchContainers]);
+    }, [pollingIntervals]);
 
     const performContainerAction = useCallback(async (containerId: string, action: string) => {
         try {
@@ -126,11 +129,21 @@ export const useContainers = () => {
                 throw new Error(result.error || `Failed to ${action} container`);
             }
 
+            // Immediately fetch the latest state
+            const updatedResponse = await fetch(`${config.API_URL}/api/containers`);
+            const updatedResult: ApiResponse<Container[]> = await updatedResponse.json();
+
+            if (updatedResult.status === 'success') {
+                setContainers(updatedResult.data);
+            }
+
             // Start polling for state changes
             pollContainerState(containerId, action);
 
             return result.data.message;
         } catch (err) {
+            // Clear action state on error
+            setActionStates(prev => ({ ...prev, [containerId]: null }));
             throw new Error(err instanceof Error ? err.message : `Failed to ${action} container`);
         }
     }, [pollContainerState]);
