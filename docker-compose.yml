@@ -25,8 +25,6 @@ services:
                       - '*.pyc'
                 - action: rebuild
                   path: ./backend/requirements.txt
-        depends_on:
-            - prometheus
 
     frontend:
         build:
@@ -57,35 +55,3 @@ services:
                   path: ./frontend/package.json
         depends_on:
             - backend
-
-    prometheus:
-        image: prom/prometheus:latest
-        ports:
-            - '9090:9090'
-        volumes:
-            - ./prometheus:/etc/prometheus
-            - prometheus_data:/prometheus
-        command:
-            - '--config.file=${PROMETHEUS_CONFIG_FILE}'
-            - '--storage.tsdb.path=${PROMETHEUS_STORAGE_PATH}'
-            - '--web.console.libraries=${PROMETHEUS_CONSOLE_LIBRARIES}'
-            - '--web.console.templates=${PROMETHEUS_CONSOLE_TEMPLATES}'
-        container_name: docker_web_prometheus
-
-    grafana:
-        image: grafana/grafana:latest
-        ports:
-            - '3001:3000'
-        volumes:
-            - grafana_data:/var/lib/grafana
-            - ./grafana/provisioning:/etc/grafana/provisioning
-        environment:
-            - GF_SECURITY_ADMIN_PASSWORD=${GF_SECURITY_ADMIN_PASSWORD}
-            - GF_USERS_ALLOW_SIGN_UP=${GF_USERS_ALLOW_SIGN_UP}
-        container_name: docker_web_grafana
-        depends_on:
-            - prometheus
-
-volumes:
-    prometheus_data:
-    grafana_data:

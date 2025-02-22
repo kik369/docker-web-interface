@@ -6,23 +6,9 @@ from functools import wraps
 from typing import Optional
 
 from flask import g, request
-from prometheus_client import Counter, Histogram
 
 # Context variable to store request ID
 request_id_var: ContextVar[str] = ContextVar("request_id", default="")
-
-# Metrics
-http_requests_total = Counter(
-    "http_requests_total",
-    "Total number of HTTP requests",
-    ["method", "endpoint", "status"],
-)
-
-http_request_duration_seconds = Histogram(
-    "http_request_duration_seconds",
-    "HTTP request duration in seconds",
-    ["method", "endpoint"],
-)
 
 
 class RequestIdFilter(logging.Filter):
@@ -86,16 +72,7 @@ def log_request():
             finally:
                 duration = time.time() - start_time
 
-                # Update metrics
-                http_requests_total.labels(
-                    method=request.method, endpoint=request.path, status=status_code
-                ).inc()
-
-                http_request_duration_seconds.labels(
-                    method=request.method, endpoint=request.path
-                ).observe(duration)
-
-                # Log request completion
+                # Log request completion with metrics
                 logger.info(
                     "Request completed",
                     extra={

@@ -2,27 +2,23 @@
 
 ## Project Overview
 
-This project is a comprehensive Docker container monitoring and management system that provides a modern web interface for tracking and managing Docker containers in real-time. It combines a React frontend with a Flask backend, integrated with Prometheus for metrics collection and Grafana for visualization.
+This project is a comprehensive Docker container monitoring and management system that provides a modern web interface for tracking and managing Docker containers in real-time. It combines a React frontend with a Flask backend, featuring built-in logging and monitoring capabilities.
 
 ### Key Features
 
 -   Real-time Docker container monitoring
 -   Modern React-based web interface
--   Metrics collection and storage with Prometheus
--   Advanced visualization dashboards with Grafana
 -   RESTful API backend built with Flask
 -   Live container log streaming
 -   Container health monitoring
--   Resource usage tracking (CPU, Memory, Network)
+-   Comprehensive request logging and tracking
 
 ## Current Goals & Objectives
 
 -   [ ] Implement real-time container metrics updates
--   [ ] Add container resource usage graphs
+-   [ ] Add container resource usage tracking
 -   [ ] Enhance error handling and logging
--   [ ] Implement user authentication system
 -   [ ] Add container management features (start, stop, restart)
--   [ ] Create custom Grafana dashboards
 -   [ ] Optimize backend performance
 -   [ ] Add automated testing
 
@@ -30,37 +26,25 @@ This project is a comprehensive Docker container monitoring and management syste
 
 ### Architecture Overview
 
-The project consists of four main components:
+The project consists of two main components:
 
 1. **Frontend (React)**
 
     - Modern UI built with React
     - Real-time updates using WebSocket
     - Container management interface
-    - Metrics visualization
+    - Status visualization
 
 2. **Backend (Flask)**
-
     - RESTful API endpoints
     - Docker SDK integration
     - WebSocket server for real-time updates
-    - Metrics collection and forwarding
-
-3. **Prometheus**
-
-    - Time-series database
-    - Metrics collection and storage
-    - Query interface for metrics data
-
-4. **Grafana**
-    - Advanced visualization platform
-    - Custom dashboards
-    - Metrics exploration
-    - Alert management
+    - Built-in request logging and monitoring
+    - Container metrics collection
 
 ### Component Interaction
 
-The frontend communicates with the backend through REST APIs and WebSocket connections. The backend interfaces with Docker's API to collect container information and metrics, which are then stored in Prometheus. Grafana pulls data from Prometheus to create visualizations.
+The frontend communicates with the backend through REST APIs and WebSocket connections. The backend interfaces with Docker's API to collect container information and metrics, with comprehensive logging of all operations and requests.
 
 ## Installation and Setup
 
@@ -79,7 +63,15 @@ The frontend communicates with the backend through REST APIs and WebSocket conne
     cd docker-web-interface
     ```
 
-2. Create a .env file with required environment variables (see .env.example)
+2. Create a .env file with required environment variables:
+
+    ```bash
+    # Copy the example environment file
+    cp .env.example .env
+
+    # Edit the .env file with your specific values
+    nano .env  # or use your preferred editor
+    ```
 
 3. Start the application:
     ```bash
@@ -90,8 +82,6 @@ The application will be available at:
 
 -   Frontend: http://localhost:3002
 -   Backend API: http://localhost:5000
--   Grafana: http://localhost:3001
--   Prometheus: http://localhost:9090
 
 ## To-Do List and Pending Work
 
@@ -119,7 +109,7 @@ The application will be available at:
 
 -   GET /api/containers - List all containers
 -   GET /api/containers/{id} - Get container details
--   GET /api/metrics - Get system metrics
+-   GET /api/containers/{id}/logs - Get container logs
 -   WS /api/ws - WebSocket endpoint for real-time updates
 
 ### Development Guidelines
@@ -151,8 +141,7 @@ The application will be available at:
 -   The application is currently being monitored using `docker compose up --watch`
 -   Do not restart services manually as it will interfere with the monitoring process
 -   All configuration changes should be made through environment variables
--   Regular backups of Prometheus and Grafana data are recommended
--   Check Grafana dashboards for custom configurations
+-   Check application logs for monitoring and debugging
 
 ---
 
