@@ -18,18 +18,10 @@ This project is a comprehensive Docker container monitoring and management syste
 -   [ ] Implement real-time container metrics updates
 -   [ ] Add container resource usage tracking
 -   [ ] Enhance error handling and logging
--   [ ] Add container management features (start, stop, restart)
 -   [ ] Optimize backend performance
 -   [ ] Add automated testing
 -   [ ] Implement container resource limits management
--   [ ] Add user authentication and authorization
--   [ ] Create comprehensive API documentation
--   [ ] Add support for Docker Swarm
 -   [ ] Implement container log search functionality
--   [ ] Create backup and restore functionality
--   [ ] Add dark mode support
--   [ ] Implement container templates
--   [ ] Add support for custom metrics
 
 ## How the Project Works 🔧
 
@@ -63,14 +55,6 @@ graph TD
 
 The frontend communicates with the backend through REST APIs and WebSocket connections. The backend interfaces with Docker's API to collect container information and metrics, with comprehensive logging of all operations and requests.
 
-## Installation and Setup 🚀
-
-### Prerequisites
-
--   Docker and Docker Compose
--   Node.js (for local development)
--   Python 3.8+ (for local development)
-
 ### Setup Steps
 
 1. Clone the repository:
@@ -100,48 +84,9 @@ The frontend communicates with the backend through REST APIs and WebSocket conne
 > -   Frontend: http://localhost:3002
 > -   Backend API: http://localhost:5000
 
-## Documentation for Developers 👩‍💻
-
-### API Endpoints
-
--   GET /api/containers - List all containers
--   GET /api/containers/{id} - Get container details
--   GET /api/containers/{id}/logs - Get container logs
--   WS /api/ws - WebSocket endpoint for real-time updates
-
-### Development Guidelines
-
-1. Follow the established code style
-2. Write unit tests for new features
-3. Update documentation for API changes
-4. Use feature branches for development
-
-### Local Development
-
-1. Start backend:
-
-    ```bash
-    cd backend
-    pip install -r requirements.txt
-    flask run
-    ```
-
-2. Start frontend:
-    ```bash
-    cd frontend
-    npm install
-    npm start
-    ```
-
 ## Notes and Reminders ⚠️
-
-> 🚨 **Warning:** The application is currently being monitored using `docker compose up --watch`. Do not restart services manually as it will interfere with the monitoring process.
 
 > 💡 **Tips:**
 >
 > -   All configuration changes should be made through environment variables
 > -   Check application logs for monitoring and debugging
-
----
-
-For any questions or issues, please open a GitHub issue or contact the maintainers.
