@@ -13,7 +13,7 @@ This project is a comprehensive Docker container monitoring and management syste
 -   Container health monitoring
 -   Comprehensive request logging and tracking
 
-## Current Goals & Objectives 🎯
+## To-Do List and Pending Work 📝
 
 -   [ ] Implement real-time container metrics updates
 -   [ ] Add container resource usage tracking
@@ -21,6 +21,15 @@ This project is a comprehensive Docker container monitoring and management syste
 -   [ ] Add container management features (start, stop, restart)
 -   [ ] Optimize backend performance
 -   [ ] Add automated testing
+-   [ ] Implement container resource limits management
+-   [ ] Add user authentication and authorization
+-   [ ] Create comprehensive API documentation
+-   [ ] Add support for Docker Swarm
+-   [ ] Implement container log search functionality
+-   [ ] Create backup and restore functionality
+-   [ ] Add dark mode support
+-   [ ] Implement container templates
+-   [ ] Add support for custom metrics
 
 ## How the Project Works 🔧
 
@@ -90,26 +99,6 @@ The frontend communicates with the backend through REST APIs and WebSocket conne
 >
 > -   Frontend: http://localhost:3002
 > -   Backend API: http://localhost:5000
-
-## To-Do List and Pending Work 📝
-
-### High Priority
-
--   [ ] Implement container resource limits management
--   [ ] Add user authentication and authorization
--   [ ] Create comprehensive API documentation
-
-### Medium Priority
-
--   [ ] Add support for Docker Swarm
--   [ ] Implement container log search functionality
--   [ ] Create backup and restore functionality
-
-### Low Priority
-
--   [ ] Add dark mode support
--   [ ] Implement container templates
--   [ ] Add support for custom metrics
 
 ## Documentation for Developers 👩‍💻
 
