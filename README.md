@@ -1,141 +1,159 @@
 # Docker Web Interface
 
-A web-based interface for monitoring Docker containers, built with Flask and React.
-
 ## Project Overview
 
-This project provides a Docker container management interface through a Flask API and a React frontend. It allows users to view, manage, and interact with running containers. Key features include:
+This project is a comprehensive Docker container monitoring and management system that provides a modern web interface for tracking and managing Docker containers in real-time. It combines a React frontend with a Flask backend, integrated with Prometheus for metrics collection and Grafana for visualization.
 
--   View running containers
--   Start, stop, restart, or rebuild containers
--   View logs for each container
--   Refresh container list automatically
--   Rate-limited API calls to prevent overloading
+### Key Features
 
-## Architecture
+-   Real-time Docker container monitoring
+-   Modern React-based web interface
+-   Metrics collection and storage with Prometheus
+-   Advanced visualization dashboards with Grafana
+-   RESTful API backend built with Flask
+-   Live container log streaming
+-   Container health monitoring
+-   Resource usage tracking (CPU, Memory, Network)
 
--   **Backend**: Flask API that communicates with Docker to fetch container data and manage container states.
--   **Frontend**: React application displaying container data and providing controls for container management.
--   **Docker**: Used for containerization and handling environment-specific configurations.
+## Current Goals & Objectives
 
-## Backend Functionalities
+-   [ ] Implement real-time container metrics updates
+-   [ ] Add container resource usage graphs
+-   [ ] Enhance error handling and logging
+-   [ ] Implement user authentication system
+-   [ ] Add container management features (start, stop, restart)
+-   [ ] Create custom Grafana dashboards
+-   [ ] Optimize backend performance
+-   [ ] Add automated testing
 
-The backend is built using Flask and provides the following functionalities:
+## How the Project Works
 
--   Fetch all containers and their details
--   Fetch logs for a specific container
--   Perform actions on containers (start, stop, restart, rebuild)
--   Rate limiting to prevent excessive API calls
--   Logging and monitoring using Prometheus and Grafana
+### Architecture Overview
 
-## Frontend Functionalities
+The project consists of four main components:
 
-The frontend is built using React and provides the following functionalities:
+1. **Frontend (React)**
 
--   Display a list of Docker containers with their details
--   Search and filter containers
--   Perform actions on containers (start, stop, restart, rebuild) through buttons
--   View logs for each container
--   Auto-refresh the container list based on the configured interval
--   Settings to configure refresh interval and rate limit
+    - Modern UI built with React
+    - Real-time updates using WebSocket
+    - Container management interface
+    - Metrics visualization
 
-## Setup
+2. **Backend (Flask)**
 
-To set up the project with Docker Compose:
+    - RESTful API endpoints
+    - Docker SDK integration
+    - WebSocket server for real-time updates
+    - Metrics collection and forwarding
 
-1. Clone this repository.
-2. Run the following command to build and start containers:
+3. **Prometheus**
+
+    - Time-series database
+    - Metrics collection and storage
+    - Query interface for metrics data
+
+4. **Grafana**
+    - Advanced visualization platform
+    - Custom dashboards
+    - Metrics exploration
+    - Alert management
+
+### Component Interaction
+
+The frontend communicates with the backend through REST APIs and WebSocket connections. The backend interfaces with Docker's API to collect container information and metrics, which are then stored in Prometheus. Grafana pulls data from Prometheus to create visualizations.
+
+## Installation and Setup
+
+### Prerequisites
+
+-   Docker and Docker Compose
+-   Node.js (for local development)
+-   Python 3.8+ (for local development)
+
+### Setup Steps
+
+1. Clone the repository:
 
     ```bash
-    docker compose up --build -d
+    git clone <repository-url>
+    cd docker-web-interface
     ```
 
-3. Access the interface at [http://localhost:3001](http://localhost:3001).
+2. Create a .env file with required environment variables (see .env.example)
 
-### Development
+3. Start the application:
+    ```bash
+    docker compose up --watch
+    ```
 
-For development with auto-reload:
+The application will be available at:
 
-```bash
-docker compose up --watch
-```
+-   Frontend: http://localhost:3002
+-   Backend API: http://localhost:5000
+-   Grafana: http://localhost:3001
+-   Prometheus: http://localhost:9090
 
-This will start the app in development mode, auto-reloading the backend and frontend on changes.
+## To-Do List and Pending Work
 
-## Environment Variables
+### High Priority
 
-The following environment variables are used in the project:
+-   [ ] Implement container resource limits management
+-   [ ] Add user authentication and authorization
+-   [ ] Create comprehensive API documentation
 
--   **FLASK_ENV**: Set to `development` or `production`. Default is `production`.
--   **REFRESH_INTERVAL**: The interval (in seconds) between automatic container list refreshes. Default: `30`.
--   **MAX_REQUESTS_PER_MINUTE**: Rate limit for API calls. Default: `60`.
--   **LOG_LEVEL**: The logging level for the backend. Default: `INFO`.
--   **LOG_FORMAT**: The format of log output. Default: `json`.
--   **PYTHONPATH**: Python path configuration. Default: `/app`.
--   **REACT_APP_API_URL**: The URL where the backend API is accessible. Default: `http://localhost:5000`.
--   **REACT_APP_LOG_LEVEL**: Frontend logging level. Default: `info`.
--   **REACT_APP_SEND_LOGS_TO_BACKEND**: Whether to forward frontend logs to backend. Default: `true`.
--   **GF_SECURITY_ADMIN_PASSWORD**: Admin password for Grafana. Default: `admin`.
--   **GF_USERS_ALLOW_SIGN_UP**: Whether to allow user registration. Default: `false`.
--   **PROMETHEUS_CONFIG_FILE**: Path to Prometheus configuration file. Default: `/etc/prometheus/prometheus.yml`.
--   **PROMETHEUS_STORAGE_PATH**: Path for Prometheus data storage. Default: `/prometheus`.
--   **PROMETHEUS_CONSOLE_LIBRARIES**: Path to console libraries. Default: `/usr/share/prometheus/console_libraries`.
--   **PROMETHEUS_CONSOLE_TEMPLATES**: Path to console templates. Default: `/usr/share/prometheus/consoles`.
+### Medium Priority
 
-For detailed environment variable documentation, refer to the `ENV.md` file.
+-   [ ] Add support for Docker Swarm
+-   [ ] Implement container log search functionality
+-   [ ] Create backup and restore functionality
 
-## Docker Socket Access
+### Low Priority
 
-This project requires Docker socket access (`/var/run/docker.sock`) to interact with the Docker daemon. The socket is mounted in the `docker-compose.yml`:
+-   [ ] Add dark mode support
+-   [ ] Implement container templates
+-   [ ] Add support for custom metrics
 
-```yaml
-volumes:
-    - /var/run/docker.sock:/var/run/docker.sock
-```
+## Documentation for Developers
 
-Ensure proper security and permissions when using this in production.
+### API Endpoints
 
-## File Structure
+-   GET /api/containers - List all containers
+-   GET /api/containers/{id} - Get container details
+-   GET /api/metrics - Get system metrics
+-   WS /api/ws - WebSocket endpoint for real-time updates
 
-```
-docker_web_interface/
-├── backend/          # Flask API
-│   ├── __init__.py   # Backend package initialization
-│   ├── config.py     # Configuration settings
-│   ├── docker_monitor.py # Main Flask application
-│   ├── docker_service.py # Docker service for container management
-│   ├── logging_utils.py  # Logging utilities
-│   ├── requirements.txt  # Backend dependencies
-│   ├── setup.py      # Backend setup script
-├── frontend/         # React frontend
-│   ├── public/       # Public assets
-│   ├── src/          # Source code
-│   ├── Dockerfile    # Frontend Dockerfile
-│   ├── package.json  # Frontend dependencies
-│   ├── tsconfig.json # TypeScript configuration
-├── docker-compose.yml # Docker Compose configuration
-├── ENV.md            # Environment variables documentation
-```
+### Development Guidelines
 
-## Features
+1. Follow the established code style
+2. Write unit tests for new features
+3. Update documentation for API changes
+4. Use feature branches for development
 
--   **Backend**:
+### Local Development
 
-    -   `/api/containers`: Fetch all containers
-    -   `/api/containers/{id}/logs`: Fetch logs for a specific container
-    -   `/api/containers/{id}/{action}`: Manage container actions (`start`, `stop`, `restart`, `rebuild`)
+1. Start backend:
 
--   **Frontend**:
-    -   Displays container list, allows searching and filtering
-    -   Provides buttons for container actions (start, stop, restart, rebuild)
-    -   Auto-refreshes the container list based on the configured interval
+    ```bash
+    cd backend
+    pip install -r requirements.txt
+    flask run
+    ```
 
-## Security Considerations
+2. Start frontend:
+    ```bash
+    cd frontend
+    npm install
+    npm start
+    ```
 
--   **Docker Socket Access**: Granting access to the Docker socket provides root-level access to the system. Ensure the environment is trusted, and consider using Docker's Remote API for production.
--   **Environment Variables**: Never commit the `.env` file to version control. Keep your `.env` file secure and restrict access to authorized personnel only. Use different values for sensitive variables in production. Regularly rotate sensitive credentials like passwords and API keys.
+## Notes and Reminders
 
-## Troubleshooting
+-   The application is currently being monitored using `docker compose up --watch`
+-   Do not restart services manually as it will interfere with the monitoring process
+-   All configuration changes should be made through environment variables
+-   Regular backups of Prometheus and Grafana data are recommended
+-   Check Grafana dashboards for custom configurations
 
-1. **Permission Issues**: Ensure your user is in the `docker` group and check socket permissions (`/var/run/docker.sock`).
-2. **Rate Limits**: The backend is rate-limited at `MAX_REQUESTS_PER_MINUTE` to avoid overload.
+---
+
+For any questions or issues, please open a GitHub issue or contact the maintainers.
