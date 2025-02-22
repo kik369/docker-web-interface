@@ -48,7 +48,7 @@ export const ContainerList: React.FC<ContainerListProps> = ({
         }
     });
     const [searchTerm, setSearchTerm] = useState('');
-    const { actionStates, startContainer, stopContainer, restartContainer, rebuildContainer } = useContainers();
+    const { actionStates, startContainer, stopContainer, restartContainer, rebuildContainer, deleteContainer } = useContainers();
 
     // Save expanded groups to localStorage whenever they change
     useEffect(() => {
@@ -144,6 +144,9 @@ export const ContainerList: React.FC<ContainerListProps> = ({
                     break;
                 case 'rebuild':
                     await rebuildContainer(containerId);
+                    break;
+                case 'delete':
+                    await deleteContainer(containerId);
                     break;
                 default:
                     throw new Error(`Unknown action: ${action}`);

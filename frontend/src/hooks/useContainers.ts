@@ -147,6 +147,9 @@ export const useContainers = () => {
     const rebuildContainer = useCallback((containerId: string) =>
         performContainerAction(containerId, 'rebuild'), [performContainerAction]);
 
+    const deleteContainer = useCallback((containerId: string) =>
+        performContainerAction(containerId, 'delete'), [performContainerAction]);
+
     useEffect(() => {
         fetchContainers();
         // Clean up any active polling intervals
@@ -166,5 +169,6 @@ export const useContainers = () => {
         stopContainer,
         restartContainer,
         rebuildContainer,
+        deleteContainer,
     };
 };
