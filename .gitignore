@@ -47,6 +47,7 @@ logs/
 # IDE and Editor Directories
 .cursorrules
 .cursorignore
+.cursor/
 
 # Docker
 .docker/

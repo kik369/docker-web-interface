@@ -1,6 +1,6 @@
-# Docker Web Interface
+# Docker Web Interface 🐳
 
-## Project Overview
+## Project Overview 📋
 
 This project is a comprehensive Docker container monitoring and management system that provides a modern web interface for tracking and managing Docker containers in real-time. It combines a React frontend with a Flask backend, featuring built-in logging and monitoring capabilities.
 
@@ -13,7 +13,7 @@ This project is a comprehensive Docker container monitoring and management syste
 -   Container health monitoring
 -   Comprehensive request logging and tracking
 
-## Current Goals & Objectives
+## Current Goals & Objectives 🎯
 
 -   [ ] Implement real-time container metrics updates
 -   [ ] Add container resource usage tracking
@@ -22,20 +22,32 @@ This project is a comprehensive Docker container monitoring and management syste
 -   [ ] Optimize backend performance
 -   [ ] Add automated testing
 
-## How the Project Works
+## How the Project Works 🔧
 
 ### Architecture Overview
 
 The project consists of two main components:
 
-1. **Frontend (React)**
+```mermaid
+graph TD
+    A[Frontend React] -->|REST API| B[Backend Flask]
+    A -->|WebSocket| B
+    B -->|Docker SDK| C[Docker Engine]
+    B -->|Metrics| D[Container Stats]
+    style A fill:#61dafb
+    style B fill:#000000
+    style C fill:#2496ed
+    style D fill:#2496ed
+```
+
+1. **Frontend React**
 
     - Modern UI built with React
     - Real-time updates using WebSocket
     - Container management interface
     - Status visualization
 
-2. **Backend (Flask)**
+2. **Backend Flask**
     - RESTful API endpoints
     - Docker SDK integration
     - WebSocket server for real-time updates
@@ -46,7 +58,7 @@ The project consists of two main components:
 
 The frontend communicates with the backend through REST APIs and WebSocket connections. The backend interfaces with Docker's API to collect container information and metrics, with comprehensive logging of all operations and requests.
 
-## Installation and Setup
+## Installation and Setup 🚀
 
 ### Prerequisites
 
@@ -78,12 +90,12 @@ The frontend communicates with the backend through REST APIs and WebSocket conne
     docker compose up --watch
     ```
 
-The application will be available at:
+> ℹ️ **Note:** The application will be available at:
+>
+> -   Frontend: http://localhost:3002
+> -   Backend API: http://localhost:5000
 
--   Frontend: http://localhost:3002
--   Backend API: http://localhost:5000
-
-## To-Do List and Pending Work
+## To-Do List and Pending Work 📝
 
 ### High Priority
 
@@ -103,7 +115,7 @@ The application will be available at:
 -   [ ] Implement container templates
 -   [ ] Add support for custom metrics
 
-## Documentation for Developers
+## Documentation for Developers 👩‍💻
 
 ### API Endpoints
 
@@ -136,12 +148,14 @@ The application will be available at:
     npm start
     ```
 
-## Notes and Reminders
+## Notes and Reminders ⚠️
 
--   The application is currently being monitored using `docker compose up --watch`
--   Do not restart services manually as it will interfere with the monitoring process
--   All configuration changes should be made through environment variables
--   Check application logs for monitoring and debugging
+> 🚨 **Warning:** The application is currently being monitored using `docker compose up --watch`. Do not restart services manually as it will interfere with the monitoring process.
+
+> 💡 **Tips:**
+>
+> -   All configuration changes should be made through environment variables
+> -   Check application logs for monitoring and debugging
 
 ---
 
