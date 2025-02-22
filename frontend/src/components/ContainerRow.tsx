@@ -1,7 +1,7 @@
 /// <reference types="react" />
 import React from 'react';
 import { IconBaseProps } from 'react-icons';
-import { HiDocument, HiPlay, HiStop, HiRefresh, HiCog } from 'react-icons/hi';
+import { HiDocument, HiPlay, HiStop, HiRefresh, HiCog, HiTrash } from 'react-icons/hi';
 import { ContainerRowProps } from '../types/docker';
 import { logger } from '../services/logging';
 import { config } from '../config';
@@ -25,6 +25,10 @@ const RefreshIcon: React.FC<IconBaseProps> = (props): React.JSX.Element => (
 
 const CogIcon: React.FC<IconBaseProps> = (props): React.JSX.Element => (
     <HiCog {...props} />
+);
+
+const TrashIcon: React.FC<IconBaseProps> = (props): React.JSX.Element => (
+    <HiTrash {...props} />
 );
 
 const getStatusColor = (state: string | undefined, isActionLoading: string | null): string => {
@@ -113,6 +117,8 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                 return 'Restarting...';
             case 'rebuild':
                 return 'Rebuilding...';
+            case 'delete':
+                return 'Deleting...';
             default:
                 return container.status;
         }
@@ -180,6 +186,18 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                             title={`Rebuild container (docker pull ${container.image} && docker run ...)`}
                         >
                             <CogIcon className={`w-5 h-5 ${actionInProgress === 'rebuild' ? 'animate-pulse' : ''}`} />
+                        </button>
+                        <button
+                            onClick={() => {
+                                if (window.confirm(`Are you sure you want to delete container "${container.name}"? This action cannot be undone.`)) {
+                                    handleAction('delete');
+                                }
+                            }}
+                            className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                            disabled={actionInProgress !== null}
+                            title={`Delete container (docker rm -f ${container.name})`}
+                        >
+                            <TrashIcon className={`w-5 h-5 ${actionInProgress === 'delete' ? 'animate-pulse' : ''}`} />
                         </button>
                     </div>
                 </div>

@@ -128,7 +128,7 @@ class FlaskApp:
         @self.app.route("/api/containers/<container_id>/<action>", methods=["POST"])
         @self.rate_limit
         def container_action(container_id: str, action: str) -> Response:
-            if action not in ["start", "stop", "restart", "rebuild"]:
+            if action not in ["start", "stop", "restart", "rebuild", "delete"]:
                 return self.error_response(f"Invalid action: {action}", 400)
 
             action_map = {
@@ -136,6 +136,7 @@ class FlaskApp:
                 "stop": self.docker_service.stop_container,
                 "restart": self.docker_service.restart_container,
                 "rebuild": self.docker_service.rebuild_container,
+                "delete": self.docker_service.delete_container,
             }
 
             success, error = action_map[action](container_id)

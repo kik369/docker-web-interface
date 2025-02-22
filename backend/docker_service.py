@@ -245,6 +245,21 @@ class DockerService:
             logger.error(error_msg)
             return False, error_msg
 
+    def delete_container(self, container_id: str) -> Tuple[bool, Optional[str]]:
+        """Delete a container."""
+        try:
+            container = self.client.containers.get(container_id)
+            container.remove(force=True)  # Force removal even if running
+            return True, None
+        except docker.errors.NotFound:
+            error_msg = f"Container {container_id} not found"
+            logger.error(error_msg)
+            return False, error_msg
+        except Exception as e:
+            error_msg = f"Failed to delete container: {str(e)}"
+            logger.error(error_msg)
+            return False, error_msg
+
     def format_container_data(self, containers: list[Container]) -> list[dict]:
         """Format container data for API response."""
         return [
