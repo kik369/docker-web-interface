@@ -1,7 +1,7 @@
 import logging
 from dataclasses import dataclass
 from datetime import datetime
-from typing import List, Optional, Tuple
+from typing import Generator, List, Optional, Tuple
 
 import docker
 
@@ -156,6 +156,27 @@ class DockerService:
             error_msg = f"Failed to get container logs: {str(e)}"
             logger.error(error_msg)
             return None, error_msg
+
+    def stream_container_logs(
+        self, container_id: str, since: Optional[int] = None
+    ) -> Generator[str, None, None]:
+        """Stream logs for a specific container."""
+        try:
+            container = self.client.containers.get(container_id)
+            stream = container.logs(
+                stream=True, follow=True, timestamps=True, since=since
+            )
+            for chunk in stream:
+                if isinstance(chunk, bytes):
+                    yield chunk.decode("utf-8")
+        except docker.errors.NotFound:
+            error_msg = f"Container {container_id} not found"
+            logger.error(error_msg)
+            yield f"Error: {error_msg}"
+        except Exception as e:
+            error_msg = f"Failed to stream container logs: {str(e)}"
+            logger.error(error_msg)
+            yield f"Error: {error_msg}"
 
     def start_container(self, container_id: str) -> Tuple[bool, Optional[str]]:
         """Start a stopped container."""

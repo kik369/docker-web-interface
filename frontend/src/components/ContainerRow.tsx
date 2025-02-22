@@ -1,10 +1,11 @@
 /// <reference types="react" />
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { IconBaseProps } from 'react-icons';
 import { HiDocument, HiPlay, HiStop, HiRefresh, HiCog, HiTrash } from 'react-icons/hi';
 import { ContainerRowProps } from '../types/docker';
 import { logger } from '../services/logging';
 import { config } from '../config';
+import { useWebSocket } from '../hooks/useWebSocket';
 
 // Create wrapper components for icons
 const DocumentIcon: React.FC<IconBaseProps> = (props): React.JSX.Element => (
@@ -30,6 +31,8 @@ const CogIcon: React.FC<IconBaseProps> = (props): React.JSX.Element => (
 const TrashIcon: React.FC<IconBaseProps> = (props): React.JSX.Element => (
     <HiTrash {...props} />
 );
+
+const LOGS_STORAGE_KEY_PREFIX = 'dockerWebInterface_logsViewed_';
 
 const getStatusColor = (state: string | undefined, isActionLoading: string | null): string => {
     // If an action is in progress, show yellow pulsing indicator
@@ -66,11 +69,53 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
     actionInProgress
 }) => {
     const [logs, setLogs] = React.useState<string>('');
-    const [showLogs, setShowLogs] = React.useState(false);
+    const [showLogs, setShowLogs] = React.useState<boolean>(() => {
+        try {
+            // Initialize from localStorage on component mount
+            const saved = localStorage.getItem(`${LOGS_STORAGE_KEY_PREFIX}${container.id}`);
+            return saved === 'true';
+        } catch (err) {
+            logger.error('Failed to load log view state from localStorage:', err instanceof Error ? err : new Error(String(err)));
+            return false;
+        }
+    });
     const [isLoadingLogs, setIsLoadingLogs] = React.useState(false);
+    const logContainerRef = useRef<HTMLPreElement>(null);
 
-    const handleViewLogs = async () => {
+    // Save log view state to localStorage whenever it changes
+    useEffect(() => {
+        try {
+            localStorage.setItem(`${LOGS_STORAGE_KEY_PREFIX}${container.id}`, showLogs.toString());
+        } catch (err) {
+            logger.error('Failed to save log view state to localStorage:', err instanceof Error ? err : new Error(String(err)));
+        }
+    }, [showLogs, container.id]);
+
+    // Load logs if showLogs is true on mount or after state restoration
+    useEffect(() => {
         if (showLogs) {
+            handleViewLogs(true);
+        }
+    }, []); // Run only on mount
+
+    const { startLogStream } = useWebSocket({
+        onLogUpdate: (containerId, log) => {
+            if (containerId === container.id && showLogs) {
+                setLogs(prevLogs => prevLogs + log);
+                // Auto-scroll to bottom
+                if (logContainerRef.current) {
+                    logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+                }
+            }
+        },
+        onError: (error) => {
+            logger.error('Error streaming logs:', new Error(error));
+            console.error('Failed to stream logs:', error);
+        }
+    });
+
+    const handleViewLogs = async (isRestoring: boolean = false) => {
+        if (showLogs && !isRestoring) {
             setShowLogs(false);
             setLogs('');
             return;
@@ -90,13 +135,21 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
             }
 
             setLogs(data.data.logs);
-            setShowLogs(true);
+            if (!isRestoring) {
+                setShowLogs(true);
+            }
+            // Start WebSocket streaming for new logs
+            startLogStream(container.id);
             logger.info('Successfully fetched container logs', { containerId: container.id });
         } catch (err) {
             logger.error('Failed to fetch container logs', err instanceof Error ? err : undefined, {
                 containerId: container.id
             });
             console.error('Failed to fetch logs:', err);
+            // If there's an error while restoring state, reset the showLogs state
+            if (isRestoring) {
+                setShowLogs(false);
+            }
         } finally {
             setIsLoadingLogs(false);
         }
@@ -159,7 +212,7 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                     </div>
                     <div className="flex items-center space-x-2">
                         <button
-                            onClick={handleViewLogs}
+                            onClick={() => handleViewLogs()}
                             className="p-2 text-gray-400 hover:text-white transition-colors"
                             disabled={isLoadingLogs}
                             title={`Show logs (docker logs ${container.name})`}
@@ -221,7 +274,12 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
             {showLogs && (
                 <div className="px-4 pb-4">
                     <div className="bg-gray-900 p-4 rounded">
-                        <pre className="text-sm text-gray-300 whitespace-pre-wrap">{logs}</pre>
+                        <pre
+                            ref={logContainerRef}
+                            className="text-sm text-gray-300 whitespace-pre-wrap max-h-96 overflow-y-auto"
+                        >
+                            {logs}
+                        </pre>
                     </div>
                 </div>
             )}

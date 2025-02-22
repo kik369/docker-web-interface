@@ -9,9 +9,10 @@ This project is a comprehensive Docker container monitoring and management syste
 -   Real-time Docker container monitoring
 -   Modern React-based web interface
 -   RESTful API backend built with Flask
--   Live container log streaming
+-   Live container log streaming with state persistence
 -   Container health monitoring
 -   Comprehensive request logging and tracking
+-   Persistent UI state across page refreshes
 
 ## To-Do List and Pending Work 📝
 
@@ -54,6 +55,14 @@ graph TD
 ### Component Interaction
 
 The frontend communicates with the backend through REST APIs and WebSocket connections. The backend interfaces with Docker's API to collect container information and metrics, with comprehensive logging of all operations and requests.
+
+The UI maintains state persistence for:
+
+-   Docker Compose application groups (expanded/collapsed state)
+-   Container log views (open/closed state)
+-   Log content updates in real-time via WebSocket
+
+This ensures a seamless user experience even after page refreshes or automatic updates.
 
 ### Setup Steps
 

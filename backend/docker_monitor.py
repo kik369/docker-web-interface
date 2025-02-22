@@ -7,6 +7,7 @@ from config import Config
 from docker_service import Container, DockerService
 from flask import Flask, Response, jsonify, request
 from flask_cors import CORS
+from flask_socketio import SocketIO, emit
 from werkzeug.exceptions import HTTPException
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -25,7 +26,9 @@ class FlaskApp:
         self.request_counts: Dict[datetime, int] = {}
         self.current_rate_limit = Config.MAX_REQUESTS_PER_MINUTE
         self.current_refresh_interval = Config.REFRESH_INTERVAL
+        self.socketio = SocketIO(self.app, cors_allowed_origins="*")
         self.setup_routes()  # Set up routes during initialization
+        self.setup_websocket_handlers()
 
     def setup_app(self) -> None:
         """Configure Flask application."""
@@ -207,9 +210,37 @@ class FlaskApp:
             logger.error(f"Unhandled error: {str(error)}", exc_info=True)
             return self.error_response("An unexpected error occurred")
 
+    def setup_websocket_handlers(self):
+        """Set up WebSocket event handlers."""
+
+        @self.socketio.on("connect")
+        def handle_connect():
+            logger.info("Client connected to WebSocket")
+
+        @self.socketio.on("disconnect")
+        def handle_disconnect():
+            logger.info("Client disconnected from WebSocket")
+
+        @self.socketio.on("start_log_stream")
+        def handle_start_log_stream(data):
+            """Handle start of log streaming for a container."""
+            container_id = data.get("container_id")
+            if not container_id:
+                emit("error", {"error": "Container ID is required"})
+                return
+
+            try:
+                for log_line in self.docker_service.stream_container_logs(container_id):
+                    emit("log_update", {"container_id": container_id, "log": log_line})
+            except Exception as e:
+                logger.error(
+                    f"Error streaming logs for container {container_id}: {str(e)}"
+                )
+                emit("error", {"error": f"Failed to stream logs: {str(e)}"})
+
     def run(self) -> None:
-        """Run the Flask application."""
-        self.app.run(host="0.0.0.0", port=Config.PORT, debug=Config.DEBUG)
+        """Run the Flask application with WebSocket support."""
+        self.socketio.run(self.app, host="0.0.0.0", port=5000)
 
 
 def create_app() -> Flask:
