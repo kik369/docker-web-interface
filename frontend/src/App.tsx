@@ -31,12 +31,18 @@ const loadSettings = () => {
     return defaultSettings;
 };
 
+// Load active tab from localStorage or use default
+const loadActiveTab = () => {
+    const savedTab = localStorage.getItem('app-active-tab');
+    return (savedTab === 'containers' || savedTab === 'images') ? savedTab : 'containers';
+};
+
 function App() {
     const { containers, isLoading: containersLoading, error: containersError, refresh: refreshContainers } = useContainers();
     const { images, isLoading: imagesLoading, error: imagesError, refresh: refreshImages } = useImages();
     const [settings, setSettings] = useState(loadSettings);
     const [secondsUntilRefresh, setSecondsUntilRefresh] = useState(settings.refreshInterval);
-    const [activeTab, setActiveTab] = useState<'containers' | 'images'>('containers');
+    const [activeTab, setActiveTab] = useState<'containers' | 'images'>(loadActiveTab);
 
     // Fetch initial settings from the backend
     useEffect(() => {
@@ -148,7 +154,10 @@ function App() {
                     <div className="border-b border-gray-700">
                         <nav className="-mb-px flex space-x-8">
                             <button
-                                onClick={() => setActiveTab('containers')}
+                                onClick={() => {
+                                    setActiveTab('containers');
+                                    localStorage.setItem('app-active-tab', 'containers');
+                                }}
                                 className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'containers'
                                     ? 'border-blue-500 text-blue-500'
                                     : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
@@ -157,7 +166,10 @@ function App() {
                                 Containers
                             </button>
                             <button
-                                onClick={() => setActiveTab('images')}
+                                onClick={() => {
+                                    setActiveTab('images');
+                                    localStorage.setItem('app-active-tab', 'images');
+                                }}
                                 className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'images'
                                     ? 'border-blue-500 text-blue-500'
                                     : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
