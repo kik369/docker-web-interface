@@ -134,21 +134,30 @@ def log_request():
 
 def setup_logging():
     """Initialize logging with request ID tracking and proper formatting."""
-    # Remove any existing handlers from the root logger
-    root_logger = logging.getLogger()
-    for handler in root_logger.handlers[:]:
-        root_logger.removeHandler(handler)
-
-    # Create handler
-    handler = logging.StreamHandler()
+    # Create handlers
+    console_handler = logging.StreamHandler()
+    file_handler = logging.handlers.RotatingFileHandler(
+        "logs/app.log",
+        maxBytes=10 * 1024 * 1024,  # 10MB
+        backupCount=5,
+    )
 
     # Set formatter
     formatter = CustomJsonFormatter()
-    handler.setFormatter(formatter)
+    console_handler.setFormatter(formatter)
+    file_handler.setFormatter(formatter)
 
     # Configure root logger
+    root_logger = logging.getLogger()
     root_logger.setLevel(logging.INFO)
-    root_logger.addHandler(handler)
+
+    # Remove any existing handlers from the root logger
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
+
+    # Add our handlers
+    root_logger.addHandler(console_handler)
+    root_logger.addHandler(file_handler)
 
     # Configure specific loggers
     loggers = ["docker_service", "docker_monitor", "engineio.server"]
@@ -157,8 +166,9 @@ def setup_logging():
         # Remove any existing handlers
         for h in logger.handlers[:]:
             logger.removeHandler(h)
-        # Add our custom handler and filter
-        logger.addHandler(handler)
+        # Add our custom handlers and filter
+        logger.addHandler(console_handler)
+        logger.addHandler(file_handler)
         logger.addFilter(RequestIdFilter())
         logger.propagate = False  # Prevent duplicate logs
         logger.setLevel(logging.INFO)

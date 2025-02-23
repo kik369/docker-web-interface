@@ -5,10 +5,16 @@ from typing import Any, Callable, Dict
 
 from config import Config
 from docker_service import Container, DockerService
-from flask import Flask, Response, jsonify, request
+from flask import Flask, Response, g, jsonify, request
 from flask_cors import CORS
 from flask_socketio import SocketIO
-from logging_utils import setup_logging
+from logging_utils import (
+    RequestIdFilter,
+    get_request_id,
+    log_request,
+    set_request_id,
+    setup_logging,
+)
 from werkzeug.exceptions import HTTPException
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -39,8 +45,30 @@ class FlaskApp:
             always_connect=True,
         )
 
+        # Set up request ID generation for HTTP requests
+        @self.app.before_request
+        def before_request():
+            # Check if request ID is in headers, otherwise generate new one
+            request_id = request.headers.get("X-Request-ID")
+            if not request_id:
+                request_id = set_request_id()
+            else:
+                set_request_id(request_id)
+            g.request_id = request_id
+
+        # Add the filter to all loggers
+        for logger_name in [
+            "docker_monitor",
+            "docker_service",
+            "engineio.server",
+            "socketio.server",
+        ]:
+            logging.getLogger(logger_name).addFilter(RequestIdFilter())
+
         # Set up custom error handling for Engine.IO
         def handle_transport_error(environ, exc):
+            # Ensure request ID is set for transport errors
+            request_id = environ.get("HTTP_X_REQUEST_ID") or set_request_id()
             logger.error(
                 "Engine.IO transport error",
                 extra={
@@ -48,6 +76,7 @@ class FlaskApp:
                     "event": "engineio_transport_error",
                     "client": environ.get("REMOTE_ADDR", "unknown"),
                     "path": environ.get("PATH_INFO", "unknown"),
+                    "request_id": request_id,
                 },
             )
 
@@ -56,12 +85,15 @@ class FlaskApp:
             original_handle_error = self.socketio.server.handle_error
 
             def wrapped_handle_error(*args, **kwargs):
+                # Ensure request ID is set for Socket.IO errors
+                request_id = get_request_id()
                 logger.error(
                     "Socket.IO error",
                     extra={
                         "event": "socketio_error",
                         "args": str(args),
                         "kwargs": str(kwargs),
+                        "request_id": request_id,
                     },
                 )
                 return original_handle_error(*args, **kwargs)
@@ -147,36 +179,116 @@ class FlaskApp:
         """Set up application routes."""
 
         @self.app.route("/")
+        @log_request()
         def root() -> Response:
+            logger.info(
+                "Health check request received",
+                extra={
+                    "event": "health_check",
+                    "path": "/",
+                },
+            )
             return self.success_response({"message": "Backend is up and running"})
 
         @self.app.route("/api/containers")
         @self.rate_limit
+        @log_request()
         def get_containers() -> Response:
+            logger.info(
+                "Received request to fetch all containers",
+                extra={
+                    "event": "fetch_containers",
+                    "path": "/api/containers",
+                },
+            )
             containers, error = self.docker_service.get_all_containers()
 
             if error:
+                logger.error(
+                    "Error fetching containers",
+                    extra={
+                        "event": "fetch_containers_error",
+                        "error": error,
+                    },
+                )
                 return self.error_response(error)
 
             if containers is None:
+                logger.error(
+                    "No container data returned",
+                    extra={
+                        "event": "fetch_containers_error",
+                        "error": "Failed to fetch container data",
+                    },
+                )
                 return self.error_response("Failed to fetch container data")
 
-            return self.success_response(self.format_container_data(containers))
+            formatted_data = self.format_container_data(containers)
+            logger.info(
+                "Successfully fetched containers",
+                extra={
+                    "event": "fetch_containers_success",
+                    "container_count": len(formatted_data),
+                },
+            )
+            return self.success_response(formatted_data)
 
         @self.app.route("/api/containers/<container_id>/logs")
         @self.rate_limit
+        @log_request()
         def get_container_logs(container_id: str) -> Response:
+            logger.info(
+                "Received request to fetch container logs",
+                extra={
+                    "event": "fetch_container_logs",
+                    "container_id": container_id,
+                },
+            )
             logs, error = self.docker_service.get_container_logs(container_id)
 
             if error:
+                logger.error(
+                    "Error fetching container logs",
+                    extra={
+                        "event": "fetch_container_logs_error",
+                        "container_id": container_id,
+                        "error": error,
+                    },
+                )
                 return self.error_response(error)
 
+            logger.info(
+                "Successfully fetched container logs",
+                extra={
+                    "event": "fetch_container_logs_success",
+                    "container_id": container_id,
+                },
+            )
             return self.success_response({"logs": logs})
 
         @self.app.route("/api/containers/<container_id>/<action>", methods=["POST"])
         @self.rate_limit
+        @log_request()
         def container_action(container_id: str, action: str) -> Response:
+            logger.info(
+                "Received container action request",
+                extra={
+                    "event": "container_action",
+                    "container_id": container_id,
+                    "action": action,
+                },
+            )
+
             if action not in ["start", "stop", "restart", "rebuild", "delete"]:
+                logger.warning(
+                    "Invalid container action requested",
+                    extra={
+                        "event": "container_action_error",
+                        "container_id": container_id,
+                        "action": action,
+                        "error": "Invalid action",
+                    },
+                )
                 return self.error_response(f"Invalid action: {action}", 400)
 
             action_map = {
@@ -189,29 +301,79 @@ class FlaskApp:
 
             success, error = action_map[action](container_id)
             if not success:
+                logger.error(
+                    f"Failed to {action} container",
+                    extra={
+                        "event": "container_action_error",
+                        "container_id": container_id,
+                        "action": action,
+                        "error": error,
+                    },
+                )
                 return self.error_response(error or f"Failed to {action} container")
 
+            logger.info(
+                f"Successfully {action}ed container",
+                extra={
+                    "event": "container_action_success",
+                    "container_id": container_id,
+                    "action": action,
+                },
+            )
             return self.success_response(
                 {"message": f"Container {action}d successfully"}
             )
 
         @self.app.route("/api/settings/rate-limit", methods=["POST"])
+        @log_request()
         def update_rate_limit() -> Response:
             try:
                 data = request.get_json()
                 new_rate_limit = int(data.get("rateLimit", self.current_rate_limit))
 
                 if new_rate_limit < 1:
+                    logger.warning(
+                        "Invalid rate limit value",
+                        extra={
+                            "event": "update_rate_limit_error",
+                            "value": new_rate_limit,
+                            "error": "Rate limit must be greater than 0",
+                        },
+                    )
                     return self.error_response("Rate limit must be greater than 0", 400)
 
+                old_limit = self.current_rate_limit
                 self.current_rate_limit = new_rate_limit
+                logger.info(
+                    "Rate limit updated",
+                    extra={
+                        "event": "update_rate_limit_success",
+                        "old_value": old_limit,
+                        "new_value": new_rate_limit,
+                    },
+                )
                 return self.success_response({"rateLimit": self.current_rate_limit})
             except (TypeError, ValueError) as e:
+                logger.error(
+                    "Invalid rate limit value",
+                    extra={
+                        "event": "update_rate_limit_error",
+                        "error": str(e),
+                    },
+                )
                 return self.error_response(f"Invalid rate limit value: {str(e)}", 400)
             except Exception as e:
+                logger.error(
+                    "Failed to update rate limit",
+                    extra={
+                        "event": "update_rate_limit_error",
+                        "error": str(e),
+                    },
+                )
                 return self.error_response(f"Failed to update rate limit: {str(e)}")
 
         @self.app.route("/api/settings/refresh-interval", methods=["POST"])
+        @log_request()
         def update_refresh_interval() -> Response:
             try:
                 data = request.get_json()
@@ -220,89 +382,221 @@ class FlaskApp:
                 )
 
                 if new_refresh_interval < 5:
+                    logger.warning(
+                        "Invalid refresh interval value",
+                        extra={
+                            "event": "update_refresh_interval_error",
+                            "value": new_refresh_interval,
+                            "error": "Refresh interval must be at least 5 seconds",
+                        },
+                    )
                     return self.error_response(
                         "Refresh interval must be at least 5 seconds", 400
                     )
 
+                old_interval = self.current_refresh_interval
                 self.current_refresh_interval = new_refresh_interval
                 Config.REFRESH_INTERVAL = new_refresh_interval
+                logger.info(
+                    "Refresh interval updated",
+                    extra={
+                        "event": "update_refresh_interval_success",
+                        "old_value": old_interval,
+                        "new_value": new_refresh_interval,
+                    },
+                )
                 return self.success_response(
                     {"refreshInterval": self.current_refresh_interval * 1000}
-                )  # Convert to milliseconds
+                )
             except (TypeError, ValueError) as e:
+                logger.error(
+                    "Invalid refresh interval value",
+                    extra={
+                        "event": "update_refresh_interval_error",
+                        "error": str(e),
+                    },
+                )
                 return self.error_response(
                     f"Invalid refresh interval value: {str(e)}", 400
                 )
             except Exception as e:
+                logger.error(
+                    "Failed to update refresh interval",
+                    extra={
+                        "event": "update_refresh_interval_error",
+                        "error": str(e),
+                    },
+                )
                 return self.error_response(
                     f"Failed to update refresh interval: {str(e)}"
                 )
 
         @self.app.route("/api/settings")
+        @log_request()
         def get_settings() -> Response:
+            logger.info(
+                "Fetching application settings",
+                extra={
+                    "event": "fetch_settings",
+                    "rate_limit": self.current_rate_limit,
+                    "refresh_interval": self.current_refresh_interval,
+                },
+            )
             return self.success_response(
                 {
                     "rateLimit": self.current_rate_limit,
-                    "refreshInterval": self.current_refresh_interval
-                    * 1000,  # Convert to milliseconds for frontend
+                    "refreshInterval": self.current_refresh_interval * 1000,
                 }
             )
 
         @self.app.route("/api/images")
         @self.rate_limit
+        @log_request()
         def get_images() -> Response:
             """Get all Docker images."""
-            logger.info("Received request to fetch all Docker images")
+            logger.info(
+                "Received request to fetch all Docker images",
+                extra={
+                    "event": "fetch_images",
+                    "path": "/api/images",
+                },
+            )
             images, error = self.docker_service.get_all_images()
 
             if error:
-                logger.error(f"Error fetching images: {error}")
+                logger.error(
+                    "Error fetching images",
+                    extra={
+                        "event": "fetch_images_error",
+                        "error": error,
+                    },
+                )
                 return self.error_response(error)
 
             if images is None:
+                logger.error(
+                    "No image data returned",
+                    extra={
+                        "event": "fetch_images_error",
+                        "error": "Failed to fetch image data",
+                    },
+                )
                 return self.error_response("Failed to fetch image data")
 
             response_data = self.docker_service.format_image_data(images)
-            logger.info(f"Successfully fetched {len(response_data)} images")
+            logger.info(
+                "Successfully fetched images",
+                extra={
+                    "event": "fetch_images_success",
+                    "image_count": len(response_data),
+                },
+            )
             return self.success_response(response_data)
 
         @self.app.route("/api/images/<image_id>/history")
         @self.rate_limit
+        @log_request()
         def get_image_history(image_id: str) -> Response:
             """Get the history of a specific Docker image."""
-            logger.info(f"Received request to fetch history for image: {image_id}")
+            logger.info(
+                "Received request to fetch image history",
+                extra={
+                    "event": "fetch_image_history",
+                    "image_id": image_id,
+                },
+            )
             history, error = self.docker_service.get_image_history(image_id)
 
             if error:
-                logger.error(f"Error fetching image history: {error}")
+                logger.error(
+                    "Error fetching image history",
+                    extra={
+                        "event": "fetch_image_history_error",
+                        "image_id": image_id,
+                        "error": error,
+                    },
+                )
                 return self.error_response(error)
 
             if history is None:
+                logger.error(
+                    "No history data returned",
+                    extra={
+                        "event": "fetch_image_history_error",
+                        "image_id": image_id,
+                        "error": "Failed to fetch image history",
+                    },
+                )
                 return self.error_response("Failed to fetch image history")
 
-            logger.info(f"Successfully fetched history for image: {image_id}")
+            logger.info(
+                "Successfully fetched image history",
+                extra={
+                    "event": "fetch_image_history_success",
+                    "image_id": image_id,
+                },
+            )
             return self.success_response({"history": history})
 
         @self.app.route("/api/images/<image_id>", methods=["DELETE"])
         @self.rate_limit
+        @log_request()
         def delete_image(image_id: str) -> Response:
             """Delete a Docker image."""
             force = request.args.get("force", "false").lower() == "true"
-            logger.info(f"Received request to delete image {image_id} (force={force})")
+            logger.info(
+                "Received request to delete image",
+                extra={
+                    "event": "delete_image",
+                    "image_id": image_id,
+                    "force": force,
+                },
+            )
 
             success, error = self.docker_service.delete_image(image_id, force=force)
             if not success:
-                logger.error(f"Failed to delete image {image_id}: {error}")
+                logger.error(
+                    "Failed to delete image",
+                    extra={
+                        "event": "delete_image_error",
+                        "image_id": image_id,
+                        "force": force,
+                        "error": error,
+                    },
+                )
                 return self.error_response(error or "Failed to delete image")
 
-            logger.info(f"Successfully deleted image: {image_id}")
+            logger.info(
+                "Successfully deleted image",
+                extra={
+                    "event": "delete_image_success",
+                    "image_id": image_id,
+                    "force": force,
+                },
+            )
             return self.success_response({"message": "Image deleted successfully"})
 
         @self.app.errorhandler(Exception)
         def handle_error(error: Exception) -> Response:
             if isinstance(error, HTTPException):
+                logger.error(
+                    "HTTP exception occurred",
+                    extra={
+                        "event": "http_error",
+                        "error": error.description,
+                        "code": error.code,
+                    },
+                )
                 return self.error_response(error.description, status_code=error.code)
-            logger.error(f"Unhandled error: {str(error)}", exc_info=True)
+
+            logger.error(
+                "Unhandled error occurred",
+                extra={
+                    "event": "unhandled_error",
+                    "error": str(error),
+                },
+                exc_info=True,
+            )
             return self.error_response("An unexpected error occurred")
 
     def setup_websocket_handlers(self):
@@ -311,6 +605,9 @@ class FlaskApp:
         @self.socketio.on("connect")
         def handle_connect():
             try:
+                # Generate a unique request ID for WebSocket connections
+                request_id = request.headers.get("X-Request-ID") or set_request_id()
+
                 logger.info(
                     "Client connected to WebSocket",
                     extra={
@@ -318,6 +615,7 @@ class FlaskApp:
                         "client": request.remote_addr,
                         "sid": request.sid,
                         "transport": request.args.get("transport", "unknown"),
+                        "request_id": request_id,
                     },
                 )
                 # Send initial container states to the client in a single batch
