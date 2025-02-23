@@ -107,3 +107,20 @@ This ensures a seamless user experience even after page refreshes or automatic u
     ```bash
     docker compose up
     ```
+
+### Local Development Setup 💻
+
+For faster prototyping and development, you can run the application components locally outside of Docker containers. This approach can provide quicker feedback during development.
+
+1. Start the Frontend (React):
+
+    ```bash
+    PORT=3002 npm start
+    ```
+
+2. Start the Backend (Flask):
+    ```bash
+    gunicorn -b 0.0.0.0:5000 -k eventlet --timeout 120 --worker-class eventlet --workers 1 --reload docker_monitor:app
+    ```
+
+> 💡 **Tip:** Running locally allows for faster reload times and easier debugging. Make sure you have all required dependencies installed in your local environment.
