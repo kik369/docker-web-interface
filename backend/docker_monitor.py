@@ -26,12 +26,13 @@ class FlaskApp:
             self.app,
             cors_allowed_origins="*",
             async_mode="eventlet",
-            ping_timeout=60,
-            ping_interval=25,
+            ping_timeout=20,
+            ping_interval=10,
             max_http_buffer_size=1e8,
-            manage_session=False,
-            logger=True,
-            engineio_logger=True,
+            manage_session=True,
+            logger=False,
+            engineio_logger=False,
+            always_connect=True,
         )
         self.docker_service = DockerService(socketio=self.socketio)
         self.request_counts: Dict[datetime, int] = {}
@@ -275,18 +276,24 @@ class FlaskApp:
 
         @self.socketio.on("connect")
         def handle_connect():
-            logger.info(f"Client connected to WebSocket from {request.remote_addr}")
-            # Send initial container states to the client in a single batch
-            containers, error = self.docker_service.get_all_containers()
-            if containers and not error:
-                container_states = [
-                    {"container_id": container.id, "state": container.state}
-                    for container in containers
-                ]
-                # Send all states in a single event
-                self.socketio.emit(
-                    "container_states_batch", {"states": container_states}
-                )
+            try:
+                logger.info(f"Client connected to WebSocket from {request.remote_addr}")
+                # Send initial container states to the client in a single batch
+                containers, error = self.docker_service.get_all_containers()
+                if containers and not error:
+                    container_states = [
+                        {"container_id": container.id, "state": container.state}
+                        for container in containers
+                    ]
+                    # Send all states in a single event
+                    self.socketio.emit(
+                        "container_states_batch",
+                        {"states": container_states},
+                        room=request.sid,
+                    )
+            except Exception as e:
+                logger.error(f"Error in handle_connect: {str(e)}")
+                return False  # Reject the connection on error
 
         @self.socketio.on("disconnect")
         def handle_disconnect(reason):
@@ -305,12 +312,14 @@ class FlaskApp:
         @self.socketio.on("start_log_stream")
         def handle_start_log_stream(data):
             """Handle start of log streaming for a container."""
-            container_id = data.get("container_id")
-            if not container_id:
-                self.socketio.emit("error", {"error": "Container ID is required"})
-                return
-
             try:
+                container_id = data.get("container_id")
+                if not container_id:
+                    self.socketio.emit(
+                        "error", {"error": "Container ID is required"}, room=request.sid
+                    )
+                    return
+
                 for log_line in self.docker_service.stream_container_logs(container_id):
                     if not self.socketio.server.manager.rooms.get(request.sid, {}).get(
                         "/"
@@ -318,14 +327,18 @@ class FlaskApp:
                         # Client disconnected, stop streaming
                         break
                     self.socketio.emit(
-                        "log_update", {"container_id": container_id, "log": log_line}
+                        "log_update",
+                        {"container_id": container_id, "log": log_line},
+                        room=request.sid,
                     )
             except Exception as e:
                 logger.error(
                     f"Error streaming logs for container {container_id}: {str(e)}"
                 )
                 self.socketio.emit(
-                    "error", {"error": f"Failed to stream logs: {str(e)}"}
+                    "error",
+                    {"error": f"Failed to stream logs: {str(e)}"},
+                    room=request.sid,
                 )
 
     def run(self) -> None:
@@ -335,10 +348,7 @@ class FlaskApp:
             host="0.0.0.0",
             port=5000,
             allow_unsafe_werkzeug=True,
-            ping_timeout=60,
-            ping_interval=25,
             cors_allowed_origins="*",
-            engineio_logger=True,
         )
 
 

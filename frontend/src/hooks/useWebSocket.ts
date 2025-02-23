@@ -15,9 +15,90 @@ interface WebSocketError {
     error: string;
 }
 
-// Singleton socket instance
+// Singleton state management
 let globalSocket: Socket | null = null;
 let activeSubscriptions = 0;
+let isInitializing = false;
+let globalHandlers: Set<UseWebSocketProps> = new Set();
+
+const initializeSocket = () => {
+    if (globalSocket || isInitializing) return;
+
+    isInitializing = true;
+    globalSocket = io(config.API_URL, {
+        transports: ['websocket'],  // Force WebSocket only
+        reconnection: true,
+        reconnectionAttempts: Infinity,  // Keep trying to reconnect
+        reconnectionDelay: 1000,
+        reconnectionDelayMax: 5000,
+        timeout: 10000,
+        forceNew: false,
+        autoConnect: false,
+    });
+
+    // Global error handlers
+    globalSocket.on('connect_error', (error) => {
+        logger.error('Connection error:', error);
+        globalHandlers.forEach(handler => handler.onError?.(`Connection error: ${error.message}`));
+
+        // If we get a transport error, try to reconnect after a delay
+        if (error.message.includes('transport')) {
+            setTimeout(() => {
+                if (globalSocket && !globalSocket.connected && activeSubscriptions > 0) {
+                    globalSocket.connect();
+                }
+            }, 1000);
+        }
+    });
+
+    globalSocket.on('error', (error: WebSocketError) => {
+        logger.error('Socket error:', new Error(error.error));
+        globalHandlers.forEach(handler => handler.onError?.(error.error));
+    });
+
+    globalSocket.on('connect', () => {
+        logger.info('Connected to WebSocket server');
+        isInitializing = false;  // Reset initialization flag on successful connection
+    });
+
+    globalSocket.on('disconnect', (reason) => {
+        logger.info('Disconnected from WebSocket server:', { reason });
+
+        // Handle various disconnect reasons
+        if (reason === 'io server disconnect' || reason === 'transport close') {
+            setTimeout(() => {
+                if (globalSocket && !globalSocket.connected && activeSubscriptions > 0) {
+                    globalSocket.connect();
+                }
+            }, 1000);
+        } else if (reason === 'ping timeout') {
+            // For ping timeouts, try to create a new connection
+            if (globalSocket) {
+                globalSocket.disconnect();
+                globalSocket = null;
+                isInitializing = false;
+                if (activeSubscriptions > 0) {
+                    initializeSocket();
+                }
+            }
+        }
+    });
+
+    // Initialize event handlers for all messages
+    globalSocket.on('container_state_change', (data: { container_id: string; state: string }) => {
+        globalHandlers.forEach(handler => handler.onContainerStateChange?.(data.container_id, data.state));
+    });
+
+    globalSocket.on('container_states_batch', (data: { states: Array<{ container_id: string; state: string }> }) => {
+        globalHandlers.forEach(handler => handler.onContainerStatesBatch?.(data.states));
+    });
+
+    globalSocket.on('log_update', (data: { container_id: string; log: string }) => {
+        globalHandlers.forEach(handler => handler.onLogUpdate?.(data.container_id, data.log));
+    });
+
+    globalSocket.connect();
+};
 
 export const useWebSocket = ({
     onLogUpdate,
@@ -26,111 +107,40 @@ export const useWebSocket = ({
     onError,
     enabled = false
 }: UseWebSocketProps) => {
-    const socketRef = useRef<Socket | null>(null);
+    const handlers = useRef<UseWebSocketProps>({ onLogUpdate, onContainerStateChange, onContainerStatesBatch, onError });
 
     useEffect(() => {
-        if (!enabled) {
-            return;
-        }
+        if (!enabled) return;
 
-        // Initialize or reuse socket connection
-        if (!globalSocket) {
-            globalSocket = io(config.API_URL, {
-                transports: ['websocket'],
-                reconnection: true,
-                reconnectionAttempts: Infinity,
-                reconnectionDelay: 1000,
-                reconnectionDelayMax: 5000,
-                timeout: 60000,
-                forceNew: false,
-                autoConnect: true,
-                closeOnBeforeunload: true
-            });
-        }
-
+        // Update handlers ref
+        handlers.current = { onLogUpdate, onContainerStateChange, onContainerStatesBatch, onError };
+        globalHandlers.add(handlers.current);
         activeSubscriptions++;
-        socketRef.current = globalSocket;
 
-        if (!socketRef.current.connected) {
-            socketRef.current.connect();
-        }
+        // Initialize socket if needed
+        initializeSocket();
 
-        // Set up event listeners
-        const handleConnect = () => {
-            logger.info('Connected to WebSocket server');
-        };
-
-        const handleDisconnect = (reason: string) => {
-            logger.info('Disconnected from WebSocket server:', { reason });
-            if (reason === 'io server disconnect' && socketRef.current) {
-                socketRef.current.connect();
-            }
-        };
-
-        const handleConnectError = (error: Error) => {
-            logger.error('WebSocket connection error:', error);
-            onError?.(`Connection error: ${error.message}`);
-        };
-
-        const handleError = (error: WebSocketError) => {
-            logger.error('WebSocket error:', new Error(error.error));
-            onError?.(error.error);
-        };
-
-        const handleLogUpdate = (data: { container_id: string; log: string }) => {
-            onLogUpdate?.(data.container_id, data.log);
-        };
-
-        const handleContainerStateChange = (data: { container_id: string; state: string }) => {
-            logger.debug('Container state change received:', data);
-            onContainerStateChange?.(data.container_id, data.state);
-        };
-
-        const handleContainerStatesBatch = (data: { states: Array<{ container_id: string; state: string }> }) => {
-            logger.debug('Container states batch received:', data);
-            onContainerStatesBatch?.(data.states);
-        };
-
-        socketRef.current.on('connect', handleConnect);
-        socketRef.current.on('disconnect', handleDisconnect);
-        socketRef.current.on('connect_error', handleConnectError);
-        socketRef.current.on('error', handleError);
-        socketRef.current.on('log_update', handleLogUpdate);
-        socketRef.current.on('container_state_change', handleContainerStateChange);
-        socketRef.current.on('container_states_batch', handleContainerStatesBatch);
-
-        // Cleanup on unmount
         return () => {
             activeSubscriptions--;
+            globalHandlers.delete(handlers.current);
 
-            if (socketRef.current) {
-                socketRef.current.off('connect', handleConnect);
-                socketRef.current.off('disconnect', handleDisconnect);
-                socketRef.current.off('connect_error', handleConnectError);
-                socketRef.current.off('error', handleError);
-                socketRef.current.off('log_update', handleLogUpdate);
-                socketRef.current.off('container_state_change', handleContainerStateChange);
-                socketRef.current.off('container_states_batch', handleContainerStatesBatch);
-            }
-
-            // Only disconnect if this is the last subscription
-            if (activeSubscriptions === 0 && socketRef.current && globalSocket) {
-                logger.info('Cleaning up WebSocket connection');
-                socketRef.current.disconnect();
+            if (activeSubscriptions === 0 && globalSocket) {
+                logger.info('Cleaning up last WebSocket connection');
+                globalSocket.disconnect();
                 globalSocket = null;
             }
         };
     }, [enabled, onLogUpdate, onContainerStateChange, onContainerStatesBatch, onError]);
 
     const startLogStream = useCallback((containerId: string) => {
-        if (socketRef.current && enabled) {
-            socketRef.current.emit('start_log_stream', { container_id: containerId });
+        if (globalSocket && enabled) {
+            globalSocket.emit('start_log_stream', { container_id: containerId });
             logger.info('Started log stream for container', { containerId });
         }
     }, [enabled]);
 
     return {
         startLogStream,
-        isConnected: socketRef.current?.connected || false,
+        isConnected: globalSocket?.connected || false,
     };
 };
