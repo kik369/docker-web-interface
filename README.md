@@ -13,6 +13,11 @@ This project is a comprehensive Docker container monitoring and management syste
 -   Container health monitoring
 -   Comprehensive request logging and tracking
 -   Persistent UI state across page refreshes
+-   Docker image management with tab-based navigation
+    -   List and search available images
+    -   View detailed image information
+    -   Pull and remove images
+    -   Image tag management
 
 ## To-Do List and Pending Work 📝
 
@@ -23,6 +28,8 @@ This project is a comprehensive Docker container monitoring and management syste
 -   [ ] Add automated testing
 -   [ ] Implement container resource limits management
 -   [ ] Implement container log search functionality
+-   [x] Add Docker image management functionality
+-   [x] Implement image management UI with tab navigation
 
 ## How the Project Works 🔧
 
@@ -36,6 +43,8 @@ graph TD
     A -->|WebSocket| B
     B -->|Docker SDK| C[Docker Engine]
     B -->|Metrics| D[Container Stats]
+    B -->|Image API| E[Docker Registry]
+    C -->|Image Ops| E
 ```
 
 1. **Frontend React**
@@ -43,6 +52,7 @@ graph TD
     - Modern UI built with React
     - Real-time updates using WebSocket
     - Container management interface
+    - Docker image management UI with tab navigation
     - Status visualization
 
 2. **Backend Flask**
@@ -51,16 +61,18 @@ graph TD
     - WebSocket server for real-time updates
     - Built-in request logging and monitoring
     - Container metrics collection
+    - Docker image management API endpoints
 
 ### Component Interaction
 
-The frontend communicates with the backend through REST APIs and WebSocket connections. The backend interfaces with Docker's API to collect container information and metrics, with comprehensive logging of all operations and requests.
+The frontend communicates with the backend through REST APIs and WebSocket connections. The backend interfaces with Docker's API to collect container information, manage images, and collect metrics, with comprehensive logging of all operations and requests.
 
 The UI maintains state persistence for:
 
 -   Docker Compose application groups (expanded/collapsed state)
 -   Container log views (open/closed state)
 -   Log content updates in real-time via WebSocket
+-   Image management tab state and filters
 
 This ensures a seamless user experience even after page refreshes or automatic updates.
 
