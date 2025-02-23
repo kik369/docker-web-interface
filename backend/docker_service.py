@@ -22,9 +22,10 @@ class Container:
 
 
 class DockerService:
-    def __init__(self):
+    def __init__(self, socketio=None):
         try:
             self.client = docker.from_env()
+            self.socketio = socketio
         except Exception as e:
             logger.error(f"Failed to initialize Docker client: {e}")
             raise
@@ -178,11 +179,19 @@ class DockerService:
             logger.error(error_msg)
             yield f"Error: {error_msg}"
 
+    def _emit_container_state(self, container_id: str, state: str) -> None:
+        """Emit container state change event via WebSocket."""
+        if self.socketio:
+            self.socketio.emit(
+                "container_state_change", {"container_id": container_id, "state": state}
+            )
+
     def start_container(self, container_id: str) -> Tuple[bool, Optional[str]]:
         """Start a stopped container."""
         try:
             container = self.client.containers.get(container_id)
             container.start()
+            self._emit_container_state(container_id, "running")
             return True, None
         except docker.errors.NotFound:
             error_msg = f"Container {container_id} not found"
@@ -198,6 +207,7 @@ class DockerService:
         try:
             container = self.client.containers.get(container_id)
             container.stop()
+            self._emit_container_state(container_id, "stopped")
             return True, None
         except docker.errors.NotFound:
             error_msg = f"Container {container_id} not found"
@@ -213,6 +223,7 @@ class DockerService:
         try:
             container = self.client.containers.get(container_id)
             container.restart()
+            self._emit_container_state(container_id, "running")
             return True, None
         except docker.errors.NotFound:
             error_msg = f"Container {container_id} not found"
@@ -238,13 +249,14 @@ class DockerService:
 
             # Stop and remove the container
             container.stop()
+            self._emit_container_state(container_id, "stopped")
             container.remove()
 
             # Pull the latest image
             self.client.images.pull(image)
 
             # Create and start the new container with the same configuration
-            self.client.containers.run(
+            new_container = self.client.containers.run(
                 image=image,
                 name=name,
                 detach=True,
@@ -254,7 +266,7 @@ class DockerService:
                 network_mode=host_config.get("NetworkMode", "default"),
                 labels=config.get("Labels", {}),
             )
-
+            self._emit_container_state(new_container.id, "running")
             return True, None
 
         except docker.errors.NotFound:
@@ -270,9 +282,8 @@ class DockerService:
         """Delete a container."""
         try:
             container = self.client.containers.get(container_id)
-            container.remove(
-                force=True
-            )  # force=True will stop the container if it's running
+            container.remove(force=True)
+            self._emit_container_state(container_id, "deleted")
             return True, None
         except docker.errors.NotFound:
             error_msg = f"Container {container_id} not found"

@@ -8,6 +8,7 @@ import { HiChevronDown, HiChevronRight } from 'react-icons/hi';
 import { FaServer } from 'react-icons/fa';
 import { BiCube } from 'react-icons/bi';
 import { IconBaseProps } from 'react-icons';
+import { useWebSocket } from '../hooks/useWebSocket';
 
 // Create wrapper components for icons
 const ServerIcon: React.FC<IconBaseProps> = (props): React.JSX.Element => (
@@ -48,7 +49,51 @@ export const ContainerList: React.FC<ContainerListProps> = ({
         }
     });
     const [searchTerm, setSearchTerm] = useState('');
+    const [localContainers, setLocalContainers] = useState(containers);
     const { actionStates, startContainer, stopContainer, restartContainer, rebuildContainer, deleteContainer } = useContainers();
+
+    // Update local containers when prop changes
+    useEffect(() => {
+        setLocalContainers(containers);
+    }, [containers]);
+
+    // WebSocket setup for real-time updates
+    useWebSocket({
+        onContainerStateChange: (containerId, state) => {
+            setLocalContainers(prevContainers =>
+                prevContainers.map(container =>
+                    container.id === containerId
+                        ? { ...container, state }
+                        : container
+                )
+            );
+            // If container is deleted, remove it from the list
+            if (state === 'deleted') {
+                setLocalContainers(prevContainers =>
+                    prevContainers.filter(container => container.id !== containerId)
+                );
+            }
+        },
+        onContainerStatesBatch: (states) => {
+            setLocalContainers(prevContainers => {
+                const updatedContainers = [...prevContainers];
+                states.forEach(({ container_id, state }) => {
+                    const containerIndex = updatedContainers.findIndex(c => c.id === container_id);
+                    if (containerIndex !== -1) {
+                        updatedContainers[containerIndex] = {
+                            ...updatedContainers[containerIndex],
+                            state
+                        };
+                    }
+                });
+                return updatedContainers;
+            });
+        },
+        onError: (error) => {
+            logger.error('WebSocket error:', new Error(error));
+        },
+        enabled: true
+    });
 
     // Save expanded groups to localStorage whenever they change
     useEffect(() => {
@@ -82,51 +127,6 @@ export const ContainerList: React.FC<ContainerListProps> = ({
             return newSet;
         });
     }, []);
-
-    const filteredAndSortedContainers = React.useMemo(() => {
-        if (!Array.isArray(containers)) {
-            return {};
-        }
-
-        const filtered = containers.filter(container =>
-            Object.values(container).some(value =>
-                String(value).toLowerCase().includes(searchTerm.toLowerCase())
-            )
-        );
-
-        // First sort containers by their service name within each project
-        filtered.sort((a, b) => {
-            const aService = a.compose_service || a.name;
-            const bService = b.compose_service || b.name;
-            return aService.localeCompare(bService);
-        });
-
-        // Then group containers by compose project
-        const grouped: GroupedContainers = filtered.reduce((acc, container) => {
-            // Ensure we use the actual compose project name if available
-            const projectKey = container.compose_project || 'Standalone Containers';
-
-            if (!acc[projectKey]) {
-                acc[projectKey] = [];
-            }
-            acc[projectKey].push(container);
-            return acc;
-        }, {} as GroupedContainers);
-
-        // Move Standalone Containers to the end and sort other projects alphabetically
-        const orderedGroups: GroupedContainers = {};
-        Object.keys(grouped)
-            .sort((a, b) => {
-                if (a === 'Standalone Containers') return 1;
-                if (b === 'Standalone Containers') return -1;
-                return a.localeCompare(b);
-            })
-            .forEach(key => {
-                orderedGroups[key] = grouped[key];
-            });
-
-        return orderedGroups;
-    }, [containers, searchTerm]);
 
     const handleContainerAction = async (containerId: string, action: string) => {
         try {
@@ -171,6 +171,16 @@ export const ContainerList: React.FC<ContainerListProps> = ({
         return <div className="error">Error: {error}</div>;
     }
 
+    // Group containers by project
+    const containersByProject = localContainers.reduce((acc, container) => {
+        const project = container.compose_project || 'Standalone Containers';
+        if (!acc[project]) {
+            acc[project] = [];
+        }
+        acc[project].push(container);
+        return acc;
+    }, {} as Record<string, Container[]>);
+
     return (
         <div className="container-list">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
@@ -179,12 +189,12 @@ export const ContainerList: React.FC<ContainerListProps> = ({
                     <div className="flex items-center gap-2">
                         <div className="flex items-center px-2 py-1 bg-blue-500 text-white text-sm rounded-full">
                             <ServerIcon className="w-4 h-4 mr-1" />
-                            <span>{Object.keys(filteredAndSortedContainers).filter(key => key !== 'Standalone Containers').length}</span>
+                            <span>{Object.keys(containersByProject).filter(key => key !== 'Standalone Containers').length}</span>
                         </div>
                         <div className="flex items-center px-2 py-1 bg-blue-500 text-white text-sm rounded-full">
                             <CubeIcon className="w-4 h-4 mr-1" />
                             <span>
-                                {Object.entries(filteredAndSortedContainers)
+                                {Object.entries(containersByProject)
                                     .filter(([key]) => key !== 'Standalone Containers')
                                     .reduce((acc, [_, containers]) => acc + containers.length, 0)}
                             </span>
@@ -195,7 +205,7 @@ export const ContainerList: React.FC<ContainerListProps> = ({
                     <SearchBar value={searchTerm} onChange={setSearchTerm} />
                 </div>
             </div>
-            {Object.entries(filteredAndSortedContainers).map(([projectName, projectContainers]) => (
+            {Object.entries(containersByProject).map(([projectName, projectContainers]) => (
                 projectName !== 'Standalone Containers' ? (
                     <div key={projectName} className="compose-project-group mb-6">
                         <div
@@ -234,17 +244,17 @@ export const ContainerList: React.FC<ContainerListProps> = ({
             ))}
 
             {/* Standalone Containers Section */}
-            {filteredAndSortedContainers['Standalone Containers'] && (
+            {containersByProject['Standalone Containers'] && (
                 <div className="mt-8">
                     <div className="flex items-center gap-2 mb-4">
                         <h2 className="text-xl font-semibold text-white">Standalone Containers</h2>
                         <div className="flex items-center px-2 py-1 bg-blue-500 text-white text-sm rounded-full">
                             <CubeIcon className="w-4 h-4 mr-1" />
-                            <span>{filteredAndSortedContainers['Standalone Containers'].length}</span>
+                            <span>{containersByProject['Standalone Containers'].length}</span>
                         </div>
                     </div>
                     <div className="container-group">
-                        {filteredAndSortedContainers['Standalone Containers'].map(container => (
+                        {containersByProject['Standalone Containers'].map(container => (
                             <ContainerRow
                                 key={container.id}
                                 container={container}

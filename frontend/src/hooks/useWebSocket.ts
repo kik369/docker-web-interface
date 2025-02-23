@@ -5,6 +5,8 @@ import { logger } from '../services/logging';
 
 interface UseWebSocketProps {
     onLogUpdate?: (containerId: string, log: string) => void;
+    onContainerStateChange?: (containerId: string, state: string) => void;
+    onContainerStatesBatch?: (states: Array<{ container_id: string; state: string }>) => void;
     onError?: (error: string) => void;
     enabled?: boolean;
 }
@@ -17,7 +19,13 @@ interface WebSocketError {
 let globalSocket: Socket | null = null;
 let activeSubscriptions = 0;
 
-export const useWebSocket = ({ onLogUpdate, onError, enabled = false }: UseWebSocketProps) => {
+export const useWebSocket = ({
+    onLogUpdate,
+    onContainerStateChange,
+    onContainerStatesBatch,
+    onError,
+    enabled = false
+}: UseWebSocketProps) => {
     const socketRef = useRef<Socket | null>(null);
 
     useEffect(() => {
@@ -73,11 +81,23 @@ export const useWebSocket = ({ onLogUpdate, onError, enabled = false }: UseWebSo
             onLogUpdate?.(data.container_id, data.log);
         };
 
+        const handleContainerStateChange = (data: { container_id: string; state: string }) => {
+            logger.debug('Container state change received:', data);
+            onContainerStateChange?.(data.container_id, data.state);
+        };
+
+        const handleContainerStatesBatch = (data: { states: Array<{ container_id: string; state: string }> }) => {
+            logger.debug('Container states batch received:', data);
+            onContainerStatesBatch?.(data.states);
+        };
+
         socketRef.current.on('connect', handleConnect);
         socketRef.current.on('disconnect', handleDisconnect);
         socketRef.current.on('connect_error', handleConnectError);
         socketRef.current.on('error', handleError);
         socketRef.current.on('log_update', handleLogUpdate);
+        socketRef.current.on('container_state_change', handleContainerStateChange);
+        socketRef.current.on('container_states_batch', handleContainerStatesBatch);
 
         // Cleanup on unmount
         return () => {
@@ -89,6 +109,8 @@ export const useWebSocket = ({ onLogUpdate, onError, enabled = false }: UseWebSo
                 socketRef.current.off('connect_error', handleConnectError);
                 socketRef.current.off('error', handleError);
                 socketRef.current.off('log_update', handleLogUpdate);
+                socketRef.current.off('container_state_change', handleContainerStateChange);
+                socketRef.current.off('container_states_batch', handleContainerStatesBatch);
             }
 
             // Only disconnect if this is the last subscription
@@ -98,7 +120,7 @@ export const useWebSocket = ({ onLogUpdate, onError, enabled = false }: UseWebSo
                 globalSocket = null;
             }
         };
-    }, [enabled, onLogUpdate, onError]);
+    }, [enabled, onLogUpdate, onContainerStateChange, onContainerStatesBatch, onError]);
 
     const startLogStream = useCallback((containerId: string) => {
         if (socketRef.current && enabled) {

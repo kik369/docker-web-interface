@@ -7,7 +7,7 @@ from config import Config
 from docker_service import Container, DockerService
 from flask import Flask, Response, jsonify, request
 from flask_cors import CORS
-from flask_socketio import SocketIO, emit
+from flask_socketio import SocketIO
 from werkzeug.exceptions import HTTPException
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -22,10 +22,6 @@ class FlaskApp:
     def __init__(self):
         self.app = Flask(__name__)
         self.setup_app()
-        self.docker_service = DockerService()
-        self.request_counts: Dict[datetime, int] = {}
-        self.current_rate_limit = Config.MAX_REQUESTS_PER_MINUTE
-        self.current_refresh_interval = Config.REFRESH_INTERVAL
         self.socketio = SocketIO(
             self.app,
             cors_allowed_origins="*",
@@ -37,6 +33,10 @@ class FlaskApp:
             logger=True,
             engineio_logger=True,
         )
+        self.docker_service = DockerService(socketio=self.socketio)
+        self.request_counts: Dict[datetime, int] = {}
+        self.current_rate_limit = Config.MAX_REQUESTS_PER_MINUTE
+        self.current_refresh_interval = Config.REFRESH_INTERVAL
         self.setup_routes()
         self.setup_websocket_handlers()
 
@@ -226,12 +226,23 @@ class FlaskApp:
         @self.socketio.on("connect")
         def handle_connect():
             logger.info(f"Client connected to WebSocket from {request.remote_addr}")
+            # Send initial container states to the client in a single batch
+            containers, error = self.docker_service.get_all_containers()
+            if containers and not error:
+                container_states = [
+                    {"container_id": container.id, "state": container.state}
+                    for container in containers
+                ]
+                # Send all states in a single event
+                self.socketio.emit(
+                    "container_states_batch", {"states": container_states}
+                )
 
         @self.socketio.on("disconnect")
-        def handle_disconnect():
+        def handle_disconnect(reason):
             try:
                 logger.info(
-                    f"Client disconnected from WebSocket from {request.remote_addr}"
+                    f"Client disconnected from WebSocket from {request.remote_addr}, reason: {reason}"
                 )
             except Exception as e:
                 logger.error(f"Error during WebSocket disconnect: {str(e)}")
@@ -246,7 +257,7 @@ class FlaskApp:
             """Handle start of log streaming for a container."""
             container_id = data.get("container_id")
             if not container_id:
-                emit("error", {"error": "Container ID is required"})
+                self.socketio.emit("error", {"error": "Container ID is required"})
                 return
 
             try:
@@ -256,12 +267,16 @@ class FlaskApp:
                     ):
                         # Client disconnected, stop streaming
                         break
-                    emit("log_update", {"container_id": container_id, "log": log_line})
+                    self.socketio.emit(
+                        "log_update", {"container_id": container_id, "log": log_line}
+                    )
             except Exception as e:
                 logger.error(
                     f"Error streaming logs for container {container_id}: {str(e)}"
                 )
-                emit("error", {"error": f"Failed to stream logs: {str(e)}"})
+                self.socketio.emit(
+                    "error", {"error": f"Failed to stream logs: {str(e)}"}
+                )
 
     def run(self) -> None:
         """Run the Flask application with WebSocket support."""
