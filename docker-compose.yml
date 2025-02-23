@@ -4,7 +4,7 @@ services:
         ports:
             - '5000:5000'
         environment:
-            - FLASK_ENV=${FLASK_ENV}
+            - FLASK_DEBUG=${FLASK_DEBUG}
             - FLASK_APP=${FLASK_APP}
             - LOG_LEVEL=${LOG_LEVEL}
             - LOG_FORMAT=${LOG_FORMAT}

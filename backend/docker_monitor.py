@@ -26,8 +26,18 @@ class FlaskApp:
         self.request_counts: Dict[datetime, int] = {}
         self.current_rate_limit = Config.MAX_REQUESTS_PER_MINUTE
         self.current_refresh_interval = Config.REFRESH_INTERVAL
-        self.socketio = SocketIO(self.app, cors_allowed_origins="*")
-        self.setup_routes()  # Set up routes during initialization
+        self.socketio = SocketIO(
+            self.app,
+            cors_allowed_origins="*",
+            async_mode="eventlet",
+            ping_timeout=60,
+            ping_interval=25,
+            max_http_buffer_size=1e8,
+            manage_session=False,
+            logger=True,
+            engineio_logger=True,
+        )
+        self.setup_routes()
         self.setup_websocket_handlers()
 
     def setup_app(self) -> None:
@@ -215,13 +225,13 @@ class FlaskApp:
 
         @self.socketio.on("connect")
         def handle_connect():
-            logger.info("Client connected to WebSocket")
+            logger.info(f"Client connected to WebSocket from {request.remote_addr}")
 
         @self.socketio.on("disconnect")
-        def handle_disconnect(reason=None):
+        def handle_disconnect():
             try:
                 logger.info(
-                    "Client disconnected from WebSocket", extra={"reason": reason}
+                    f"Client disconnected from WebSocket from {request.remote_addr}"
                 )
             except Exception as e:
                 logger.error(f"Error during WebSocket disconnect: {str(e)}")
@@ -241,6 +251,11 @@ class FlaskApp:
 
             try:
                 for log_line in self.docker_service.stream_container_logs(container_id):
+                    if not self.socketio.server.manager.rooms.get(request.sid, {}).get(
+                        "/"
+                    ):
+                        # Client disconnected, stop streaming
+                        break
                     emit("log_update", {"container_id": container_id, "log": log_line})
             except Exception as e:
                 logger.error(

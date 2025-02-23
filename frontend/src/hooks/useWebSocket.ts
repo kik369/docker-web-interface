@@ -30,12 +30,13 @@ export const useWebSocket = ({ onLogUpdate, onError, enabled = false }: UseWebSo
             globalSocket = io(config.API_URL, {
                 transports: ['websocket'],
                 reconnection: true,
-                reconnectionAttempts: 10,
+                reconnectionAttempts: Infinity,
                 reconnectionDelay: 1000,
                 reconnectionDelayMax: 5000,
                 timeout: 60000,
                 forceNew: false,
-                autoConnect: false
+                autoConnect: true,
+                closeOnBeforeunload: true
             });
         }
 
@@ -91,8 +92,9 @@ export const useWebSocket = ({ onLogUpdate, onError, enabled = false }: UseWebSo
             }
 
             // Only disconnect if this is the last subscription
-            if (activeSubscriptions === 0 && globalSocket) {
-                globalSocket.disconnect();
+            if (activeSubscriptions === 0 && socketRef.current && globalSocket) {
+                logger.info('Cleaning up WebSocket connection');
+                socketRef.current.disconnect();
                 globalSocket = null;
             }
         };

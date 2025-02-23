@@ -73,29 +73,18 @@ This ensures a seamless user experience even after page refreshes or automatic u
     cd docker-web-interface
     ```
 
-2. Create a .env file with required environment variables:
+2. Configure environment variables:
 
-    ```bash
-    # Copy the example environment file
-    cp .env.example .env
+    - Copy `.env.example` to `.env`
+    - Required environment variables:
+        - `FLASK_DEBUG`: Set to 1 for debug mode, 0 for production mode
+        - `FLASK_APP`: The main application file (default: docker_monitor.py)
+        - `LOG_LEVEL`: Logging level (e.g., INFO, DEBUG)
+        - `LOG_FORMAT`: Log format (json or text)
+        - `PYTHONPATH`: Python path configuration
+        - Other variables as specified in `.env.example`
 
-    # Edit the .env file with your specific values
-    nano .env  # or use your preferred editor
-    ```
-
-3. Start the application:
+3. Build and run:
     ```bash
     docker compose up --watch
     ```
-
-> ℹ️ **Note:** The application will be available at:
->
-> -   Frontend: http://localhost:3002
-> -   Backend API: http://localhost:5000
-
-## Notes and Reminders ⚠️
-
-> 💡 **Tips:**
->
-> -   All configuration changes should be made through environment variables
-> -   Check application logs for monitoring and debugging
