@@ -8,13 +8,12 @@ from docker_service import Container, DockerService
 from flask import Flask, Response, jsonify, request
 from flask_cors import CORS
 from flask_socketio import SocketIO
+from logging_utils import setup_logging
 from werkzeug.exceptions import HTTPException
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
+setup_logging()
 logger = logging.getLogger(__name__)
 
 
@@ -22,6 +21,11 @@ class FlaskApp:
     def __init__(self):
         self.app = Flask(__name__)
         self.setup_app()
+
+        # Configure Engine.IO logging
+        engineio_logger = logging.getLogger("engineio.server")
+        engineio_logger.setLevel(logging.INFO)
+
         self.socketio = SocketIO(
             self.app,
             cors_allowed_origins="*",
@@ -30,10 +34,40 @@ class FlaskApp:
             ping_interval=10,
             max_http_buffer_size=1e8,
             manage_session=True,
-            logger=False,
-            engineio_logger=False,
+            logger=True,
+            engineio_logger=True,
             always_connect=True,
         )
+
+        # Set up custom error handling for Engine.IO
+        def handle_transport_error(environ, exc):
+            logger.error(
+                "Engine.IO transport error",
+                extra={
+                    "error": str(exc),
+                    "event": "engineio_transport_error",
+                    "client": environ.get("REMOTE_ADDR", "unknown"),
+                    "path": environ.get("PATH_INFO", "unknown"),
+                },
+            )
+
+        # Attach error handler if the method exists
+        if hasattr(self.socketio.server, "handle_error"):
+            original_handle_error = self.socketio.server.handle_error
+
+            def wrapped_handle_error(*args, **kwargs):
+                logger.error(
+                    "Socket.IO error",
+                    extra={
+                        "event": "socketio_error",
+                        "args": str(args),
+                        "kwargs": str(kwargs),
+                    },
+                )
+                return original_handle_error(*args, **kwargs)
+
+            self.socketio.server.handle_error = wrapped_handle_error
+
         self.docker_service = DockerService(socketio=self.socketio)
         self.request_counts: Dict[datetime, int] = {}
         self.current_rate_limit = Config.MAX_REQUESTS_PER_MINUTE
@@ -277,7 +311,15 @@ class FlaskApp:
         @self.socketio.on("connect")
         def handle_connect():
             try:
-                logger.info(f"Client connected to WebSocket from {request.remote_addr}")
+                logger.info(
+                    "Client connected to WebSocket",
+                    extra={
+                        "event": "websocket_connect",
+                        "client": request.remote_addr,
+                        "sid": request.sid,
+                        "transport": request.args.get("transport", "unknown"),
+                    },
+                )
                 # Send initial container states to the client in a single batch
                 containers, error = self.docker_service.get_all_containers()
                 if containers and not error:
@@ -292,21 +334,54 @@ class FlaskApp:
                         room=request.sid,
                     )
             except Exception as e:
-                logger.error(f"Error in handle_connect: {str(e)}")
+                logger.error(
+                    "Error in WebSocket connect handler",
+                    extra={
+                        "error": str(e),
+                        "event": "websocket_connect_error",
+                        "client": request.remote_addr,
+                        "sid": request.sid,
+                    },
+                )
                 return False  # Reject the connection on error
 
         @self.socketio.on("disconnect")
         def handle_disconnect(reason):
             try:
                 logger.info(
-                    f"Client disconnected from WebSocket from {request.remote_addr}, reason: {reason}"
+                    "Client disconnected from WebSocket",
+                    extra={
+                        "event": "websocket_disconnect",
+                        "client": request.remote_addr,
+                        "sid": request.sid,
+                        "reason": reason,
+                    },
                 )
             except Exception as e:
-                logger.error(f"Error during WebSocket disconnect: {str(e)}")
+                logger.error(
+                    "Error in WebSocket disconnect handler",
+                    extra={
+                        "error": str(e),
+                        "event": "websocket_disconnect_error",
+                        "reason": reason,
+                    },
+                )
 
         @self.socketio.on_error()
         def handle_error(e):
-            logger.error(f"WebSocket error occurred: {str(e)}")
+            """Handle general Socket.IO errors."""
+            logger.error(
+                "WebSocket error occurred",
+                extra={
+                    "error": str(e),
+                    "event": "websocket_error",
+                    "client": getattr(request, "remote_addr", "unknown"),
+                    "sid": getattr(request, "sid", "unknown"),
+                    "transport": getattr(request, "args", {}).get(
+                        "transport", "unknown"
+                    ),
+                },
+            )
             return {"error": "An internal error occurred"}
 
         @self.socketio.on("start_log_stream")
@@ -315,16 +390,44 @@ class FlaskApp:
             try:
                 container_id = data.get("container_id")
                 if not container_id:
+                    logger.warning(
+                        "Missing container ID in log stream request",
+                        extra={
+                            "event": "log_stream_error",
+                            "error": "Container ID is required",
+                            "client": request.remote_addr,
+                            "sid": request.sid,
+                        },
+                    )
                     self.socketio.emit(
                         "error", {"error": "Container ID is required"}, room=request.sid
                     )
                     return
 
+                logger.info(
+                    "Starting log stream",
+                    extra={
+                        "event": "log_stream_start",
+                        "container_id": container_id,
+                        "client": request.remote_addr,
+                        "sid": request.sid,
+                    },
+                )
+
                 for log_line in self.docker_service.stream_container_logs(container_id):
                     if not self.socketio.server.manager.rooms.get(request.sid, {}).get(
                         "/"
                     ):
-                        # Client disconnected, stop streaming
+                        logger.info(
+                            "Client disconnected, stopping log stream",
+                            extra={
+                                "event": "log_stream_stop",
+                                "container_id": container_id,
+                                "client": request.remote_addr,
+                                "sid": request.sid,
+                                "reason": "client_disconnect",
+                            },
+                        )
                         break
                     self.socketio.emit(
                         "log_update",
@@ -333,7 +436,14 @@ class FlaskApp:
                     )
             except Exception as e:
                 logger.error(
-                    f"Error streaming logs for container {container_id}: {str(e)}"
+                    "Error streaming logs",
+                    extra={
+                        "error": str(e),
+                        "event": "log_stream_error",
+                        "container_id": container_id,
+                        "client": request.remote_addr,
+                        "sid": request.sid,
+                    },
                 )
                 self.socketio.emit(
                     "error",
