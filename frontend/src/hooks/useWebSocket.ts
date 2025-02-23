@@ -20,8 +20,12 @@ export const useWebSocket = ({ onLogUpdate, onError }: UseWebSocketProps) => {
         socketRef.current = io(config.API_URL, {
             transports: ['websocket'],
             reconnection: true,
-            reconnectionAttempts: 5,
+            reconnectionAttempts: 10,
             reconnectionDelay: 1000,
+            reconnectionDelayMax: 5000,
+            timeout: 60000,
+            forceNew: false,
+            autoConnect: true
         });
 
         // Set up event listeners
@@ -29,8 +33,17 @@ export const useWebSocket = ({ onLogUpdate, onError }: UseWebSocketProps) => {
             logger.info('Connected to WebSocket server');
         });
 
-        socketRef.current.on('disconnect', () => {
-            logger.info('Disconnected from WebSocket server');
+        socketRef.current.on('disconnect', (reason) => {
+            logger.info('Disconnected from WebSocket server:', { reason });
+            if (reason === 'io server disconnect') {
+                // Server initiated disconnect, try to reconnect
+                socketRef.current?.connect();
+            }
+        });
+
+        socketRef.current.on('connect_error', (error) => {
+            logger.error('WebSocket connection error:', error);
+            onError?.(`Connection error: ${error.message}`);
         });
 
         socketRef.current.on('error', (error: WebSocketError) => {

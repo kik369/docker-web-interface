@@ -219,7 +219,15 @@ class FlaskApp:
 
         @self.socketio.on("disconnect")
         def handle_disconnect():
-            logger.info("Client disconnected from WebSocket")
+            try:
+                logger.info("Client disconnected from WebSocket")
+            except Exception as e:
+                logger.error(f"Error during WebSocket disconnect: {str(e)}")
+
+        @self.socketio.on_error()
+        def handle_error(e):
+            logger.error(f"WebSocket error occurred: {str(e)}")
+            return {"error": "An internal error occurred"}
 
         @self.socketio.on("start_log_stream")
         def handle_start_log_stream(data):
@@ -240,7 +248,16 @@ class FlaskApp:
 
     def run(self) -> None:
         """Run the Flask application with WebSocket support."""
-        self.socketio.run(self.app, host="0.0.0.0", port=5000)
+        self.socketio.run(
+            self.app,
+            host="0.0.0.0",
+            port=5000,
+            allow_unsafe_werkzeug=True,
+            ping_timeout=60,
+            ping_interval=25,
+            cors_allowed_origins="*",
+            engineio_logger=True,
+        )
 
 
 def create_app() -> Flask:

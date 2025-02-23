@@ -9,20 +9,25 @@ services:
             - LOG_LEVEL=${LOG_LEVEL}
             - LOG_FORMAT=${LOG_FORMAT}
             - PYTHONPATH=${PYTHONPATH}
+            - PYTHONUNBUFFERED=1
+            - GUNICORN_WORKERS=1
+            - GUNICORN_WORKER_CLASS=eventlet
+            - GUNICORN_TIMEOUT=120
         volumes:
             - ./backend:/app
             - /var/run/docker.sock:/var/run/docker.sock
         user: root
-        command: gunicorn -b 0.0.0.0:5000 -k eventlet docker_monitor:app
+        command: gunicorn -b 0.0.0.0:5000 -k eventlet --timeout 120 --worker-class eventlet --workers 1 --reload docker_monitor:app
         container_name: docker_web_backend
         develop:
             watch:
-                - action: sync
+                - action: sync+restart
                   path: ./backend
                   target: /app
                   ignore:
                       - '__pycache__/'
                       - '*.pyc'
+                      - 'requirements.txt'
                 - action: rebuild
                   path: ./backend/requirements.txt
 
