@@ -213,6 +213,56 @@ class FlaskApp:
                 }
             )
 
+        @self.app.route("/api/images")
+        @self.rate_limit
+        def get_images() -> Response:
+            """Get all Docker images."""
+            logger.info("Received request to fetch all Docker images")
+            images, error = self.docker_service.get_all_images()
+
+            if error:
+                logger.error(f"Error fetching images: {error}")
+                return self.error_response(error)
+
+            if images is None:
+                return self.error_response("Failed to fetch image data")
+
+            response_data = self.docker_service.format_image_data(images)
+            logger.info(f"Successfully fetched {len(response_data)} images")
+            return self.success_response(response_data)
+
+        @self.app.route("/api/images/<image_id>/history")
+        @self.rate_limit
+        def get_image_history(image_id: str) -> Response:
+            """Get the history of a specific Docker image."""
+            logger.info(f"Received request to fetch history for image: {image_id}")
+            history, error = self.docker_service.get_image_history(image_id)
+
+            if error:
+                logger.error(f"Error fetching image history: {error}")
+                return self.error_response(error)
+
+            if history is None:
+                return self.error_response("Failed to fetch image history")
+
+            logger.info(f"Successfully fetched history for image: {image_id}")
+            return self.success_response({"history": history})
+
+        @self.app.route("/api/images/<image_id>", methods=["DELETE"])
+        @self.rate_limit
+        def delete_image(image_id: str) -> Response:
+            """Delete a Docker image."""
+            force = request.args.get("force", "false").lower() == "true"
+            logger.info(f"Received request to delete image {image_id} (force={force})")
+
+            success, error = self.docker_service.delete_image(image_id, force=force)
+            if not success:
+                logger.error(f"Failed to delete image {image_id}: {error}")
+                return self.error_response(error or "Failed to delete image")
+
+            logger.info(f"Successfully deleted image: {image_id}")
+            return self.success_response({"message": "Image deleted successfully"})
+
         @self.app.errorhandler(Exception)
         def handle_error(error: Exception) -> Response:
             if isinstance(error, HTTPException):

@@ -27,9 +27,6 @@ const ChevronRightIcon: React.FC<IconBaseProps> = (props): React.JSX.Element => 
     <HiChevronRight {...props} />
 );
 
-interface GroupedContainers {
-    [key: string]: Container[];
-}
 
 const STORAGE_KEY = 'dockerWebInterface_expandedGroups';
 

@@ -21,6 +21,17 @@ class Container:
     compose_service: Optional[str] = None
 
 
+@dataclass
+class Image:
+    id: str
+    tags: List[str]
+    size: int
+    created: datetime
+    repo_digests: List[str]
+    parent_id: str
+    labels: dict
+
+
 class DockerService:
     def __init__(self, socketio=None):
         try:
@@ -309,4 +320,129 @@ class DockerService:
                 "compose_service": container.compose_service,
             }
             for container in containers
+        ]
+
+    def get_all_images(self) -> Tuple[Optional[List[Image]], Optional[str]]:
+        """Get all Docker images with their details."""
+        try:
+            logger.info("Fetching all Docker images")
+            docker_images = self.client.images.list(all=True)
+            images = []
+
+            for docker_image in docker_images:
+                try:
+                    image_info = docker_image.attrs
+
+                    # Convert size from bytes to MB for better readability
+                    size_mb = image_info.get("Size", 0) / (1024 * 1024)
+
+                    # Parse the creation timestamp correctly
+                    created_str = image_info.get("Created", "")
+                    try:
+                        # Try parsing ISO format first
+                        created = datetime.strptime(
+                            created_str.split(".")[0], "%Y-%m-%dT%H:%M:%S"
+                        )
+                    except (ValueError, AttributeError):
+                        try:
+                            # Fallback to timestamp if ISO format fails
+                            created = datetime.fromtimestamp(float(created_str))
+                        except (ValueError, TypeError):
+                            # Use current time as fallback if all parsing fails
+                            logger.warning(
+                                f"Could not parse creation time for image {docker_image.id}, using current time"
+                            )
+                            created = datetime.now()
+
+                    image = Image(
+                        id=docker_image.id,
+                        tags=docker_image.tags if docker_image.tags else [],
+                        size=round(size_mb, 2),  # Round to 2 decimal places
+                        created=created,
+                        repo_digests=image_info.get("RepoDigests", []),
+                        parent_id=image_info.get("Parent", ""),
+                        labels=image_info.get("Config", {}).get("Labels", {})
+                        if image_info.get("Config")
+                        else {},
+                    )
+                    images.append(image)
+                    logger.debug(
+                        f"Processed image: {image.id[:12]} with tags: {image.tags}"
+                    )
+                except Exception as e:
+                    logger.error(f"Failed to process image {docker_image.id}: {e}")
+                    continue
+
+            logger.info(f"Successfully fetched {len(images)} Docker images")
+            return images, None
+
+        except Exception as e:
+            error_msg = f"Failed to get images: {str(e)}"
+            logger.error(error_msg)
+            return None, error_msg
+
+    def delete_image(
+        self, image_id: str, force: bool = False
+    ) -> Tuple[bool, Optional[str]]:
+        """Delete a Docker image."""
+        try:
+            logger.info(f"Attempting to delete image: {image_id}")
+            self.client.images.remove(image_id, force=force)
+            logger.info(f"Successfully deleted image: {image_id}")
+            return True, None
+        except docker.errors.ImageNotFound:
+            error_msg = f"Image {image_id} not found"
+            logger.error(error_msg)
+            return False, error_msg
+        except docker.errors.APIError as e:
+            error_msg = f"Failed to delete image: {str(e)}"
+            logger.error(error_msg)
+            return False, error_msg
+
+    def get_image_history(
+        self, image_id: str
+    ) -> Tuple[Optional[List[dict]], Optional[str]]:
+        """Get the history of an image showing its layers."""
+        try:
+            logger.info(f"Fetching history for image: {image_id}")
+            image = self.client.images.get(image_id)
+            history = image.history()
+
+            # Process and format the history data
+            formatted_history = []
+            for layer in history:
+                formatted_layer = {
+                    "created": datetime.fromtimestamp(layer.get("Created", 0)),
+                    "created_by": layer.get("CreatedBy", ""),
+                    "size": round(
+                        layer.get("Size", 0) / (1024 * 1024), 2
+                    ),  # Convert to MB
+                    "comment": layer.get("Comment", ""),
+                }
+                formatted_history.append(formatted_layer)
+
+            logger.info(f"Successfully fetched history for image: {image_id}")
+            return formatted_history, None
+        except docker.errors.ImageNotFound:
+            error_msg = f"Image {image_id} not found"
+            logger.error(error_msg)
+            return None, error_msg
+        except Exception as e:
+            error_msg = f"Failed to get image history: {str(e)}"
+            logger.error(error_msg)
+            return None, error_msg
+
+    def format_image_data(self, images: List[Image]) -> List[dict]:
+        """Format image data for API response."""
+        return [
+            {
+                "id": image.id,
+                "tags": image.tags,
+                "size": image.size,
+                "created": image.created.isoformat(),
+                "repo_digests": image.repo_digests,
+                "parent_id": image.parent_id,
+                "labels": image.labels,
+            }
+            for image in images
         ]
