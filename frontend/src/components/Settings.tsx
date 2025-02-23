@@ -60,7 +60,7 @@ export const Settings: React.FC<SettingsProps> = ({
         }, 500);
 
         return () => clearTimeout(timeoutId);
-    }, [localRefreshInterval, localRateLimit, initialRefreshInterval, initialRateLimit, onRefreshIntervalChange, onRateLimitChange]);
+    }, [localRefreshInterval, localRateLimit, initialRefreshInterval, initialRateLimit, onRefreshIntervalChange, onRateLimitChange, showSavedMessage]);
 
     return (
         <div className="relative" ref={settingsRef}>

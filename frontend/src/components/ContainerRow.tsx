@@ -1,5 +1,5 @@
 /// <reference types="react" />
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useCallback } from 'react';
 import { IconBaseProps } from 'react-icons';
 import { HiDocument, HiPlay, HiStop, HiRefresh, HiCog, HiTrash } from 'react-icons/hi';
 import { ContainerRowProps } from '../types/docker';
@@ -81,6 +81,11 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
     });
     const [isLoadingLogs, setIsLoadingLogs] = React.useState(false);
     const logContainerRef = useRef<HTMLPreElement>(null);
+    const showLogsRef = useRef(showLogs);
+
+    useEffect(() => {
+        showLogsRef.current = showLogs;
+    }, [showLogs]);
 
     // Save log view state to localStorage whenever it changes
     useEffect(() => {
@@ -90,13 +95,6 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
             logger.error('Failed to save log view state to localStorage:', err instanceof Error ? err : new Error(String(err)));
         }
     }, [showLogs, container.id]);
-
-    // Load logs if showLogs is true on mount or after state restoration
-    useEffect(() => {
-        if (showLogs) {
-            handleViewLogs(true);
-        }
-    }, []); // Run only on mount
 
     const { startLogStream } = useWebSocket({
         onLogUpdate: (containerId, log) => {
@@ -115,7 +113,7 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
         enabled: showLogs // Only enable WebSocket when logs are being viewed
     });
 
-    const handleViewLogs = async (isRestoring: boolean = false) => {
+    const handleViewLogs = useCallback(async (isRestoring: boolean = false) => {
         if (showLogs && !isRestoring) {
             setShowLogs(false);
             setLogs('');
@@ -154,7 +152,14 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
         } finally {
             setIsLoadingLogs(false);
         }
-    };
+    }, [container.id, isExpanded, onToggleExpand, setLogs, setShowLogs, showLogs, startLogStream]);
+
+    // Load logs if showLogs is true on mount or after state restoration
+    useEffect(() => {
+        if (showLogsRef.current) {
+            handleViewLogs(true);
+        }
+    }, [handleViewLogs]); // Now we can safely include handleViewLogs
 
     const handleAction = async (action: string) => {
         try {

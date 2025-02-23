@@ -1,5 +1,5 @@
 import React from 'react';
-import { Image, ImageListProps } from '../types/docker';
+import { ImageListProps } from '../types/docker';
 import { SearchBar } from './SearchBar';
 import { BiCube } from 'react-icons/bi';
 import { IconBaseProps } from 'react-icons';
