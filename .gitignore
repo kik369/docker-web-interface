@@ -5,6 +5,8 @@
 .env.development
 .env.test
 .env.production
+venv/
+
 # But allow the example file
 !.env.example
 
