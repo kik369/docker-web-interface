@@ -218,9 +218,11 @@ class FlaskApp:
             logger.info("Client connected to WebSocket")
 
         @self.socketio.on("disconnect")
-        def handle_disconnect():
+        def handle_disconnect(reason=None):
             try:
-                logger.info("Client disconnected from WebSocket")
+                logger.info(
+                    "Client disconnected from WebSocket", extra={"reason": reason}
+                )
             except Exception as e:
                 logger.error(f"Error during WebSocket disconnect: {str(e)}")
 

@@ -111,7 +111,8 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
         onError: (error) => {
             logger.error('Error streaming logs:', new Error(error));
             console.error('Failed to stream logs:', error);
-        }
+        },
+        enabled: showLogs // Only enable WebSocket when logs are being viewed
     });
 
     const handleViewLogs = async (isRestoring: boolean = false) => {
