@@ -7,12 +7,16 @@ This project is a comprehensive Docker container monitoring and management syste
 ### Key Features
 
 -   Real-time Docker container monitoring
--   Modern React-based web interface
+-   Modern React-based web interface with simplified styling
 -   RESTful API backend built with Flask
 -   Live container log streaming with state persistence
 -   Container health monitoring
--   Comprehensive request logging and tracking
--   Persistent UI state across page refreshes
+-   Enhanced request logging and tracing with unique request IDs
+-   Persistent UI state across page refreshes:
+    -   Active tab selection
+    -   Docker Compose application groups
+    -   Container log views
+    -   Log content updates
 -   Docker image management with tab-based navigation
     -   List and search available images
     -   View detailed image information
@@ -23,13 +27,15 @@ This project is a comprehensive Docker container monitoring and management syste
 
 -   [ ] Implement real-time container metrics updates
 -   [ ] Add container resource usage tracking
--   [ ] Enhance error handling and logging
 -   [ ] Optimize backend performance
 -   [ ] Add automated testing
 -   [ ] Implement container resource limits management
 -   [ ] Implement container log search functionality
 -   [x] Add Docker image management functionality
 -   [x] Implement image management UI with tab navigation
+-   [x] Enhance request logging with request ID tracing
+-   [x] Implement persistent tab selection
+-   [x] Simplify and optimize CSS styling
 
 ## How the Project Works 🔧
 
@@ -65,10 +71,11 @@ graph TD
 
 ### Component Interaction
 
-The frontend communicates with the backend through REST APIs and WebSocket connections. The backend interfaces with Docker's API to collect container information, manage images, and collect metrics, with comprehensive logging of all operations and requests.
+The frontend communicates with the backend through REST APIs and WebSocket connections. The backend interfaces with Docker's API to collect container information, manage images, and collect metrics. All operations and requests are comprehensively logged with unique request IDs for enhanced traceability.
 
 The UI maintains state persistence for:
 
+-   Active tab selection across sessions
 -   Docker Compose application groups (expanded/collapsed state)
 -   Container log views (open/closed state)
 -   Log content updates in real-time via WebSocket
@@ -98,5 +105,5 @@ This ensures a seamless user experience even after page refreshes or automatic u
 
 3. Build and run:
     ```bash
-    docker compose up --watch
+    docker compose up
     ```
