@@ -49,3 +49,19 @@ export interface SortConfig {
     key: keyof Container | null;
     direction: 'asc' | 'desc';
 }
+
+export interface Image {
+    id: string;
+    tags: string[];
+    size: number;
+    created: string;
+    repo_digests: string[];
+    parent_id: string;
+    labels: Record<string, string>;
+}
+
+export interface ImageListProps {
+    images: Image[];
+    isLoading: boolean;
+    error: string | null;
+}

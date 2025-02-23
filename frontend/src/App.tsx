@@ -1,9 +1,11 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { ContainerList } from './components/ContainerList';
+import { ImageList } from './components/ImageList';
 import Background from './components/Background';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Settings } from './components/Settings';
 import { useContainers } from './hooks/useContainers';
+import { useImages } from './hooks/useImages';
 import { getSettings, updateRateLimit, updateRefreshInterval } from './services/settings';
 import './App.css';
 
@@ -30,9 +32,11 @@ const loadSettings = () => {
 };
 
 function App() {
-    const { containers, isLoading, error, refresh } = useContainers();
+    const { containers, isLoading: containersLoading, error: containersError, refresh: refreshContainers } = useContainers();
+    const { images, isLoading: imagesLoading, error: imagesError, refresh: refreshImages } = useImages();
     const [settings, setSettings] = useState(loadSettings);
     const [secondsUntilRefresh, setSecondsUntilRefresh] = useState(settings.refreshInterval);
+    const [activeTab, setActiveTab] = useState<'containers' | 'images'>('containers');
 
     // Fetch initial settings from the backend
     useEffect(() => {
@@ -57,28 +61,6 @@ function App() {
         fetchSettings();
     }, []);
 
-    const handleSettingsSave = async (newSettings: { refreshInterval: number, rateLimit: number }) => {
-        try {
-            const roundedSettings = {
-                ...newSettings,
-                refreshInterval: Math.max(5, Math.round(newSettings.refreshInterval))
-            };
-
-            // Update both settings in the backend
-            await Promise.all([
-                updateRateLimit(roundedSettings.rateLimit),
-                updateRefreshInterval(roundedSettings.refreshInterval)
-            ]);
-
-            // Update local settings
-            setSettings(roundedSettings);
-            localStorage.setItem('app-settings', JSON.stringify(roundedSettings));
-            setSecondsUntilRefresh(roundedSettings.refreshInterval);
-        } catch (error) {
-            console.error('Failed to save settings:', error);
-        }
-    };
-
     // Combine refresh and countdown into a single effect
     useEffect(() => {
         let lastRefreshTime = Date.now();
@@ -90,7 +72,11 @@ function App() {
 
             if (nextRefresh <= 0) {
                 console.log('Triggering refresh...');
-                await refresh();
+                if (activeTab === 'containers') {
+                    await refreshContainers();
+                } else {
+                    await refreshImages();
+                }
                 lastRefreshTime = Date.now(); // Update after refresh completes
                 setSecondsUntilRefresh(settings.refreshInterval);
                 console.log('Refresh complete, reset timer');
@@ -100,16 +86,24 @@ function App() {
         }, 1000);
 
         // Initial refresh
-        refresh();
+        if (activeTab === 'containers') {
+            refreshContainers();
+        } else {
+            refreshImages();
+        }
 
         return () => clearInterval(intervalId);
-    }, [refresh, settings.refreshInterval]);
+    }, [refreshContainers, refreshImages, settings.refreshInterval, activeTab]);
 
     const handleManualRefresh = useCallback(async () => {
         console.log('Manual refresh triggered');
-        await refresh();
+        if (activeTab === 'containers') {
+            await refreshContainers();
+        } else {
+            await refreshImages();
+        }
         setSecondsUntilRefresh(settings.refreshInterval);
-    }, [refresh, settings.refreshInterval]);
+    }, [refreshContainers, refreshImages, settings.refreshInterval, activeTab]);
 
     // Add Ctrl+R handler
     useEffect(() => {
@@ -125,29 +119,73 @@ function App() {
     }, [handleManualRefresh]);
 
     return (
-        <ErrorBoundary>
-            <div className='min-h-screen'>
-                <Background />
-                <div className='container mx-auto p-4 relative'>
-                    <div className='flex justify-between items-center mb-4'>
-                        <h1 className='text-3xl font-bold text-white'>
-                            Docker Container Management
-                        </h1>
-                        <div className='flex items-center space-x-4'>
-                            <span className='text-sm text-gray-300'>
-                                Next refresh in {Math.max(0, Math.round(secondsUntilRefresh))}s
-                            </span>
-                            <Settings onSave={handleSettingsSave} currentSettings={settings} />
-                        </div>
+        <div className="min-h-screen bg-gray-900 text-white">
+            <Background />
+            <div className="container mx-auto px-4 py-8 relative z-10">
+                <div className="flex justify-between items-center mb-8">
+                    <h1 className="text-3xl font-bold">Docker Web Interface</h1>
+                    <div className="flex items-center space-x-4">
+                        <span className="text-sm text-gray-300">
+                            Next refresh in {Math.max(0, Math.round(secondsUntilRefresh))}s
+                        </span>
+                        <Settings
+                            refreshInterval={settings.refreshInterval}
+                            rateLimit={settings.rateLimit}
+                            onRefreshIntervalChange={async (newRefreshInterval) => {
+                                await updateRefreshInterval(newRefreshInterval);
+                                setSettings(prev => ({ ...prev, refreshInterval: newRefreshInterval }));
+                                setSecondsUntilRefresh(newRefreshInterval);
+                            }}
+                            onRateLimitChange={async (newRateLimit) => {
+                                await updateRateLimit(newRateLimit);
+                                setSettings(prev => ({ ...prev, rateLimit: newRateLimit }));
+                            }}
+                        />
                     </div>
-                    <ContainerList
-                        containers={containers}
-                        isLoading={isLoading}
-                        error={error}
-                    />
                 </div>
+
+                <div className="mb-6">
+                    <div className="border-b border-gray-700">
+                        <nav className="-mb-px flex space-x-8">
+                            <button
+                                onClick={() => setActiveTab('containers')}
+                                className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'containers'
+                                    ? 'border-blue-500 text-blue-500'
+                                    : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
+                                    }`}
+                            >
+                                Containers
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('images')}
+                                className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'images'
+                                    ? 'border-blue-500 text-blue-500'
+                                    : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
+                                    }`}
+                            >
+                                Images
+                            </button>
+                        </nav>
+                    </div>
+                </div>
+
+                <ErrorBoundary>
+                    {activeTab === 'containers' ? (
+                        <ContainerList
+                            containers={containers}
+                            isLoading={containersLoading}
+                            error={containersError}
+                        />
+                    ) : (
+                        <ImageList
+                            images={images}
+                            isLoading={imagesLoading}
+                            error={imagesError}
+                        />
+                    )}
+                </ErrorBoundary>
             </div>
-        </ErrorBoundary>
+        </div>
     );
 }
 

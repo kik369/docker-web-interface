@@ -1,22 +1,29 @@
 import React, { useState, useEffect, useRef } from 'react';
 
 interface SettingsProps {
-    onSave: (settings: { refreshInterval: number, rateLimit: number }) => void;
-    currentSettings: { refreshInterval: number, rateLimit: number };
+    refreshInterval: number;
+    rateLimit: number;
+    onRefreshIntervalChange: (refreshInterval: number) => Promise<void>;
+    onRateLimitChange: (rateLimit: number) => Promise<void>;
 }
 
-export const Settings: React.FC<SettingsProps> = ({ onSave, currentSettings }) => {
+export const Settings: React.FC<SettingsProps> = ({
+    refreshInterval: initialRefreshInterval,
+    rateLimit: initialRateLimit,
+    onRefreshIntervalChange,
+    onRateLimitChange
+}) => {
     const [isOpen, setIsOpen] = useState(false);
-    const [refreshInterval, setRefreshInterval] = useState(Math.round(currentSettings.refreshInterval));
-    const [rateLimit, setRateLimit] = useState(currentSettings.rateLimit);
+    const [localRefreshInterval, setLocalRefreshInterval] = useState(Math.round(initialRefreshInterval));
+    const [localRateLimit, setLocalRateLimit] = useState(initialRateLimit);
     const [showSavedMessage, setShowSavedMessage] = useState(false);
     const settingsRef = useRef<HTMLDivElement>(null);
 
-    // Update local state when currentSettings change
+    // Update local state when props change
     useEffect(() => {
-        setRefreshInterval(Math.round(currentSettings.refreshInterval));
-        setRateLimit(currentSettings.rateLimit);
-    }, [currentSettings]);
+        setLocalRefreshInterval(Math.round(initialRefreshInterval));
+        setLocalRateLimit(initialRateLimit);
+    }, [initialRefreshInterval, initialRateLimit]);
 
     // Handle click outside
     useEffect(() => {
@@ -37,21 +44,23 @@ export const Settings: React.FC<SettingsProps> = ({ onSave, currentSettings }) =
 
     // Auto-save when values change
     useEffect(() => {
-        const timeoutId = setTimeout(() => {
+        const timeoutId = setTimeout(async () => {
             // Only save if values have actually changed
-            if (refreshInterval !== currentSettings.refreshInterval ||
-                rateLimit !== currentSettings.rateLimit) {
-                onSave({
-                    refreshInterval: Math.round(refreshInterval),
-                    rateLimit
-                });
+            if (localRefreshInterval !== initialRefreshInterval) {
+                await onRefreshIntervalChange(Math.round(localRefreshInterval));
                 setShowSavedMessage(true);
+            }
+            if (localRateLimit !== initialRateLimit) {
+                await onRateLimitChange(localRateLimit);
+                setShowSavedMessage(true);
+            }
+            if (showSavedMessage) {
                 setTimeout(() => setShowSavedMessage(false), 2000);
             }
         }, 500);
 
         return () => clearTimeout(timeoutId);
-    }, [refreshInterval, rateLimit, onSave, currentSettings]);
+    }, [localRefreshInterval, localRateLimit, initialRefreshInterval, initialRateLimit, onRefreshIntervalChange, onRateLimitChange]);
 
     return (
         <div className="relative" ref={settingsRef}>
@@ -84,8 +93,8 @@ export const Settings: React.FC<SettingsProps> = ({ onSave, currentSettings }) =
                         <input
                             type="number"
                             id="refreshInterval"
-                            value={refreshInterval}
-                            onChange={(e) => setRefreshInterval(Math.max(5, Math.round(Number(e.target.value))))}
+                            value={localRefreshInterval}
+                            onChange={(e) => setLocalRefreshInterval(Math.max(5, Math.round(Number(e.target.value))))}
                             className="w-full bg-gray-700 text-white px-3 py-2 rounded"
                             min="5"
                         />
@@ -99,8 +108,8 @@ export const Settings: React.FC<SettingsProps> = ({ onSave, currentSettings }) =
                         <input
                             type="number"
                             id="rateLimit"
-                            value={rateLimit}
-                            onChange={(e) => setRateLimit(Math.max(1, Number(e.target.value)))}
+                            value={localRateLimit}
+                            onChange={(e) => setLocalRateLimit(Math.max(1, Number(e.target.value)))}
                             className="w-full bg-gray-700 text-white px-3 py-2 rounded"
                             min="1"
                         />
