@@ -5,16 +5,16 @@ export default function Background() {
             style={{
                 backgroundColor: '#050505',
                 backgroundImage: `
-                    radial-gradient(rgba(255, 255, 255, 0.15) 1px, transparent 1px),
-                    linear-gradient(to bottom,
-                        #050505,
-                        transparent 40%,
-                        transparent 60%,
-                        #050505
-                    )
+                    linear-gradient(
+                        to bottom,
+                        rgba(5, 5, 5, 1),
+                        rgba(5, 5, 5, 0) 40%,
+                        rgba(5, 5, 5, 0) 60%,
+                        rgba(5, 5, 5, 1)
+                    ),
+                    radial-gradient(circle at center, #ffffff50 1px, transparent 1px)
                 `,
-                backgroundSize: '50px 50px, 100% 100%',
-                backgroundPosition: '0 0, 0 0',
+                backgroundSize: '100% 100%, 50px 50px',
             }}
         />
     );
