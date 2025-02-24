@@ -3,33 +3,13 @@ import { ContainerList } from './ContainerList';
 import { ImageList } from './ImageList';
 import Background from './Background';
 import { ErrorBoundary } from './ErrorBoundary';
-import { Settings } from './Settings';
 import { useImages } from '../hooks/useImages';
 import { useWebSocket } from '../hooks/useWebSocket';
-import { getSettings, updateRateLimit } from '../services/settings';
 import { logger } from '../services/logging';
 import { useContainerContext, useContainerOperations } from '../context/ContainerContext';
 import '../App.css';
 
-// Load settings from localStorage or use defaults
-const loadSettings = () => {
-    const savedSettings = localStorage.getItem('app-settings');
-    const defaultSettings = {
-        rateLimit: 1000 // Default rate limit
-    };
-
-    if (savedSettings) {
-        try {
-            const parsed = JSON.parse(savedSettings);
-            return {
-                rateLimit: Math.max(1, parsed.rateLimit) || defaultSettings.rateLimit
-            };
-        } catch (e) {
-            return defaultSettings;
-        }
-    }
-    return defaultSettings;
-};
+// No settings needed anymore
 
 // Load active tab from localStorage or use default
 const loadActiveTab = () => {
@@ -41,7 +21,6 @@ function MainApp() {
     const { state: { containers, isLoading: containersLoading, error: containersError } } = useContainerContext();
     const { setContainers, updateContainer, deleteContainer, setLoading, setError } = useContainerOperations();
     const { images, isLoading: imagesLoading, error: imagesError, refresh: refreshImages } = useImages();
-    const [settings, setSettings] = useState(loadSettings);
     const [activeTab, setActiveTab] = useState<'containers' | 'images'>(loadActiveTab);
     const [wsError, setWsError] = useState<string | null>(null);
 
@@ -87,26 +66,7 @@ function MainApp() {
         }
     });
 
-    // Fetch initial settings from the backend
-    useEffect(() => {
-        const fetchSettings = async () => {
-            try {
-                const backendSettings = await getSettings();
-                setSettings({
-                    rateLimit: Math.max(1, backendSettings.rateLimit)
-                });
-                localStorage.setItem('app-settings', JSON.stringify({
-                    rateLimit: backendSettings.rateLimit
-                }));
-            } catch (error) {
-                console.error('Failed to fetch settings:', error);
-                // On error, keep using the local settings
-                const localSettings = loadSettings();
-                setSettings(localSettings);
-            }
-        };
-        fetchSettings();
-    }, []);
+    // No settings needed anymore
 
     // Add Ctrl+R handler for manual refresh
     useEffect(() => {
@@ -138,15 +98,6 @@ function MainApp() {
                                 WebSocket Error: {wsError}
                             </span>
                         )}
-                        <Settings
-                            rateLimit={settings.rateLimit}
-                            refreshInterval={0} // Removed from UI but kept for compatibility
-                            onRefreshIntervalChange={async () => { }} // Empty async function for compatibility
-                            onRateLimitChange={async (newRateLimit) => {
-                                await updateRateLimit(newRateLimit);
-                                setSettings(prev => ({ ...prev, rateLimit: newRateLimit }));
-                            }}
-                        />
                     </div>
                 </div>
 
