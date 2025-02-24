@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import type { Container } from '../types/docker';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useContainers } from '../hooks/useContainers';
 import { ContainerRow } from './ContainerRow';
+import { HiChevronDown, HiChevronRight } from 'react-icons/hi';
 
 type ContainerListProps = {
     containers: Container[];
@@ -22,6 +23,15 @@ const ErrorMessage = ({ message }: { message: string }) => (
     </div>
 );
 
+// Interface for grouped containers by project
+type ComposeGroup = {
+    projectName: string;
+    containers: Container[];
+};
+
+// Key for persisting expanded state in local storage
+const COMPOSE_GROUPS_STORAGE_KEY = 'dockerWebInterface_expandedComposeGroups';
+
 export const ContainerList = ({
     containers: initialContainers,
     isLoading,
@@ -30,11 +40,32 @@ export const ContainerList = ({
     const [localContainers, setLocalContainers] = useState<Container[]>(initialContainers);
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
     const [actionStates, setActionStates] = useState<Record<string, string | null>>({});
+    
+    // Store which Docker Compose groups are expanded
+    const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => {
+        try {
+            const saved = localStorage.getItem(COMPOSE_GROUPS_STORAGE_KEY);
+            return saved ? new Set(JSON.parse(saved)) : new Set(['Standalone Containers']);
+        } catch (err) {
+            console.error('Failed to load expanded groups from localStorage:', err);
+            return new Set(['Standalone Containers']);
+        }
+    });
 
     // Update local containers when prop changes
     useEffect(() => {
         setLocalContainers(initialContainers);
     }, [initialContainers]);
+    
+    // Save expanded groups to localStorage whenever they change
+    useEffect(() => {
+        try {
+            // Convert Set to Array using Array.from() instead of spread operator
+            localStorage.setItem(COMPOSE_GROUPS_STORAGE_KEY, JSON.stringify(Array.from(expandedGroups)));
+        } catch (err) {
+            console.error('Failed to save expanded groups to localStorage:', err);
+        }
+    }, [expandedGroups]);
 
     // WebSocket setup for real-time updates
     useWebSocket({
@@ -136,6 +167,46 @@ export const ContainerList = ({
         }
     };
 
+    // Group containers by Docker Compose project
+    const containerGroups = useMemo(() => {
+        const groups: Record<string, Container[]> = {};
+        
+        localContainers.forEach(container => {
+            // Use the compose_project property, defaulting to 'Standalone Containers' if not present
+            const projectName = container.compose_project || 'Standalone Containers';
+            
+            if (!groups[projectName]) {
+                groups[projectName] = [];
+            }
+            
+            groups[projectName].push(container);
+        });
+        
+        // Sort the groups by name, but keep 'Standalone Containers' at the top
+        return Object.entries(groups)
+            .sort(([a], [b]) => {
+                if (a === 'Standalone Containers') return -1;
+                if (b === 'Standalone Containers') return 1;
+                return a.localeCompare(b);
+            })
+            .map(([projectName, containers]) => ({
+                projectName,
+                containers: containers.sort((a, b) => a.name.localeCompare(b.name))
+            }));
+    }, [localContainers]);
+    
+    const toggleGroup = (projectName: string) => {
+        setExpandedGroups(prev => {
+            const newGroups = new Set(prev);
+            if (newGroups.has(projectName)) {
+                newGroups.delete(projectName);
+            } else {
+                newGroups.add(projectName);
+            }
+            return newGroups;
+        });
+    };
+
     if (isLoading) {
         return <LoadingSpinner />;
     }
@@ -151,16 +222,92 @@ export const ContainerList = ({
                     No containers found
                 </div>
             ) : (
-                <div className="grid gap-4">
-                    {localContainers.map(container => (
-                        <ContainerRow
-                            key={container.id}
-                            container={container}
-                            isExpanded={expandedRows.has(container.id)}
-                            onToggleExpand={() => handleToggleExpand(container.id)}
-                            onAction={handleContainerAction}
-                            actionInProgress={actionStates[container.id] || null}
-                        />
+                <div className="space-y-6">
+                    {containerGroups.map(group => (
+                        <div key={group.projectName} className="bg-gray-900 rounded-lg overflow-hidden">
+                            <div className="flex items-center justify-between px-4 py-3 bg-gray-800">
+                                <div
+                                    className="flex items-center cursor-pointer" 
+                                    onClick={() => toggleGroup(group.projectName)}
+                                >
+                                    {expandedGroups.has(group.projectName) ? (
+                                        <HiChevronDown className="h-5 w-5 text-gray-400 mr-2" />
+                                    ) : (
+                                        <HiChevronRight className="h-5 w-5 text-gray-400 mr-2" />
+                                    )}
+                                    <h2 className="text-xl font-semibold text-white flex-grow">
+                                        {group.projectName}
+                                        <span className="ml-2 text-sm text-gray-400 font-normal">
+                                            ({group.containers.length} container{group.containers.length !== 1 ? 's' : ''})
+                                        </span>
+                                    </h2>
+                                </div>
+                                
+                                {/* Only show group actions for Docker Compose projects */}
+                                {group.projectName !== 'Standalone Containers' && (
+                                    <div className="flex space-x-2">
+                                        <button
+                                            onClick={() => {
+                                                if (window.confirm(`Start all containers in ${group.projectName}?`)) {
+                                                    group.containers.forEach(container => {
+                                                        if (container.state !== 'running') {
+                                                            handleContainerAction(container.id, 'start');
+                                                        }
+                                                    });
+                                                }
+                                            }}
+                                            className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700"
+                                            title="Start all containers in this group"
+                                        >
+                                            Start All
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                if (window.confirm(`Stop all containers in ${group.projectName}?`)) {
+                                                    group.containers.forEach(container => {
+                                                        if (container.state === 'running') {
+                                                            handleContainerAction(container.id, 'stop');
+                                                        }
+                                                    });
+                                                }
+                                            }}
+                                            className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700"
+                                            title="Stop all containers in this group"
+                                        >
+                                            Stop All
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                if (window.confirm(`Restart all containers in ${group.projectName}?`)) {
+                                                    group.containers.forEach(container => {
+                                                        handleContainerAction(container.id, 'restart');
+                                                    });
+                                                }
+                                            }}
+                                            className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
+                                            title="Restart all containers in this group"
+                                        >
+                                            Restart All
+                                        </button>
+                                    </div>
+                                )}
+                            </div>
+                            
+                            {expandedGroups.has(group.projectName) && (
+                                <div className="grid gap-4 p-4">
+                                    {group.containers.map(container => (
+                                        <ContainerRow
+                                            key={container.id}
+                                            container={container}
+                                            isExpanded={expandedRows.has(container.id)}
+                                            onToggleExpand={() => handleToggleExpand(container.id)}
+                                            onAction={handleContainerAction}
+                                            actionInProgress={actionStates[container.id] || null}
+                                        />
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     ))}
                 </div>
             )}
