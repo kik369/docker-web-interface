@@ -63,10 +63,11 @@ export const useContainers = () => {
             }
 
             // The WebSocket will handle state updates, so we don't need to poll
-            // Just clear the action state after a reasonable timeout
+            // Just clear the action state after a reasonable timeout in case
+            // the WebSocket doesn't receive the event for some reason
             setTimeout(() => {
                 setActionStates(prev => ({ ...prev, [containerId]: null }));
-            }, 30000); // 30 second timeout as a fallback
+            }, 10000); // 10 second timeout as a fallback
 
             return result.data.message;
         } catch (err) {
