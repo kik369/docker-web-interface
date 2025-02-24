@@ -1,4 +1,5 @@
 import logging
+import threading
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Generator, List, Optional, Tuple
@@ -37,6 +38,8 @@ class DockerService:
         try:
             self.client = docker.from_env()
             self.socketio = socketio
+            self._event_thread = None
+            self._stop_event = threading.Event()
         except Exception as e:
             logger.error(f"Failed to initialize Docker client: {e}")
             raise
@@ -191,11 +194,62 @@ class DockerService:
             yield f"Error: {error_msg}"
 
     def _emit_container_state(self, container_id: str, state: str) -> None:
-        """Emit container state change event via WebSocket."""
+        """
+        Emit container state change event via WebSocket with detailed container information.
+        This ensures the frontend has all necessary data for immediate UI updates.
+        """
         if self.socketio:
-            self.socketio.emit(
-                "container_state_change", {"container_id": container_id, "state": state}
-            )
+            try:
+                # Get the container's current information
+                container = self.client.containers.get(container_id)
+                container_info = container.attrs
+                config = container_info.get("Config", {})
+                labels = config.get("Labels", {})
+
+                # Extract compose information
+                compose_project, compose_service = self._extract_compose_info(labels)
+
+                # Create a detailed container state update
+                container_data = {
+                    "container_id": container_id,
+                    "name": container.name,
+                    "image": container.image.tags[0]
+                    if container.image.tags
+                    else container.image.id,
+                    "status": container_info.get("State", {}).get("Status", "unknown"),
+                    "state": state,
+                    "ports": self._format_ports(container_info),
+                    "compose_project": compose_project,
+                    "compose_service": compose_service,
+                    "created": container_info["Created"].split(".")[0],
+                }
+
+                # Emit the detailed state change
+                self.socketio.emit("container_state_change", container_data)
+                logger.info(
+                    f"Emitted detailed state change for container {container_id}: {state}"
+                )
+
+            except docker.errors.NotFound:
+                # If container not found (e.g., after deletion), emit basic state change
+                self.socketio.emit(
+                    "container_state_change",
+                    {
+                        "container_id": container_id,
+                        "state": "deleted",
+                        "status": "deleted",
+                    },
+                )
+                logger.info(
+                    f"Container {container_id} not found, emitted deletion state"
+                )
+            except Exception as e:
+                logger.error(f"Error emitting container state: {e}")
+                # Fallback to basic state change on error
+                self.socketio.emit(
+                    "container_state_change",
+                    {"container_id": container_id, "state": state},
+                )
 
     def start_container(self, container_id: str) -> Tuple[bool, Optional[str]]:
         """Start a stopped container."""
@@ -446,3 +500,63 @@ class DockerService:
             }
             for image in images
         ]
+
+    def subscribe_to_docker_events(self):
+        """
+        Subscribe to Docker events and emit container state changes via WebSocket.
+        This method runs in a separate thread.
+        """
+        try:
+            logger.info("Starting Docker events subscription")
+            for event in self.client.events(decode=True):
+                if self._stop_event.is_set():
+                    break
+
+                # Only process container events
+                if event.get("Type") == "container":
+                    container_id = event.get("Actor", {}).get("ID")
+                    status = event.get("status")
+
+                    if container_id and status:
+                        # Map Docker event status to our container states
+                        state = self._map_event_to_state(status)
+                        logger.info(
+                            f"Container event: {container_id} -> {status} (mapped to {state})"
+                        )
+                        self._emit_container_state(container_id, state)
+
+        except Exception as e:
+            logger.error(f"Error in Docker events subscription: {e}")
+        finally:
+            logger.info("Docker events subscription stopped")
+
+    def _map_event_to_state(self, event_status: str) -> str:
+        """Map Docker event status to container state."""
+        status_map = {
+            "start": "running",
+            "die": "stopped",
+            "stop": "stopped",
+            "kill": "stopped",
+            "pause": "paused",
+            "unpause": "running",
+            "restart": "running",
+        }
+        return status_map.get(event_status, event_status)
+
+    def start_event_subscription(self):
+        """Start the Docker events subscription in a background thread."""
+        if self._event_thread is None or not self._event_thread.is_alive():
+            self._stop_event.clear()
+            self._event_thread = threading.Thread(
+                target=self.subscribe_to_docker_events
+            )
+            self._event_thread.daemon = True
+            self._event_thread.start()
+            logger.info("Started Docker events subscription thread")
+
+    def stop_event_subscription(self):
+        """Stop the Docker events subscription thread."""
+        if self._event_thread and self._event_thread.is_alive():
+            self._stop_event.set()
+            self._event_thread.join(timeout=5)
+            logger.info("Stopped Docker events subscription thread")

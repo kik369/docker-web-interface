@@ -36,8 +36,8 @@ class FlaskApp:
             self.app,
             cors_allowed_origins="*",
             async_mode="eventlet",
-            ping_timeout=20,
-            ping_interval=10,
+            ping_timeout=60,
+            ping_interval=25,
             max_http_buffer_size=1e8,
             manage_session=True,
             logger=True,
@@ -101,6 +101,10 @@ class FlaskApp:
             self.socketio.server.handle_error = wrapped_handle_error
 
         self.docker_service = DockerService(socketio=self.socketio)
+        # Start Docker events subscription
+        self.docker_service.start_event_subscription()
+        logger.info("Docker events subscription initialized")
+
         self.request_counts: Dict[datetime, int] = {}
         self.current_rate_limit = Config.MAX_REQUESTS_PER_MINUTE
         self.current_refresh_interval = Config.REFRESH_INTERVAL
@@ -618,19 +622,75 @@ class FlaskApp:
                         "request_id": request_id,
                     },
                 )
-                # Send initial container states to the client in a single batch
+
+                # Send connection acknowledgment
+                self.socketio.emit(
+                    "connection_established",
+                    {"message": "WebSocket connection established"},
+                    room=request.sid,
+                )
+
+                # Get initial container states - this will be the only batch update
+                # After this, all updates will be push-based through Docker events
                 containers, error = self.docker_service.get_all_containers()
                 if containers and not error:
-                    container_states = [
-                        {"container_id": container.id, "state": container.state}
-                        for container in containers
-                    ]
-                    # Send all states in a single event
-                    self.socketio.emit(
-                        "container_states_batch",
-                        {"states": container_states},
-                        room=request.sid,
+                    # Format detailed container data for initial state
+                    container_states = []
+                    for container in containers:
+                        container_states.append(
+                            {
+                                "container_id": container.id,
+                                "name": container.name,
+                                "image": container.image,
+                                "status": container.status,
+                                "state": container.state,
+                                "ports": container.ports,
+                                "compose_project": container.compose_project,
+                                "compose_service": container.compose_service,
+                                "created": container.created.isoformat(),
+                            }
+                        )
+
+                    # Send initial state in a single event
+                    logger.info(
+                        "Sending initial container states",
+                        extra={
+                            "event": "initial_state_sending",
+                            "container_count": len(container_states),
+                            "sid": request.sid,
+                        },
                     )
+                    self.socketio.emit(
+                        "initial_state",
+                        {"containers": container_states},
+                        to=request.sid,  # Use 'to' instead of 'room'
+                    )
+                    logger.info(
+                        "Sent initial container states",
+                        extra={
+                            "event": "initial_state_sent",
+                            "container_count": len(container_states),
+                            "sid": request.sid,
+                        },
+                    )
+                else:
+                    error_msg = error or "Failed to get initial container states"
+                    logger.error(
+                        "Failed to get initial container states",
+                        extra={
+                            "event": "initial_state_error",
+                            "error": error_msg,
+                            "sid": request.sid,
+                        },
+                    )
+                    self.socketio.emit(
+                        "error",
+                        {"message": error_msg},
+                        to=request.sid,  # Use 'to' instead of 'room'
+                    )
+
+                return True  # Explicitly accept the connection
+
             except Exception as e:
                 logger.error(
                     "Error in WebSocket connect handler",
@@ -750,14 +810,19 @@ class FlaskApp:
                 )
 
     def run(self) -> None:
-        """Run the Flask application with WebSocket support."""
-        self.socketio.run(
-            self.app,
-            host="0.0.0.0",
-            port=5000,
-            allow_unsafe_werkzeug=True,
-            cors_allowed_origins="*",
-        )
+        """Run the application."""
+        try:
+            host = self.app.config.get("HOST", "0.0.0.0")
+            port = self.app.config.get("PORT", 5000)
+            logger.info(f"Starting server on {host}:{port}")
+            self.socketio.run(self.app, host=host, port=port)
+        except Exception as e:
+            logger.error(f"Error running server: {e}")
+            raise
+        finally:
+            # Stop Docker events subscription when the application stops
+            self.docker_service.stop_event_subscription()
+            logger.info("Docker events subscription stopped")
 
 
 def create_app() -> Flask:
