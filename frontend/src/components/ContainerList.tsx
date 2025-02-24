@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import type { Container } from '../types/docker';
 import { useWebSocket } from '../hooks/useWebSocket';
+import { useContainers } from '../hooks/useContainers';
 import { ContainerRow } from './ContainerRow';
 
 type ContainerListProps = {
@@ -38,6 +39,11 @@ export const ContainerList = ({
     // WebSocket setup for real-time updates
     useWebSocket({
         onContainerStateChange: (containerData) => {
+            // Clear action state when we receive an update for this container
+            if (actionStates[containerData.container_id]) {
+                setActionStates(prev => ({ ...prev, [containerData.container_id]: null }));
+            }
+            
             if (containerData.state === 'deleted') {
                 setLocalContainers(prevContainers =>
                     prevContainers.filter(container => container.id !== containerData.container_id)
@@ -73,15 +79,60 @@ export const ContainerList = ({
         });
     };
 
+    const { 
+        startContainer, 
+        stopContainer, 
+        restartContainer, 
+        rebuildContainer, 
+        deleteContainer 
+    } = useContainers();
+
     const handleContainerAction = async (containerId: string, action: string) => {
         try {
+            // Ask for confirmation before deleting a container
+            if (action === 'delete') {
+                const containerName = localContainers.find(c => c.id === containerId)?.name || 'unknown';
+                if (!window.confirm(`Are you sure you want to delete container "${containerName}"?`)) {
+                    return;
+                }
+            }
+            
             setActionStates(prev => ({ ...prev, [containerId]: action }));
-            // Action implementation would go here
-            // For now, we'll just wait for the WebSocket to update the state
+            
+            // Call the appropriate container action method
+            switch (action) {
+                case 'start':
+                    await startContainer(containerId);
+                    break;
+                case 'stop':
+                    await stopContainer(containerId);
+                    break;
+                case 'restart':
+                    await restartContainer(containerId);
+                    break;
+                case 'rebuild':
+                    await rebuildContainer(containerId);
+                    break;
+                case 'delete':
+                    await deleteContainer(containerId);
+                    break;
+                default:
+                    throw new Error(`Unknown action: ${action}`);
+            }
+            
+            // The WebSocket will handle updating the UI after action completes
+            
         } catch (error) {
             console.error(`Failed to ${action} container:`, error);
-        } finally {
             setActionStates(prev => ({ ...prev, [containerId]: null }));
+        } finally {
+            // Clear action state after a short delay to allow animation to be visible
+            // if we haven't already cleared it due to an error
+            if (action !== 'delete') { // Don't auto-clear for delete as it may take longer
+                setTimeout(() => {
+                    setActionStates(prev => ({ ...prev, [containerId]: null }));
+                }, 1000);
+            }
         }
     };
 

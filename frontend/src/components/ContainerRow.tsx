@@ -163,6 +163,7 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
 
     const handleAction = async (action: string) => {
         try {
+            logger.info(`Performing ${action} action on container ${container.id}`);
             await onAction(container.id, action);
         } catch (err) {
             logger.error(`Failed to perform ${action} action`, err instanceof Error ? err : undefined, {
