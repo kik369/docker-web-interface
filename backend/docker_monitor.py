@@ -132,21 +132,19 @@ class FlaskApp:
                 if now - ts < timedelta(minutes=2)
             }
 
-            # Reset counts for a new minute
-            if min_ago not in self.request_counts:
-                self.request_counts[min_ago] = 1
-            else:
-                self.request_counts[min_ago] += 1
-
             # Check if rate limit is exceeded
-            if self.request_counts[min_ago] > self.current_rate_limit:
+            current_count = self.request_counts.get(min_ago, 0)
+            if current_count >= self.current_rate_limit:
                 logger.warning(
-                    f"Rate limit exceeded: {self.request_counts[min_ago]} requests in the last minute (limit: {self.current_rate_limit})"
+                    f"Rate limit exceeded: {current_count} requests in the last minute (limit: {self.current_rate_limit})"
                 )
                 return self.error_response(
                     f"Rate limit exceeded. Maximum {self.current_rate_limit} requests per minute allowed.",
                     429,
                 )
+                
+            # Increment count only after checking limits
+            self.request_counts[min_ago] = current_count + 1
 
             return f(*args, **kwargs)
 
