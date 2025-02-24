@@ -22,6 +22,10 @@ This project is a comprehensive Docker container monitoring and management syste
     -   View detailed image information
     -   Pull and remove images
     -   Image tag management
+-   Docker Compose project grouping
+    -   Group containers by Docker Compose projects
+    -   Bulk actions for all containers in a group (start, stop, restart)
+    -   Persistent group expansion state
 
 ## To-Do List and Pending Work 📝
 
@@ -36,6 +40,8 @@ This project is a comprehensive Docker container monitoring and management syste
 -   [x] Enhance request logging with request ID tracing
 -   [x] Implement persistent tab selection
 -   [x] Simplify and optimize CSS styling
+-   [x] Implement Docker Compose project grouping
+-   [x] Add bulk actions for Docker Compose groups
 
 ## How the Project Works 🔧
 
@@ -60,6 +66,7 @@ graph TD
     - Container management interface
     - Docker image management UI with tab navigation
     - Status visualization
+    - Docker Compose project grouping
 
 2. **Backend Flask**
     - RESTful API endpoints
