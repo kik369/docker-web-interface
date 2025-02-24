@@ -62,6 +62,7 @@ class DockerService:
         """
         Extract Docker Compose project and service information from container labels.
         Falls back to parsing the container name if labels are not set.
+        Returns a formatted project name and service name.
         """
         # Try to get values from the Compose labels.
         compose_project = labels.get("com.docker.compose.project")
@@ -94,6 +95,12 @@ class DockerService:
                         compose_service = container_name
                 else:
                     compose_service = "unknown"
+        
+        # Format the project name to be more user-friendly
+        if compose_project and compose_project != "Standalone Containers":
+            # Convert project name to a more readable format: my-project-name -> My Project Name
+            formatted_project = " ".join(word.capitalize() for word in compose_project.replace("-", " ").replace("_", " ").split())
+            compose_project = f"Docker Compose: {formatted_project}"
 
         return compose_project, compose_service
 

@@ -207,12 +207,13 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                         <div>
                             <div className="flex items-center space-x-2">
                                 <h3 className="text-lg font-semibold text-white">{container.name}</h3>
-                                {container.compose_project && container.compose_project !== 'Standalone Containers' &&
-                                    container.compose_service && container.compose_service !== container.name && (
-                                        <span className="px-2 py-0.5 bg-blue-500 text-white text-xs rounded-full">
-                                            {container.compose_service}
-                                        </span>
-                                    )}
+                                {container.compose_project && container.compose_project !== 'Standalone Containers' && 
+                                 container.compose_service && (
+                                    <span className="px-2 py-0.5 bg-blue-500 text-white text-xs rounded-full"
+                                          title="Docker Compose Service">
+                                        {container.compose_service}
+                                    </span>
+                                )}
                             </div>
                             <p className="text-sm text-gray-400">Image: {container.image}</p>
                         </div>
