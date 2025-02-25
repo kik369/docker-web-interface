@@ -10,6 +10,7 @@ Docker Web Interface is a comprehensive system for monitoring and managing Docke
     -   Receive live updates via WebSocket as container states change.
 -   **Modern Web Interface**
     -   Intuitive React-based UI with simplified styling.
+    -   Enhanced port visualization with clear host-to-container mapping and protocol tooltips.
 -   **RESTful API Backend**
     -   Flask-powered endpoints to manage containers and images.
 -   **Live Log Streaming**
@@ -120,6 +121,7 @@ Completed tasks:
 -   [x] Persistent tab selection
 -   [x] CSS styling optimisation
 -   [x] Docker Compose project grouping with bulk actions
+-   [x] Improved port mapping display with visual indicators for host/container ports and protocol information
 
 ## Developer Documentation
 

@@ -2,6 +2,7 @@
 import React, { useRef, useEffect, useCallback } from 'react';
 import { IconBaseProps } from 'react-icons';
 import { HiDocument, HiPlay, HiStop, HiRefresh, HiCog, HiTrash } from 'react-icons/hi';
+import { HiOutlineInformationCircle, HiOutlineDesktopComputer, HiOutlineServer } from 'react-icons/hi';
 import { ContainerRowProps } from '../types/docker';
 import { logger } from '../services/logging';
 import { config } from '../config';
@@ -59,6 +60,63 @@ const getStatusColor = (state: string | undefined, isActionLoading: string | nul
         default:
             return 'bg-gray-500';
     }
+};
+
+// Port mapping display component
+const PortDisplay: React.FC<{ portsString: string }> = ({ portsString }) => {
+    if (!portsString) return null;
+
+    const portMappings = portsString.split(', ');
+
+    return (
+        <div className="flex flex-wrap gap-2">
+            {portMappings.map((mapping, index) => {
+                const [hostPort, containerPort] = mapping.split('->');
+
+                // Check if the port includes protocol info (tcp/udp)
+                const [port, protocol] = containerPort ? containerPort.split('/') : [hostPort, ''];
+
+                return (
+                    <div key={index} className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs">
+                        {containerPort ? (
+                            <>
+                                <span className="flex items-center mr-1" title="Host Port (your computer)">
+                                    <HiOutlineDesktopComputer className="mr-1 text-blue-400" />
+                                    {hostPort}
+                                </span>
+                                <span className="text-gray-400 mx-1">→</span>
+                                <span className="flex items-center" title="Container Port (inside Docker)">
+                                    <HiOutlineServer className="mr-1 text-green-400" />
+                                    {port}
+                                </span>
+                            </>
+                        ) : (
+                            <span className="flex items-center">
+                                <HiOutlineServer className="mr-1 text-green-400" />
+                                {port}
+                            </span>
+                        )}
+
+                        {protocol && (
+                            <div className="relative inline-block ml-1 group">
+                                <span className="text-xs text-gray-400">{protocol}</span>
+                                <HiOutlineInformationCircle className="inline-block ml-1 text-gray-400 hover:text-blue-400 cursor-help" />
+                                <div className="absolute hidden group-hover:block bottom-full left-1/2 transform -translate-x-1/2 bg-gray-800 text-white p-2 rounded shadow-lg w-64 z-10 text-xs">
+                                    {protocol.toLowerCase() === 'tcp' ? (
+                                        <>TCP (Transmission Control Protocol): Reliable, connection-oriented protocol that ensures data delivery.</>
+                                    ) : protocol.toLowerCase() === 'udp' ? (
+                                        <>UDP (User Datagram Protocol): Faster, connectionless protocol used for speed over reliability.</>
+                                    ) : (
+                                        <>{protocol} Protocol</>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                );
+            })}
+        </div>
+    );
 };
 
 export const ContainerRow: React.FC<ContainerRowProps> = ({
@@ -207,13 +265,13 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                         <div>
                             <div className="flex items-center space-x-2">
                                 <h3 className="text-lg font-semibold text-white">{container.name}</h3>
-                                {container.compose_project && container.compose_project !== 'Standalone Containers' && 
-                                 container.compose_service && (
-                                    <span className="px-2 py-0.5 bg-blue-500 text-white text-xs rounded-full"
-                                          title="Docker Compose Service">
-                                        {container.compose_service}
-                                    </span>
-                                )}
+                                {container.compose_project && container.compose_project !== 'Standalone Containers' &&
+                                    container.compose_service && (
+                                        <span className="px-2 py-0.5 bg-blue-500 text-white text-xs rounded-full"
+                                            title="Docker Compose Service">
+                                            {container.compose_service}
+                                        </span>
+                                    )}
                             </div>
                             <p className="text-sm text-gray-400">Image: {container.image}</p>
                         </div>
@@ -275,7 +333,12 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                 <div className="mt-2 space-y-1">
                     <p className="text-sm text-gray-400">Status: <span className="text-gray-300">{getStatusText()}</span></p>
                     {container.ports && (
-                        <p className="text-sm text-gray-400">Ports: <span className="text-gray-300">{container.ports}</span></p>
+                        <p className="text-sm text-gray-400">
+                            <span className="font-medium">Ports: </span>
+                            <span className="text-gray-300 inline-flex">
+                                <PortDisplay portsString={container.ports} />
+                            </span>
+                        </p>
                     )}
                 </div>
             </div>
