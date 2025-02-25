@@ -1,8 +1,10 @@
 /// <reference types="react" />
-import React, { useRef, useEffect, useCallback } from 'react';
+import React, { useRef, useEffect, useCallback, useState } from 'react';
+import ReactDOM from 'react-dom';
 import { IconBaseProps } from 'react-icons';
 import { HiDocument, HiPlay, HiStop, HiRefresh, HiCog, HiTrash } from 'react-icons/hi';
 import { HiOutlineInformationCircle, HiOutlineDesktopComputer, HiOutlineServer } from 'react-icons/hi';
+import { HiOutlineTemplate, HiOutlineStatusOnline } from 'react-icons/hi';
 import { ContainerRowProps } from '../types/docker';
 import { logger } from '../services/logging';
 import { config } from '../config';
@@ -46,7 +48,7 @@ const getStatusColor = (state: string | undefined, isActionLoading: string | nul
     // Map states to colors
     switch (stateLower) {
         case 'running':
-            return 'bg-green-500';
+            return 'bg-green-400';
         case 'paused':
             return 'bg-yellow-500';
         case 'exited':
@@ -60,6 +62,16 @@ const getStatusColor = (state: string | undefined, isActionLoading: string | nul
         default:
             return 'bg-gray-500';
     }
+};
+
+// Get descriptive status message for tooltip
+const getStatusDescription = (state: string | undefined, actionInProgress: string | null): string => {
+    if (actionInProgress) {
+        return actionInProgress.charAt(0).toUpperCase() + actionInProgress.slice(1) + '...';
+    }
+
+    // Return the same status value that's shown in the UI for consistency
+    return state || 'Unknown';
 };
 
 // Port mapping display component
@@ -116,6 +128,82 @@ const PortDisplay: React.FC<{ portsString: string }> = ({ portsString }) => {
                 );
             })}
         </div>
+    );
+};
+
+// Tooltip component that uses ReactDOM.createPortal to avoid positioning issues
+interface TooltipProps {
+    children: React.ReactNode;
+    text: React.ReactNode;
+}
+
+const Tooltip: React.FC<TooltipProps> = ({ children, text }) => {
+    const [showTooltip, setShowTooltip] = useState(false);
+    const [position, setPosition] = useState({ top: 0, left: 0 });
+    const triggerRef = useRef<HTMLDivElement>(null);
+
+    const updateTooltipPosition = () => {
+        if (triggerRef.current) {
+            const rect = triggerRef.current.getBoundingClientRect();
+            setPosition({
+                top: rect.top - 5,
+                left: rect.left + rect.width / 2
+            });
+        }
+    };
+
+    const handleMouseEnter = () => {
+        updateTooltipPosition();
+        setShowTooltip(true);
+    };
+
+    const handleMouseLeave = () => {
+        setShowTooltip(false);
+    };
+
+    useEffect(() => {
+        if (showTooltip) {
+            window.addEventListener('scroll', updateTooltipPosition);
+            window.addEventListener('resize', updateTooltipPosition);
+        }
+
+        return () => {
+            window.removeEventListener('scroll', updateTooltipPosition);
+            window.removeEventListener('resize', updateTooltipPosition);
+        };
+    }, [showTooltip]);
+
+    return (
+        <>
+            <div
+                ref={triggerRef}
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
+                className="cursor-help inline-flex"
+            >
+                {children}
+            </div>
+
+            {showTooltip && document.body && ReactDOM.createPortal(
+                <div
+                    className="fixed bg-gray-800 text-white p-2 rounded shadow-lg z-[1000] text-xs whitespace-nowrap min-w-min"
+                    style={{
+                        top: `${position.top}px`,
+                        left: `${position.left}px`,
+                        transform: 'translate(-50%, -100%)'
+                    }}
+                >
+                    <div className="relative">
+                        {text}
+                        <div
+                            className="absolute w-0 h-0 border-l-8 border-r-8 border-t-8 border-transparent border-t-gray-800"
+                            style={{ bottom: '-8px', left: '50%', transform: 'translateX(-50%)' }}
+                        />
+                    </div>
+                </div>,
+                document.body
+            )}
+        </>
     );
 };
 
@@ -261,85 +349,123 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
             <div className="p-4">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
-                        <div className={`w-3 h-3 rounded-full ${getStatusColor(container.state, actionInProgress)}`} />
+                        <Tooltip text={container.status || getStatusDescription(container.state, actionInProgress)}>
+                            <div className={`w-3 h-3 rounded-full ${getStatusColor(container.state, actionInProgress)}`} />
+                        </Tooltip>
                         <div>
                             <div className="flex items-center space-x-2">
-                                <h3 className="text-lg font-semibold text-white">{container.name}</h3>
+                                <Tooltip text={
+                                    (!container.compose_project || container.compose_project === 'Standalone Containers') ?
+                                        <>
+                                            Container Name
+                                            <br />
+                                            Created with docker run or docker create command
+                                        </> :
+                                        <>
+                                            Container Name
+                                            <br />
+                                            Set in docker-compose.yml with container_name: property
+                                        </>
+                                }>
+                                    <h3 className="text-lg font-semibold text-white">{container.name}</h3>
+                                </Tooltip>
+
                                 {container.compose_project && container.compose_project !== 'Standalone Containers' &&
                                     container.compose_service && (
-                                        <span className="px-2 py-0.5 bg-blue-500 text-white text-xs rounded-full"
-                                            title="Docker Compose Service">
-                                            {container.compose_service}
-                                        </span>
+                                        <Tooltip text={<>
+                                            Docker Compose Service Name
+                                        </>}>
+                                            <span className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white">
+                                                {container.compose_service}
+                                            </span>
+                                        </Tooltip>
                                     )}
                             </div>
-                            <p className="text-sm text-gray-400">Image: {container.image}</p>
                         </div>
                     </div>
                     <div className="flex items-center space-x-2">
                         <button
                             onClick={() => handleViewLogs()}
-                            className="p-2 text-gray-400 hover:text-white transition-colors"
+                            className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white hover:bg-gray-600 transition-colors"
                             disabled={isLoadingLogs}
                             title={`Show logs (docker logs ${container.name})`}
                         >
-                            <DocumentIcon className="w-5 h-5" />
+                            <DocumentIcon className="w-4 h-4 mr-1 text-blue-400" />
+                            Show Logs
                         </button>
                         {isContainerRunning ? (
                             <button
                                 onClick={() => handleAction('stop')}
-                                className="p-2 text-gray-400 hover:text-red-400 transition-colors"
+                                className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white hover:bg-gray-600 transition-colors"
                                 disabled={actionInProgress !== null}
                                 title={`Stop container (docker stop ${container.name})`}
                             >
-                                <StopIcon className={`w-5 h-5 ${actionInProgress === 'stop' ? 'animate-pulse' : ''}`} />
+                                <StopIcon className={`w-4 h-4 mr-1 text-red-400 ${actionInProgress === 'stop' ? 'animate-pulse' : ''}`} />
+                                Stop
                             </button>
                         ) : (
                             <button
                                 onClick={() => handleAction('start')}
-                                className="p-2 text-gray-400 hover:text-green-400 transition-colors"
+                                className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white hover:bg-gray-600 transition-colors"
                                 disabled={actionInProgress !== null}
                                 title={`Start container (docker start ${container.name})`}
                             >
-                                <PlayIcon className={`w-5 h-5 ${actionInProgress === 'start' ? 'animate-pulse' : ''}`} />
+                                <PlayIcon className={`w-4 h-4 mr-1 text-green-400 ${actionInProgress === 'start' ? 'animate-pulse' : ''}`} />
+                                Start
                             </button>
                         )}
                         <button
                             onClick={() => handleAction('restart')}
-                            className="p-2 text-gray-400 hover:text-blue-400 transition-colors"
+                            className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white hover:bg-gray-600 transition-colors"
                             disabled={actionInProgress !== null}
                             title={`Restart container (docker restart ${container.name})`}
                         >
-                            <RefreshIcon className={`w-5 h-5 ${actionInProgress === 'restart' ? 'animate-pulse' : ''}`} />
+                            <RefreshIcon className={`w-4 h-4 mr-1 text-blue-400 ${actionInProgress === 'restart' ? 'animate-pulse' : ''}`} />
+                            Restart
                         </button>
                         <button
                             onClick={() => handleAction('rebuild')}
-                            className="p-2 text-gray-400 hover:text-purple-400 transition-colors"
+                            className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white hover:bg-gray-600 transition-colors"
                             disabled={actionInProgress !== null}
                             title={`Rebuild container (docker pull ${container.image} && docker run ...)`}
                         >
-                            <CogIcon className={`w-5 h-5 ${actionInProgress === 'rebuild' ? 'animate-pulse' : ''}`} />
+                            <CogIcon className={`w-4 h-4 mr-1 text-purple-400 ${actionInProgress === 'rebuild' ? 'animate-pulse' : ''}`} />
+                            Rebuild
                         </button>
                         <button
                             onClick={() => handleAction('delete')}
-                            className="p-2 text-gray-400 hover:text-red-500 transition-colors"
+                            className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white hover:bg-gray-600 transition-colors"
                             disabled={actionInProgress !== null}
                             title={`Delete container (docker rm -f ${container.name})`}
                         >
-                            <TrashIcon className={`w-5 h-5 ${actionInProgress === 'delete' ? 'animate-pulse' : ''}`} />
+                            <TrashIcon className={`w-4 h-4 mr-1 text-red-500 ${actionInProgress === 'delete' ? 'animate-pulse' : ''}`} />
+                            Delete
                         </button>
                     </div>
                 </div>
                 <div className="mt-2 space-y-1">
-                    <p className="text-sm text-gray-400">Status: <span className="text-gray-300">{getStatusText()}</span></p>
-                    {container.ports && (
-                        <p className="text-sm text-gray-400">
-                            <span className="font-medium">Ports: </span>
-                            <span className="text-gray-300 inline-flex">
-                                <PortDisplay portsString={container.ports} />
-                            </span>
-                        </p>
-                    )}
+                    <div className="grid grid-cols-[80px_auto] gap-y-1">
+                        <p className="text-sm text-gray-400">Image:</p>
+                        <p><span className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white">
+                            <HiOutlineTemplate className="mr-1 text-purple-400" />
+                            {container.image}
+                        </span></p>
+
+                        <p className="text-sm text-gray-400">Status:</p>
+                        <p><span className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white">
+                            <HiOutlineStatusOnline className="mr-1 text-blue-400" />
+                            {getStatusText()}
+                        </span></p>
+
+                        {container.ports && (
+                            <>
+                                <p className="text-sm text-gray-400">Ports:</p>
+                                <p><span className="text-gray-300 inline-flex">
+                                    <PortDisplay portsString={container.ports} />
+                                </span></p>
+                            </>
+                        )}
+                    </div>
                 </div>
             </div>
             {showLogs && (

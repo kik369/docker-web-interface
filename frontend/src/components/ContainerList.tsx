@@ -3,7 +3,7 @@ import type { Container } from '../types/docker';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useContainers } from '../hooks/useContainers';
 import { ContainerRow } from './ContainerRow';
-import { HiChevronDown, HiChevronRight } from 'react-icons/hi';
+import { HiChevronDown, HiChevronRight, HiPlay, HiStop, HiRefresh, HiCog, HiTrash } from 'react-icons/hi';
 
 type ContainerListProps = {
     containers: Container[];
@@ -250,9 +250,10 @@ export const ContainerList = ({
                                                     });
                                                 }
                                             }}
-                                            className="px-3 py-1 bg-green-600 text-white text-sm rounded hover:bg-green-700"
+                                            className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white hover:bg-gray-600 transition-colors"
                                             title="Start all containers in this group"
                                         >
+                                            <HiPlay className="w-4 h-4 mr-1 text-green-400" />
                                             Start All
                                         </button>
                                         <button
@@ -265,9 +266,10 @@ export const ContainerList = ({
                                                     });
                                                 }
                                             }}
-                                            className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700"
+                                            className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white hover:bg-gray-600 transition-colors"
                                             title="Stop all containers in this group"
                                         >
+                                            <HiStop className="w-4 h-4 mr-1 text-red-400" />
                                             Stop All
                                         </button>
                                         <button
@@ -278,10 +280,39 @@ export const ContainerList = ({
                                                     });
                                                 }
                                             }}
-                                            className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
+                                            className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white hover:bg-gray-600 transition-colors"
                                             title="Restart all containers in this group"
                                         >
+                                            <HiRefresh className="w-4 h-4 mr-1 text-blue-400" />
                                             Restart All
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                if (window.confirm(`Rebuild all containers in ${group.projectName}?`)) {
+                                                    group.containers.forEach(container => {
+                                                        handleContainerAction(container.id, 'rebuild');
+                                                    });
+                                                }
+                                            }}
+                                            className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white hover:bg-gray-600 transition-colors"
+                                            title="Rebuild all containers in this group"
+                                        >
+                                            <HiCog className="w-4 h-4 mr-1 text-purple-400" />
+                                            Rebuild All
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                if (window.confirm(`Delete all containers in ${group.projectName}? This action cannot be undone.`)) {
+                                                    group.containers.forEach(container => {
+                                                        handleContainerAction(container.id, 'delete');
+                                                    });
+                                                }
+                                            }}
+                                            className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white hover:bg-gray-600 transition-colors"
+                                            title="Delete all containers in this group (WARNING: This action cannot be undone)"
+                                        >
+                                            <HiTrash className="w-4 h-4 mr-1 text-red-500" />
+                                            Delete All
                                         </button>
                                     </div>
                                 )}
