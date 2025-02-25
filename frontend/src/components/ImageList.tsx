@@ -95,6 +95,77 @@ const Tooltip: React.FC<TooltipProps> = ({ children, text }) => {
     );
 };
 
+// Function to format relative time
+const formatRelativeTime = (timestamp: number): string => {
+    const now = new Date().getTime();
+    const diff = now - timestamp;
+
+    // Convert milliseconds to seconds, minutes, hours, days
+    const seconds = Math.floor(diff / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+    const days = Math.floor(hours / 24);
+    const months = Math.floor(days / 30);
+    const years = Math.floor(days / 365);
+
+    if (years > 0) {
+        return years === 1 ? '1 year ago' : `${years} years ago`;
+    } else if (months > 0) {
+        return months === 1 ? '1 month ago' : `${months} months ago`;
+    } else if (days > 0) {
+        return days === 1 ? '1 day ago' : `${days} days ago`;
+    } else if (hours > 0) {
+        return hours === 1 ? '1 hour ago' : `${hours} hours ago`;
+    } else if (minutes > 0) {
+        return minutes === 1 ? '1 minute ago' : `${minutes} minutes ago`;
+    } else {
+        return seconds <= 1 ? 'just now' : `${seconds} seconds ago`;
+    }
+};
+
+// Format full date and time in a human-readable format
+const formatFullDateTime = (timestamp: number): string => {
+    const date = new Date(timestamp);
+    return date.toLocaleString(undefined, {
+        weekday: 'long',
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+    });
+};
+
+// Format file size to appropriate units (KB, MB, GB, TB)
+const formatFileSize = (sizeMB: number): string => {
+    // Convert to KB for very small images (< 0.1 MB)
+    if (sizeMB < 0.1) {
+        const sizeKB = sizeMB * 1024;
+        return `${sizeKB.toFixed(2)} KB`;
+    }
+    // Convert to TB for very large images (≥ 1000 GB = 1,024,000 MB)
+    else if (sizeMB >= 1024000) {
+        const sizeTB = sizeMB / 1024 / 1024;
+        return `${sizeTB.toFixed(2)} TB`;
+    }
+    // Convert to GB for large images (≥ 1000 MB)
+    else if (sizeMB >= 1000) {
+        const sizeGB = sizeMB / 1024;
+        return `${sizeGB.toFixed(2)} GB`;
+    }
+    // Keep as MB for medium images
+    else {
+        return `${sizeMB.toFixed(2)} MB`;
+    }
+};
+
+// Convert MB to bytes and format with commas for readability
+const formatSizeInBytes = (sizeMB: number): string => {
+    const bytes = Math.round(sizeMB * 1024 * 1024);
+    return bytes.toLocaleString() + ' bytes';
+};
+
 // ImageRow component displays a single image
 const ImageRow: React.FC<{
     image: Image;
@@ -127,10 +198,18 @@ const ImageRow: React.FC<{
     };
 
     const isActionLoading = actionInProgress === image.id;
-    const formattedSize = `${image.size} MB`;
+    const formattedSize = formatFileSize(image.size);
+    const exactSizeInBytes = formatSizeInBytes(image.size);
     const shortId = image.id.substring(7, 19);
     const mainTag = image.tags.length > 0 ? image.tags[0] : null;
     const displayName = mainTag || `<none>:<none>`;
+
+    // Format the created time
+    const createdTimestamp = typeof image.created === 'string'
+        ? new Date(image.created).getTime()
+        : image.created;
+    const relativeTime = formatRelativeTime(createdTimestamp);
+    const fullDateTime = formatFullDateTime(createdTimestamp);
 
     return (
         <div className="bg-gray-800 rounded-lg shadow-lg overflow-hidden">
@@ -186,14 +265,22 @@ const ImageRow: React.FC<{
                         </span></p>
 
                         <p className="text-sm text-gray-400">Size:</p>
-                        <p><span className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white">
-                            {formattedSize}
-                        </span></p>
+                        <p>
+                            <Tooltip text={exactSizeInBytes}>
+                                <span className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white">
+                                    {formattedSize}
+                                </span>
+                            </Tooltip>
+                        </p>
 
                         <p className="text-sm text-gray-400">Created:</p>
-                        <p><span className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white">
-                            {new Date(image.created).toLocaleString()}
-                        </span></p>
+                        <p>
+                            <Tooltip text={fullDateTime}>
+                                <span className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white">
+                                    {relativeTime}
+                                </span>
+                            </Tooltip>
+                        </p>
 
                         {image.tags.length > 1 && (
                             <>
