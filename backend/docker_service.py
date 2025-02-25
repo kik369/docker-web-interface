@@ -95,11 +95,14 @@ class DockerService:
                         compose_service = container_name
                 else:
                     compose_service = "unknown"
-        
+
         # Format the project name to be more user-friendly
         if compose_project and compose_project != "Standalone Containers":
             # Convert project name to a more readable format: my-project-name -> My Project Name
-            formatted_project = " ".join(word.capitalize() for word in compose_project.replace("-", " ").replace("_", " ").split())
+            formatted_project = " ".join(
+                word.capitalize()
+                for word in compose_project.replace("-", " ").replace("_", " ").split()
+            )
             compose_project = f"Docker Compose: {formatted_project}"
 
         return compose_project, compose_service
@@ -448,6 +451,40 @@ class DockerService:
         """Delete a Docker image."""
         try:
             logger.info(f"Attempting to delete image: {image_id}")
+
+            # Handle different image ID formats
+            # Sometimes the ID comes with 'sha256:' prefix, sometimes without
+            try:
+                # First, try to normalize the image ID
+                if not image_id.startswith("sha256:"):
+                    # If no prefix, try both with and without prefix
+                    logger.info(
+                        "Image ID has no sha256: prefix, trying with prefix first"
+                    )
+                    try:
+                        prefixed_id = f"sha256:{image_id}"
+                        self.client.images.get(
+                            prefixed_id
+                        )  # Check if image exists with prefix
+                        image_id = prefixed_id
+                        logger.info(f"Found image with prefixed ID: {image_id}")
+                    except docker.errors.ImageNotFound:
+                        # If not found with prefix, try the original ID
+                        logger.info(
+                            f"Image not found with prefix, trying original ID: {image_id}"
+                        )
+                        self.client.images.get(image_id)  # Check if image exists
+            except docker.errors.ImageNotFound:
+                error_msg = f"Image {image_id} not found"
+                logger.error(error_msg)
+                return False, error_msg
+            except Exception as e:
+                logger.warning(
+                    f"Error checking image existence: {str(e)}, proceeding with deletion anyway"
+                )
+
+            # Proceed with deletion
+            logger.info(f"Removing image with ID: {image_id}, force={force}")
             self.client.images.remove(image_id, force=force)
             logger.info(f"Successfully deleted image: {image_id}")
             return True, None
@@ -457,6 +494,20 @@ class DockerService:
             return False, error_msg
         except docker.errors.APIError as e:
             error_msg = f"Failed to delete image: {str(e)}"
+            logger.error(error_msg)
+
+            # Provide more specific error information for common issues
+            if "image is referenced in multiple repositories" in str(e).lower():
+                error_msg = f"Image {image_id} is used in multiple repositories. Use force=true to delete it."
+            elif "image has dependent child images" in str(e).lower():
+                error_msg = f"Image {image_id} has dependent child images. Use force=true to delete it."
+            elif "image is being used by running container" in str(e).lower():
+                error_msg = f"Image {image_id} is being used by a running container. Stop the container first or use force=true."
+
+            logger.error(error_msg)
+            return False, error_msg
+        except Exception as e:
+            error_msg = f"Unexpected error deleting image: {str(e)}"
             logger.error(error_msg)
             return False, error_msg
 

@@ -23,12 +23,6 @@ const ErrorMessage = ({ message }: { message: string }) => (
     </div>
 );
 
-// Interface for grouped containers by project
-type ComposeGroup = {
-    projectName: string;
-    containers: Container[];
-};
-
 // Key for persisting expanded state in local storage
 const COMPOSE_GROUPS_STORAGE_KEY = 'dockerWebInterface_expandedComposeGroups';
 
@@ -40,7 +34,7 @@ export const ContainerList = ({
     const [localContainers, setLocalContainers] = useState<Container[]>(initialContainers);
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
     const [actionStates, setActionStates] = useState<Record<string, string | null>>({});
-    
+
     // Store which Docker Compose groups are expanded
     const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => {
         try {
@@ -56,7 +50,7 @@ export const ContainerList = ({
     useEffect(() => {
         setLocalContainers(initialContainers);
     }, [initialContainers]);
-    
+
     // Save expanded groups to localStorage whenever they change
     useEffect(() => {
         try {
@@ -74,7 +68,7 @@ export const ContainerList = ({
             if (actionStates[containerData.container_id]) {
                 setActionStates(prev => ({ ...prev, [containerData.container_id]: null }));
             }
-            
+
             if (containerData.state === 'deleted') {
                 setLocalContainers(prevContainers =>
                     prevContainers.filter(container => container.id !== containerData.container_id)
@@ -110,12 +104,12 @@ export const ContainerList = ({
         });
     };
 
-    const { 
-        startContainer, 
-        stopContainer, 
-        restartContainer, 
-        rebuildContainer, 
-        deleteContainer 
+    const {
+        startContainer,
+        stopContainer,
+        restartContainer,
+        rebuildContainer,
+        deleteContainer
     } = useContainers();
 
     const handleContainerAction = async (containerId: string, action: string) => {
@@ -127,9 +121,9 @@ export const ContainerList = ({
                     return;
                 }
             }
-            
+
             setActionStates(prev => ({ ...prev, [containerId]: action }));
-            
+
             // Call the appropriate container action method
             switch (action) {
                 case 'start':
@@ -150,9 +144,9 @@ export const ContainerList = ({
                 default:
                     throw new Error(`Unknown action: ${action}`);
             }
-            
+
             // The WebSocket will handle updating the UI after action completes
-            
+
         } catch (error) {
             console.error(`Failed to ${action} container:`, error);
             setActionStates(prev => ({ ...prev, [containerId]: null }));
@@ -168,20 +162,20 @@ export const ContainerList = ({
     };
 
     // Group containers by Docker Compose project
-    const containerGroups = useMemo(() => {
+    const containerGroups = useMemo<Array<{ projectName: string, containers: Container[] }>>(() => {
         const groups: Record<string, Container[]> = {};
-        
+
         localContainers.forEach(container => {
             // Use the compose_project property, defaulting to 'Standalone Containers' if not present
             const projectName = container.compose_project || 'Standalone Containers';
-            
+
             if (!groups[projectName]) {
                 groups[projectName] = [];
             }
-            
+
             groups[projectName].push(container);
         });
-        
+
         // Sort the groups by name, but keep 'Standalone Containers' at the top
         return Object.entries(groups)
             .sort(([a], [b]) => {
@@ -194,7 +188,7 @@ export const ContainerList = ({
                 containers: containers.sort((a, b) => a.name.localeCompare(b.name))
             }));
     }, [localContainers]);
-    
+
     const toggleGroup = (projectName: string) => {
         setExpandedGroups(prev => {
             const newGroups = new Set(prev);
@@ -227,7 +221,7 @@ export const ContainerList = ({
                         <div key={group.projectName} className="bg-gray-900 rounded-lg overflow-hidden">
                             <div className="flex items-center justify-between px-4 py-3 bg-gray-800">
                                 <div
-                                    className="flex items-center cursor-pointer" 
+                                    className="flex items-center cursor-pointer"
                                     onClick={() => toggleGroup(group.projectName)}
                                 >
                                     {expandedGroups.has(group.projectName) ? (
@@ -242,7 +236,7 @@ export const ContainerList = ({
                                         </span>
                                     </h2>
                                 </div>
-                                
+
                                 {/* Only show group actions for Docker Compose projects */}
                                 {group.projectName !== 'Standalone Containers' && (
                                     <div className="flex space-x-2">
@@ -292,7 +286,7 @@ export const ContainerList = ({
                                     </div>
                                 )}
                             </div>
-                            
+
                             {expandedGroups.has(group.projectName) && (
                                 <div className="grid gap-4 p-4">
                                     {group.containers.map(container => (

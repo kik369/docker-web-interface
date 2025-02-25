@@ -15,7 +15,9 @@ Docker Web Interface is a comprehensive system for monitoring and managing Docke
 -   **Live Log Streaming**
     -   View container logs in real-time with persistent state across sessions.
 -   **Docker Image Management**
-    -   List, search, pull, and remove images through a dedicated UI.
+    -   List, search, and view images through the dedicated UI.
+    -   Delete images (with force option for images used by containers).
+    -   Direct links to Docker Hub or registry source for each image.
 -   **Docker Compose Project Grouping**
     -   Automatically group containers by Docker Compose projects and perform bulk actions (start, stop, restart).
 -   **Enhanced Logging and Request Tracing**
@@ -112,6 +114,8 @@ Completed tasks:
 
 -   [x] Docker image management functionality
 -   [x] Image management UI with tab navigation
+-   [x] Image deletion with confirmation dialog
+-   [x] Docker Hub/registry source links for images
 -   [x] Request logging with request ID tracing
 -   [x] Persistent tab selection
 -   [x] CSS styling optimisation
@@ -123,7 +127,7 @@ Completed tasks:
     -   `docker_monitor.py` – Application setup and WebSocket integration.
     -   `docker_service.py` – Interfacing with Docker Engine for container and image operations.
 -   **Frontend:** Developed in React with TypeScript. The UI leverages WebSocket for real-time updates and includes dedicated components for container and image management.
--   **Logging:** Implemented using Python’s logging module with custom JSON formatting and request ID tracking, ensuring detailed monitoring and debugging.
+-   **Logging:** Implemented using Python's logging module with custom JSON formatting and request ID tracking, ensuring detailed monitoring and debugging.
 
 ## Additional Notes
 

@@ -20,7 +20,7 @@ const loadActiveTab = () => {
 function MainApp() {
     const { state: { containers, isLoading: containersLoading, error: containersError } } = useContainerContext();
     const { setContainers, updateContainer, deleteContainer, setLoading, setError } = useContainerOperations();
-    const { images, isLoading: imagesLoading, error: imagesError, refresh: refreshImages } = useImages();
+    const { refresh: refreshImages } = useImages();
     const [activeTab, setActiveTab] = useState<'containers' | 'images'>(loadActiveTab);
     const [wsError, setWsError] = useState<string | null>(null);
 
@@ -140,11 +140,7 @@ function MainApp() {
                             error={containersError || wsError}
                         />
                     ) : (
-                        <ImageList
-                            images={images}
-                            isLoading={imagesLoading}
-                            error={imagesError}
-                        />
+                        <ImageList />
                     )}
                 </ErrorBoundary>
             </div>
