@@ -3,12 +3,13 @@ import type { Container } from '../types/docker';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useContainers } from '../hooks/useContainers';
 import { ContainerRow } from './ContainerRow';
-import { HiChevronDown, HiChevronRight, HiPlay, HiStop, HiRefresh, HiCog, HiTrash } from 'react-icons/hi';
+import { HiChevronDown, HiChevronRight, HiPlay, HiStop, HiRefresh, HiCog, HiTrash, HiOutlineTemplate } from 'react-icons/hi';
 
 type ContainerListProps = {
     containers: Container[];
     isLoading: boolean;
     error: string | null;
+    searchTerm?: string;
 };
 
 const LoadingSpinner = () => (
@@ -29,7 +30,8 @@ const COMPOSE_GROUPS_STORAGE_KEY = 'dockerWebInterface_expandedComposeGroups';
 export const ContainerList = ({
     containers: initialContainers,
     isLoading,
-    error
+    error,
+    searchTerm = ''
 }: ContainerListProps) => {
     const [localContainers, setLocalContainers] = useState<Container[]>(initialContainers);
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
@@ -165,7 +167,21 @@ export const ContainerList = ({
     const containerGroups = useMemo<Array<{ projectName: string, containers: Container[] }>>(() => {
         const groups: Record<string, Container[]> = {};
 
-        localContainers.forEach(container => {
+        // First, filter containers based on search term
+        const filteredContainers = searchTerm.trim() === ''
+            ? localContainers
+            : localContainers.filter(container => {
+                const searchLower = searchTerm.toLowerCase();
+                return (
+                    container.name.toLowerCase().includes(searchLower) ||
+                    container.image.toLowerCase().includes(searchLower) ||
+                    container.id.toLowerCase().includes(searchLower) ||
+                    (container.compose_service && container.compose_service.toLowerCase().includes(searchLower)) ||
+                    (container.status && container.status.toLowerCase().includes(searchLower))
+                );
+            });
+
+        filteredContainers.forEach(container => {
             // Use the compose_project property, defaulting to 'Standalone Containers' if not present
             const projectName = container.compose_project || 'Standalone Containers';
 
@@ -187,7 +203,7 @@ export const ContainerList = ({
                 projectName,
                 containers: containers.sort((a, b) => a.name.localeCompare(b.name))
             }));
-    }, [localContainers]);
+    }, [localContainers, searchTerm]);
 
     const toggleGroup = (projectName: string) => {
         setExpandedGroups(prev => {
@@ -231,9 +247,12 @@ export const ContainerList = ({
                                     )}
                                     <h2 className="text-xl font-semibold text-white flex-grow">
                                         {group.projectName}
-                                        <span className="ml-2 text-sm text-gray-400 font-normal">
-                                            ({group.containers.length} container{group.containers.length !== 1 ? 's' : ''})
-                                        </span>
+                                        <div className="inline-flex items-center ml-2">
+                                            <span className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white">
+                                                <HiOutlineTemplate className="w-4 h-4 mr-1 text-purple-400" />
+                                                <span>{group.containers.length}</span>
+                                            </span>
+                                        </div>
                                     </h2>
                                 </div>
 

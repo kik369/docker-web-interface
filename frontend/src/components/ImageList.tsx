@@ -1,14 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import ReactDOM from 'react-dom';
 import { SearchBar } from './SearchBar';
-import { BiCube } from 'react-icons/bi';
 import { IconBaseProps } from 'react-icons';
-import { HiTrash, HiExternalLink } from 'react-icons/hi';
+import { HiTrash, HiExternalLink, HiOutlineTemplate } from 'react-icons/hi';
 import { useImages } from '../hooks/useImages';
+import { Image } from '../types/docker';
 
-const CubeIcon: React.FC<IconBaseProps> = (props): React.JSX.Element => (
-    <BiCube {...props} />
-);
-
+// Create wrapper components for icons
 const TrashIcon: React.FC<IconBaseProps> = (props): React.JSX.Element => (
     <HiTrash {...props} />
 );
@@ -17,40 +15,94 @@ const ExternalLinkIcon: React.FC<IconBaseProps> = (props): React.JSX.Element => 
     <HiExternalLink {...props} />
 );
 
-export const ImageList: React.FC = () => {
-    const [searchTerm, setSearchTerm] = useState('');
-    const [showDeleteModal, setShowDeleteModal] = useState(false);
-    const [imageToDelete, setImageToDelete] = useState<{ id: string, tag: string } | null>(null);
-    const [deleteError, setDeleteError] = useState<string | null>(null);
+const TemplateIcon: React.FC<IconBaseProps> = (props): React.JSX.Element => (
+    <HiOutlineTemplate {...props} />
+);
 
-    // Use the hook for all image-related functionality
-    const {
-        images,
-        isLoading,
-        error,
-        deleteImage,
-        actionInProgress
-    } = useImages();
+// Tooltip component that uses ReactDOM.createPortal to avoid positioning issues
+interface TooltipProps {
+    children: React.ReactNode;
+    text: React.ReactNode;
+}
 
-    if (isLoading) {
-        return <div className="loading">Loading images...</div>;
-    }
+const Tooltip: React.FC<TooltipProps> = ({ children, text }) => {
+    const [showTooltip, setShowTooltip] = useState(false);
+    const [position, setPosition] = useState({ top: 0, left: 0 });
+    const triggerRef = useRef<HTMLDivElement>(null);
 
-    if (error) {
-        return <div className="error">Error: {error}</div>;
-    }
+    const updateTooltipPosition = () => {
+        if (triggerRef.current) {
+            const rect = triggerRef.current.getBoundingClientRect();
+            setPosition({
+                top: rect.top - 5,
+                left: rect.left + rect.width / 2
+            });
+        }
+    };
 
-    // Filter images based on search term
-    const filteredImages = images.filter(image => {
-        const searchLower = searchTerm.toLowerCase();
-        return (
-            image.tags.some(tag => tag.toLowerCase().includes(searchLower)) ||
-            image.id.toLowerCase().includes(searchLower)
-        );
-    });
+    const handleMouseEnter = () => {
+        updateTooltipPosition();
+        setShowTooltip(true);
+    };
 
+    const handleMouseLeave = () => {
+        setShowTooltip(false);
+    };
+
+    useEffect(() => {
+        if (showTooltip) {
+            window.addEventListener('scroll', updateTooltipPosition);
+            window.addEventListener('resize', updateTooltipPosition);
+        }
+
+        return () => {
+            window.removeEventListener('scroll', updateTooltipPosition);
+            window.removeEventListener('resize', updateTooltipPosition);
+        };
+    }, [showTooltip]);
+
+    return (
+        <>
+            <div
+                ref={triggerRef}
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
+                className="cursor-help inline-flex"
+            >
+                {children}
+            </div>
+
+            {showTooltip && document.body && ReactDOM.createPortal(
+                <div
+                    className="fixed bg-gray-800 text-white p-2 rounded shadow-lg z-[1000] text-xs whitespace-nowrap min-w-min"
+                    style={{
+                        top: `${position.top}px`,
+                        left: `${position.left}px`,
+                        transform: 'translate(-50%, -100%)'
+                    }}
+                >
+                    <div className="relative">
+                        {text}
+                        <div
+                            className="absolute w-0 h-0 border-l-8 border-r-8 border-t-8 border-transparent border-t-gray-800"
+                            style={{ bottom: '-8px', left: '50%', transform: 'translateX(-50%)' }}
+                        />
+                    </div>
+                </div>,
+                document.body
+            )}
+        </>
+    );
+};
+
+// ImageRow component displays a single image
+const ImageRow: React.FC<{
+    image: Image;
+    onDelete: (id: string, tag: string) => void;
+    actionInProgress: string | null;
+}> = ({ image, onDelete, actionInProgress }) => {
     // Get Docker Hub URL from image tag
-    const getDockerHubUrl = (tag: string) => {
+    const getDockerHubUrl = (tag: string): string | null => {
         // Example tag: nginx:latest or library/nginx:latest
         try {
             if (!tag.includes('/')) {
@@ -74,17 +126,145 @@ export const ImageList: React.FC = () => {
         return null;
     };
 
+    const isActionLoading = actionInProgress === image.id;
+    const formattedSize = `${image.size} MB`;
+    const shortId = image.id.substring(7, 19);
+    const mainTag = image.tags.length > 0 ? image.tags[0] : null;
+    const displayName = mainTag || `<none>:<none>`;
+
+    return (
+        <div className="bg-gray-800 rounded-lg shadow-lg overflow-hidden">
+            <div className="p-4">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                        <div>
+                            <div className="flex items-center space-x-2">
+                                <Tooltip text="Docker Image">
+                                    <h3 className="text-lg font-semibold text-white">{displayName}</h3>
+                                </Tooltip>
+
+                                {image.tags.length > 1 && (
+                                    <Tooltip text="Additional Tags">
+                                        <span className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white">
+                                            +{image.tags.length - 1}
+                                        </span>
+                                    </Tooltip>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                        {mainTag && getDockerHubUrl(mainTag) && (
+                            <a
+                                href={getDockerHubUrl(mainTag) || '#'}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white hover:bg-gray-600 transition-colors"
+                                title={`Open ${mainTag} in Docker Hub or registry`}
+                            >
+                                <ExternalLinkIcon className="w-4 h-4 mr-1 text-blue-400" />
+                                Docker Hub
+                            </a>
+                        )}
+                        <button
+                            onClick={() => onDelete(image.id, displayName)}
+                            className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white hover:bg-gray-600 transition-colors"
+                            disabled={isActionLoading}
+                            title="Delete image"
+                        >
+                            <TrashIcon className={`w-4 h-4 mr-1 text-red-500 ${isActionLoading ? 'animate-pulse' : ''}`} />
+                            Delete
+                        </button>
+                    </div>
+                </div>
+                <div className="mt-2 space-y-1">
+                    <div className="grid grid-cols-[80px_auto] gap-y-1">
+                        <p className="text-sm text-gray-400">ID:</p>
+                        <p><span className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white">
+                            <TemplateIcon className="mr-1 text-purple-400" />
+                            {shortId}
+                        </span></p>
+
+                        <p className="text-sm text-gray-400">Size:</p>
+                        <p><span className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white">
+                            {formattedSize}
+                        </span></p>
+
+                        <p className="text-sm text-gray-400">Created:</p>
+                        <p><span className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white">
+                            {new Date(image.created).toLocaleString()}
+                        </span></p>
+
+                        {image.tags.length > 1 && (
+                            <>
+                                <p className="text-sm text-gray-400">Tags:</p>
+                                <div className="flex flex-wrap gap-1">
+                                    {image.tags.slice(1).map(tag => (
+                                        <span key={tag} className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white">
+                                            {tag}
+                                        </span>
+                                    ))}
+                                </div>
+                            </>
+                        )}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+// ImageList component displays all Docker images
+interface ImageListProps {
+    searchTerm?: string;
+    onSearchChange?: (value: string) => void;
+}
+
+export const ImageList: React.FC<ImageListProps> = ({ searchTerm = '', onSearchChange }) => {
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [imageToDelete, setImageToDelete] = useState<{ id: string, tag: string } | null>(null);
+    const [deleteError, setDeleteError] = useState<string | null>(null);
+    const [isForceDelete, setIsForceDelete] = useState(false);
+
+    // Use the hook for all image-related functionality
+    const {
+        images,
+        isLoading,
+        error,
+        deleteImage,
+        actionInProgress
+    } = useImages();
+
+    if (isLoading) {
+        return <div className="flex justify-center items-center p-8 text-white">
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-white"></div>
+            <span className="ml-2">Loading images...</span>
+        </div>;
+    }
+
+    if (error) {
+        return <div className="bg-red-800 text-white p-4 rounded-lg">Error: {error}</div>;
+    }
+
+    // Filter images based on search term
+    const filteredImages = images.filter(image => {
+        const searchLower = searchTerm.toLowerCase();
+        return (
+            image.tags.some(tag => tag.toLowerCase().includes(searchLower)) ||
+            image.id.toLowerCase().includes(searchLower)
+        );
+    });
+
     const handleDeleteClick = (id: string, tag: string) => {
-        console.log(`Delete clicked for image: ${id}, tag: ${tag}`);
-        // Store the raw ID without any substring modifications
         setImageToDelete({ id, tag });
         setShowDeleteModal(true);
+        setIsForceDelete(false);
     };
 
-    const handleDeleteConfirm = async (force: boolean = false) => {
+    const handleDeleteConfirm = async () => {
         if (imageToDelete) {
             setDeleteError(null);
-            const success = await deleteImage(imageToDelete.id, force);
+            const success = await deleteImage(imageToDelete.id, isForceDelete);
             if (success) {
                 setShowDeleteModal(false);
                 setImageToDelete(null);
@@ -106,76 +286,30 @@ export const ImageList: React.FC = () => {
                 <div className="flex items-center gap-4">
                     <h2 className="text-xl font-semibold text-white mb-2 sm:mb-0">Docker Images</h2>
                     <div className="flex items-center gap-2">
-                        <div className="flex items-center px-2 py-1 bg-blue-500 text-white text-sm rounded-full">
-                            <CubeIcon className="w-4 h-4 mr-1" />
+                        <div className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white">
+                            <TemplateIcon className="w-4 h-4 mr-1 text-purple-400" />
                             <span>{filteredImages.length}</span>
                         </div>
                     </div>
                 </div>
-                <div className="mb-2 sm:mb-0 sm:ml-4">
-                    <SearchBar value={searchTerm} onChange={setSearchTerm} />
-                </div>
+                {/* Search bar has been moved to the navbar */}
             </div>
 
             <div className="space-y-4">
-                {filteredImages.map(image => (
-                    <div key={image.id} className="bg-gray-800 rounded-lg shadow-lg overflow-hidden">
-                        <div className="p-4">
-                            <div className="flex items-center justify-between">
-                                <div className="flex-1">
-                                    <div className="flex flex-wrap gap-2 mb-2">
-                                        {image.tags.map(tag => (
-                                            <span key={tag} className="px-2 py-1 bg-blue-500 text-white text-sm rounded-full">
-                                                {tag}
-                                            </span>
-                                        ))}
-                                        {image.tags.length === 0 && (
-                                            <span className="text-gray-400 text-sm">
-                                                &lt;none&gt;
-                                            </span>
-                                        )}
-                                    </div>
-                                    <div className="text-sm text-gray-400">
-                                        <p>ID: {image.id.substring(7, 19)}</p>
-                                        <p>Size: {image.size} MB</p>
-                                        <p>Created: {new Date(image.created).toLocaleString()}</p>
-                                    </div>
-                                </div>
-                                <div className="flex items-center space-x-2">
-                                    {image.tags.length > 0 && image.tags.map(tag => {
-                                        const dockerHubUrl = getDockerHubUrl(tag);
-                                        if (dockerHubUrl) {
-                                            return (
-                                                <a
-                                                    key={`link-${tag}`}
-                                                    href={dockerHubUrl}
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    className="p-2 text-gray-400 hover:text-blue-400 transition-colors"
-                                                    title={`Open ${tag} in Docker Hub or registry`}
-                                                >
-                                                    <ExternalLinkIcon className="w-5 h-5" />
-                                                </a>
-                                            );
-                                        }
-                                        return null;
-                                    })}
-
-                                    <button
-                                        onClick={() => image.tags.length > 0
-                                            ? handleDeleteClick(image.id, image.tags[0])
-                                            : handleDeleteClick(image.id, image.id.substring(7, 19))}
-                                        className="p-2 text-gray-400 hover:text-red-500 transition-colors"
-                                        disabled={actionInProgress === image.id}
-                                        title="Delete image"
-                                    >
-                                        <TrashIcon className={`w-5 h-5 ${actionInProgress === image.id ? 'animate-pulse' : ''}`} />
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
+                {filteredImages.length === 0 ? (
+                    <div className="bg-gray-800 p-6 rounded-lg text-center text-gray-400">
+                        {searchTerm ? `No images found matching "${searchTerm}"` : "No images found"}
                     </div>
-                ))}
+                ) : (
+                    filteredImages.map(image => (
+                        <ImageRow
+                            key={image.id}
+                            image={image}
+                            onDelete={handleDeleteClick}
+                            actionInProgress={actionInProgress}
+                        />
+                    ))
+                )}
             </div>
 
             {/* Delete Confirmation Modal */}
@@ -184,7 +318,7 @@ export const ImageList: React.FC = () => {
                     <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full shadow-xl">
                         <h3 className="text-xl font-semibold text-white mb-4">Delete Image</h3>
                         <p className="text-gray-300 mb-4">
-                            Are you sure you want to delete the image {imageToDelete?.tag}?
+                            Are you sure you want to delete the image <span className="font-semibold">{imageToDelete?.tag}</span>?
                             This action cannot be undone.
                         </p>
 
@@ -194,6 +328,19 @@ export const ImageList: React.FC = () => {
                             </div>
                         )}
 
+                        <div className="flex items-center mb-4">
+                            <input
+                                type="checkbox"
+                                id="force-delete"
+                                checked={isForceDelete}
+                                onChange={() => setIsForceDelete(!isForceDelete)}
+                                className="mr-2"
+                            />
+                            <label htmlFor="force-delete" className="text-gray-300 text-sm">
+                                Force delete (remove even if used by containers)
+                            </label>
+                        </div>
+
                         <div className="flex justify-end space-x-4">
                             <button
                                 onClick={handleDeleteCancel}
@@ -202,19 +349,11 @@ export const ImageList: React.FC = () => {
                                 Cancel
                             </button>
                             <button
-                                onClick={() => handleDeleteConfirm(false)}
+                                onClick={handleDeleteConfirm}
                                 className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
                                 disabled={actionInProgress === imageToDelete?.id}
                             >
                                 {actionInProgress === imageToDelete?.id ? 'Deleting...' : 'Delete'}
-                            </button>
-                            <button
-                                onClick={() => handleDeleteConfirm(true)}
-                                className="px-4 py-2 bg-red-800 text-white rounded hover:bg-red-900 transition-colors"
-                                disabled={actionInProgress === imageToDelete?.id}
-                                title="Force delete even if the image is used by containers"
-                            >
-                                Force Delete
                             </button>
                         </div>
                     </div>

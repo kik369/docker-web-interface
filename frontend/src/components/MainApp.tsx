@@ -7,6 +7,7 @@ import { useImages } from '../hooks/useImages';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { logger } from '../services/logging';
 import { useContainerContext, useContainerOperations } from '../context/ContainerContext';
+import { SearchBar } from './SearchBar';
 import '../App.css';
 
 // No settings needed anymore
@@ -23,6 +24,7 @@ function MainApp() {
     const { refresh: refreshImages } = useImages();
     const [activeTab, setActiveTab] = useState<'containers' | 'images'>(loadActiveTab);
     const [wsError, setWsError] = useState<string | null>(null);
+    const [searchTerm, setSearchTerm] = useState<string>('');
 
     // Set up WebSocket handlers
     useWebSocket({
@@ -102,7 +104,7 @@ function MainApp() {
                 </div>
 
                 <div className="mb-6">
-                    <div className="border-b border-gray-700">
+                    <div className="border-b border-gray-700 flex justify-between items-center">
                         <nav className="-mb-px flex space-x-8">
                             <button
                                 onClick={() => {
@@ -129,6 +131,13 @@ function MainApp() {
                                 Images
                             </button>
                         </nav>
+                        <div className="w-64">
+                            <SearchBar
+                                value={searchTerm}
+                                onChange={setSearchTerm}
+                                placeholder={`Search ${activeTab}...`}
+                            />
+                        </div>
                     </div>
                 </div>
 
@@ -138,9 +147,13 @@ function MainApp() {
                             containers={containers}
                             isLoading={containersLoading}
                             error={containersError || wsError}
+                            searchTerm={searchTerm}
                         />
                     ) : (
-                        <ImageList />
+                        <ImageList
+                            searchTerm={searchTerm}
+                            onSearchChange={setSearchTerm}
+                        />
                     )}
                 </ErrorBoundary>
             </div>
