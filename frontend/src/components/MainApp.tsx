@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { ContainerList } from './ContainerList';
 import { ImageList } from './ImageList';
 import Background from './Background';
@@ -25,6 +25,7 @@ function MainApp() {
     const [activeTab, setActiveTab] = useState<'containers' | 'images'>(loadActiveTab);
     const [wsError, setWsError] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState<string>('');
+    const searchInputRef = useRef<HTMLInputElement>(null);
 
     // Set up WebSocket handlers
     useWebSocket({
@@ -70,9 +71,10 @@ function MainApp() {
 
     // No settings needed anymore
 
-    // Add Ctrl+R handler for manual refresh
+    // Add keyboard shortcuts
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
+            // Ctrl+R for refresh
             if ((event.ctrlKey || event.metaKey) && event.key === 'r') {
                 event.preventDefault();
                 if (activeTab === 'containers') {
@@ -80,6 +82,14 @@ function MainApp() {
                     // The WebSocket will handle the refresh through the initial_state event
                 } else {
                     refreshImages();
+                }
+            }
+
+            // Ctrl+/ for search focus
+            if (event.ctrlKey && event.key === '/') {
+                event.preventDefault();
+                if (searchInputRef.current) {
+                    searchInputRef.current.focus();
                 }
             }
         };
@@ -133,9 +143,10 @@ function MainApp() {
                         </nav>
                         <div className="w-64">
                             <SearchBar
+                                ref={searchInputRef}
                                 value={searchTerm}
                                 onChange={setSearchTerm}
-                                placeholder={`Search ${activeTab}...`}
+                                placeholder="Ctrl+/"
                             />
                         </div>
                     </div>
