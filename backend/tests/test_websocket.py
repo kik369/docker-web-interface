@@ -118,7 +118,7 @@ class TestWebSocketHandlers(unittest.TestCase):
                     }
                 ]
             },
-            to="test-sid",
+            room="test-sid",
         )
 
     def test_websocket_log_stream(self):

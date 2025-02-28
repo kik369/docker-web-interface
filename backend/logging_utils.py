@@ -63,16 +63,28 @@ class RequestIdFilter(logging.Filter):
 def get_request_id() -> str:
     """Get the current request ID or generate a new one."""
     try:
-        return g.request_id
-    except Exception:
-        return str(uuid.uuid4())
+        return g.request_id  # Try Flask g first
+    except (RuntimeError, AttributeError):
+        try:
+            return request_id_var.get()  # Fall back to context var
+        except LookupError:
+            return str(uuid.uuid4())  # Generate new as last resort
 
 
 def set_request_id(request_id: Optional[str] = None) -> str:
     """Set the request ID for the current context."""
     if request_id is None:
         request_id = str(uuid.uuid4())
+
+    # Set in context var
     request_id_var.set(request_id)
+
+    # Try to set in Flask g if in request context
+    try:
+        g.request_id = request_id
+    except RuntimeError:
+        pass  # Not in a request context
+
     return request_id
 
 
@@ -84,6 +96,7 @@ def log_request():
         def wrapped(*args, **kwargs):
             # Set request ID
             request_id = request.headers.get("X-Request-ID") or str(uuid.uuid4())
+            # Set both Flask g and context var
             g.request_id = request_id
             set_request_id(request_id)
 
@@ -103,10 +116,12 @@ def log_request():
 
             # Time the request
             start_time = time.time()
+            status_code = 500  # Default status code
 
             try:
                 response = f(*args, **kwargs)
                 status_code = response.status_code
+                return response
             except Exception as e:
                 logger.exception("Request failed", extra={"error": str(e)})
                 raise
@@ -124,8 +139,6 @@ def log_request():
                         "request_id": request_id,
                     },
                 )
-
-            return response
 
         return wrapped
 

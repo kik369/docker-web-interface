@@ -27,6 +27,9 @@ class TestRateLimiting(unittest.TestCase):
         self.mock_docker_service.delete_container.return_value = (True, None)
         self.mock_docker_service.get_all_images.return_value = ([], None)
 
+        # Add this important mock for test_rate_limit_different_endpoints
+        self.mock_docker_service.format_image_data = MagicMock(return_value=[])
+
         self.app_instance.docker_service = self.mock_docker_service
 
         # Create a test client

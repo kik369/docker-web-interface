@@ -1,6 +1,6 @@
 import logging.config
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Dict
 
 
@@ -30,19 +30,19 @@ class Config:
     # Frontend settings
     REFRESH_INTERVAL: int = int(os.getenv("REFRESH_INTERVAL", "30"))
 
-    # CORS settings - Using default_factory for mutable default
-    CORS_ORIGINS: list[str] = field(
-        default_factory=lambda: os.getenv("CORS_ORIGINS", "*").split(",")
-    )
+    # CORS settings are handled as a class attribute outside the dataclass
 
     @classmethod
     def to_dict(cls) -> Dict[str, Any]:
         """Convert config to dictionary."""
-        return {
+        result = {
             key: getattr(cls, key)
             for key in dir(cls)
             if not key.startswith("_") and not callable(getattr(cls, key))
         }
+        # Make sure CORS_ORIGINS is included
+        result["CORS_ORIGINS"] = cls.CORS_ORIGINS
+        return result
 
     @classmethod
     def validate(cls) -> None:
@@ -56,6 +56,9 @@ class Config:
         if cls.PORT < 1 or cls.PORT > 65535:
             raise ValueError("PORT must be between 1 and 65535")
 
+
+# Define CORS_ORIGINS as a class attribute
+Config.CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*").split(",")
 
 # Validate configuration on import
 Config.validate()
