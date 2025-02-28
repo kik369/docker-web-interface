@@ -3,20 +3,21 @@ from datetime import datetime, timedelta
 from functools import wraps
 from typing import Any, Callable, Dict
 
-from config import Config
-from docker_service import Container, DockerService
 from flask import Flask, Response, g, jsonify, request
 from flask_cors import CORS
 from flask_socketio import SocketIO
-from logging_utils import (
+from werkzeug.exceptions import HTTPException
+from werkzeug.middleware.proxy_fix import ProxyFix
+
+from backend.config import Config
+from backend.docker_service import Container, DockerService
+from backend.logging_utils import (
     RequestIdFilter,
     get_request_id,
     log_request,
     set_request_id,
     setup_logging,
 )
-from werkzeug.exceptions import HTTPException
-from werkzeug.middleware.proxy_fix import ProxyFix
 
 # Configure logging
 setup_logging()
