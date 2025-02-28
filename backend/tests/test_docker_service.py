@@ -54,7 +54,9 @@ def mock_docker_client():
 @pytest.fixture
 def docker_service(mock_docker_client):
     """Create a DockerService instance with a mock client."""
-    with patch("docker_service.docker.from_env", return_value=mock_docker_client):
+    with patch(
+        "backend.docker_service.docker.from_env", return_value=mock_docker_client
+    ):
         service = DockerService(socketio=Mock())
         service.client = mock_docker_client
         # Mock the _emit_container_state method to avoid additional API calls
@@ -68,7 +70,7 @@ class TestDockerService:
     def test_get_all_containers(self, docker_service, mock_docker_client):
         """Test the get_all_containers method returns correctly formatted containers."""
         # Patch the datetime.strptime to avoid format issues
-        with patch("docker_service.datetime") as mock_datetime:
+        with patch("backend.docker_service.datetime") as mock_datetime:
             mock_datetime.strptime.return_value = datetime(2023, 1, 1)
 
             containers, error = docker_service.get_all_containers()
@@ -277,7 +279,7 @@ class TestDockerService:
         mock_docker_client.images.list.return_value = [mock_image]
 
         # Patch the datetime.strptime to avoid format issues
-        with patch("docker_service.datetime") as mock_datetime:
+        with patch("backend.docker_service.datetime") as mock_datetime:
             mock_datetime.strptime.return_value = datetime(2023, 1, 1)
             mock_datetime.fromtimestamp.return_value = datetime(2023, 1, 1)
             mock_datetime.now.return_value = datetime(2023, 1, 1)

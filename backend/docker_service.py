@@ -235,7 +235,7 @@ class DockerService:
                 }
 
                 # Emit the detailed state change
-                self.socketio.emit("container_state_change", container_data)
+                self.socketio.emit("container_state_changed", container_data)
                 logger.info(
                     f"Emitted detailed state change for container {container_id}: {state}"
                 )
@@ -243,7 +243,7 @@ class DockerService:
             except docker.errors.NotFound:
                 # If container not found (e.g., after deletion), emit basic state change
                 self.socketio.emit(
-                    "container_state_change",
+                    "container_state_changed",
                     {
                         "container_id": container_id,
                         "state": "deleted",
@@ -257,7 +257,7 @@ class DockerService:
                 logger.error(f"Error emitting container state: {e}")
                 # Fallback to basic state change on error
                 self.socketio.emit(
-                    "container_state_change",
+                    "container_state_changed",
                     {"container_id": container_id, "state": state},
                 )
 

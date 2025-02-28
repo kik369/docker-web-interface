@@ -81,16 +81,20 @@ def mock_docker_service():
 def flask_app(mock_docker_service):
     """Create a Flask app with routes for testing."""
     # Patch the SocketIO class to avoid socket operations
-    with patch("docker_monitor.SocketIO") as mock_socketio_class:
+    with patch("backend.docker_monitor.SocketIO") as mock_socketio_class:
         mock_socketio = Mock()
         mock_socketio_class.return_value = mock_socketio
 
         # Patch other dependencies
         with (
-            patch("docker_monitor.DockerService", return_value=mock_docker_service),
-            patch("docker_monitor.logging.getLogger"),
-            patch("docker_monitor.set_request_id", return_value="test-request-id"),
-            patch("docker_monitor.RequestIdFilter"),
+            patch(
+                "backend.docker_monitor.DockerService", return_value=mock_docker_service
+            ),
+            patch("backend.docker_monitor.logging.getLogger"),
+            patch(
+                "backend.docker_monitor.set_request_id", return_value="test-request-id"
+            ),
+            patch("backend.docker_monitor.RequestIdFilter"),
         ):
             # Create FlaskApp instance
             app_instance = FlaskApp()

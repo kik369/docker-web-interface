@@ -42,6 +42,18 @@ class TestWebSocketHandlers(unittest.TestCase):
         # Set docker_service on app instance
         self.app_instance.docker_service = self.mock_docker_service
 
+        # Create a mock container for use in tests
+        self.mock_container = MagicMock()
+        self.mock_container.id = "test-container-id"
+        self.mock_container.name = "test-container"
+        self.mock_container.image = "test-image"
+        self.mock_container.status = "Up 2 hours"
+        self.mock_container.state = "running"
+        self.mock_container.ports = "80/tcp->8080"
+        self.mock_container.compose_project = "test-project"
+        self.mock_container.compose_service = "test-service"
+        self.mock_container.created = datetime.now()
+
     def tearDown(self):
         # Stop request patcher
         self.request_patcher.stop()
@@ -50,55 +62,33 @@ class TestWebSocketHandlers(unittest.TestCase):
         self.request_context.pop()
 
     def test_websocket_connect(self):
-        # Mock container data
-        mock_container = MagicMock()
-        mock_container.id = "test-container-id"
-        mock_container.name = "test-container"
-        mock_container.image = "test-image"
-        mock_container.status = "Up 2 hours"
-        mock_container.state = "running"
-        mock_container.ports = "80/tcp->8080"
-        mock_container.compose_project = "test-project"
-        mock_container.compose_service = "test-service"
-        mock_container.created = datetime.now()
-
         # Configure mock to return container data
         self.mock_docker_service.get_all_containers.return_value = (
-            [mock_container],
+            [self.mock_container],
             None,
         )
 
-        # Get the connect handler
-        connect_handler = None
-        for name, value in self.app_instance.__class__.__dict__.items():
-            if (
-                hasattr(value, "__socketio_handler__")
-                and value.__socketio_handler__ == "connect"
-            ):
-                connect_handler = value.__get__(
-                    self.app_instance, self.app_instance.__class__
-                )
-                break
+        # Direct approach - register a fake handler for 'connect' event
+        self.mock_socketio.on.reset_mock()  # Reset the mock to clear previous calls
+        self.mock_socketio.emit.reset_mock()
 
-        # If we couldn't find the handler through introspection, use a direct approach
-        if not connect_handler:
-            # Call the handler directly - this is a fallback approach
-            @self.mock_socketio.on.return_value
-            def handle_connect():
-                pass
+        # Directly call the setup method to register handlers
+        with patch("backend.docker_monitor.request", self.mock_request):
+            self.app_instance.setup_websocket_handlers()
 
-            # Get the most recent call to socketio.on
-            args, kwargs = self.mock_socketio.on.call_args
-            event_name = args[0] if args else kwargs.get("event")
+            # Get the call arguments for the socketio.on decorator
+            connect_handler = None
+            for call_args in self.mock_socketio.on.call_args_list:
+                args, kwargs = call_args
+                if args and args[0] == "connect":
+                    # Found the connect handler
+                    connect_handler = self.mock_socketio.on.return_value
+                    # Call the handler
+                    connect_handler()
+                    break
 
-            # Verify it was for the connect event
-            self.assertEqual(event_name, "connect")
-
-            # Call the decorated function
-            handle_connect()
-        else:
-            # Call the handler directly if we found it
-            connect_handler()
+            # If we didn't find the handler, fail the test
+            self.assertIsNotNone(connect_handler, "Could not find connect handler")
 
         # Verify connection_established was emitted
         self.mock_socketio.emit.assert_any_call(
@@ -124,7 +114,7 @@ class TestWebSocketHandlers(unittest.TestCase):
                         "ports": "80/tcp->8080",
                         "compose_project": "test-project",
                         "compose_service": "test-service",
-                        "created": mock_container.created.isoformat(),
+                        "created": self.mock_container.created.isoformat(),
                     }
                 ]
             },
@@ -142,36 +132,30 @@ class TestWebSocketHandlers(unittest.TestCase):
         self.mock_socketio.server = MagicMock()
         self.mock_socketio.server.manager.rooms = {"test-sid": {"/": True}}
 
-        # Get the log stream handler
-        log_stream_handler = None
-        for name, value in self.app_instance.__class__.__dict__.items():
-            if (
-                hasattr(value, "__socketio_handler__")
-                and value.__socketio_handler__ == "start_log_stream"
-            ):
-                log_stream_handler = value.__get__(
-                    self.app_instance, self.app_instance.__class__
-                )
-                break
+        # Reset the mock to clear previous calls
+        self.mock_socketio.on.reset_mock()
+        self.mock_socketio.emit.reset_mock()
 
-        # If we couldn't find the handler through introspection, use a direct approach
-        if not log_stream_handler:
-            # Call the handler directly - this is a fallback approach
-            @self.mock_socketio.on.return_value
-            def handle_start_log_stream(data):
-                pass
+        # Set up the mock to actually call the handler when log_stream is triggered
+        with patch("backend.docker_monitor.request", self.mock_request):
+            # Re-setup the websocket handlers to get fresh callbacks
+            self.app_instance.setup_websocket_handlers()
 
-            # Get the most recent call to socketio.on
-            calls = self.mock_socketio.on.call_args_list
-            for args, kwargs in calls:
-                event_name = args[0] if args else kwargs.get("event")
-                if event_name == "start_log_stream":
-                    # Call the decorated function with test data
-                    handle_start_log_stream({"container_id": "test_container"})
+            # Find the handler for start_log_stream
+            start_log_stream_handler = None
+            for call_args in self.mock_socketio.on.call_args_list:
+                args, kwargs = call_args
+                if args and args[0] == "start_log_stream":
+                    # Found the handler
+                    start_log_stream_handler = self.mock_socketio.on.return_value
+                    # Call it directly with the container ID
+                    start_log_stream_handler({"container_id": "test_container"})
                     break
-        else:
-            # Call the handler directly if we found it
-            log_stream_handler({"container_id": "test_container"})
+
+            # If we didn't find the handler, fail the test
+            self.assertIsNotNone(
+                start_log_stream_handler, "Could not find start_log_stream handler"
+            )
 
         # Verify stream was started
         self.mock_docker_service.stream_container_logs.assert_called_with(
@@ -192,40 +176,35 @@ class TestWebSocketHandlers(unittest.TestCase):
             ),
         ]
 
+        # Check that each expected call is in the actual calls
         for expected_call in expected_calls:
             self.assertIn(expected_call, self.mock_socketio.emit.call_args_list)
 
     def test_websocket_log_stream_missing_container_id(self):
-        # Get the log stream handler
-        log_stream_handler = None
-        for name, value in self.app_instance.__class__.__dict__.items():
-            if (
-                hasattr(value, "__socketio_handler__")
-                and value.__socketio_handler__ == "start_log_stream"
-            ):
-                log_stream_handler = value.__get__(
-                    self.app_instance, self.app_instance.__class__
-                )
-                break
+        # Reset the mock to clear previous calls
+        self.mock_socketio.on.reset_mock()
+        self.mock_socketio.emit.reset_mock()
 
-        # If we couldn't find the handler through introspection, use a direct approach
-        if not log_stream_handler:
-            # Call the handler directly - this is a fallback approach
-            @self.mock_socketio.on.return_value
-            def handle_start_log_stream(data):
-                pass
+        # Similar approach - call the handler directly with empty data
+        with patch("backend.docker_monitor.request", self.mock_request):
+            # Re-setup the websocket handlers to get fresh callbacks
+            self.app_instance.setup_websocket_handlers()
 
-            # Get the most recent call to socketio.on
-            calls = self.mock_socketio.on.call_args_list
-            for args, kwargs in calls:
-                event_name = args[0] if args else kwargs.get("event")
-                if event_name == "start_log_stream":
-                    # Call the decorated function with empty data
-                    handle_start_log_stream({})
+            # Find the handler for start_log_stream
+            start_log_stream_handler = None
+            for call_args in self.mock_socketio.on.call_args_list:
+                args, kwargs = call_args
+                if args and args[0] == "start_log_stream":
+                    # Found the handler
+                    start_log_stream_handler = self.mock_socketio.on.return_value
+                    # Call it with empty data
+                    start_log_stream_handler({})
                     break
-        else:
-            # Call the handler directly if we found it
-            log_stream_handler({})
+
+            # If we didn't find the handler, fail the test
+            self.assertIsNotNone(
+                start_log_stream_handler, "Could not find start_log_stream handler"
+            )
 
         # Verify error was emitted
         self.mock_socketio.emit.assert_any_call(
@@ -236,36 +215,29 @@ class TestWebSocketHandlers(unittest.TestCase):
         self.mock_docker_service.stream_container_logs.assert_not_called()
 
     def test_websocket_disconnect(self):
-        # Get the disconnect handler
-        disconnect_handler = None
-        for name, value in self.app_instance.__class__.__dict__.items():
-            if (
-                hasattr(value, "__socketio_handler__")
-                and value.__socketio_handler__ == "disconnect"
-            ):
-                disconnect_handler = value.__get__(
-                    self.app_instance, self.app_instance.__class__
-                )
-                break
+        # Reset the mock to clear previous calls
+        self.mock_socketio.on.reset_mock()
 
-        # If we couldn't find the handler through introspection, use a direct approach
-        if not disconnect_handler:
-            # Call the handler directly - this is a fallback approach
-            @self.mock_socketio.on.return_value
-            def handle_disconnect(reason):
-                pass
+        # Similar approach - call the handler directly
+        with patch("backend.docker_monitor.request", self.mock_request):
+            # Re-setup the websocket handlers to get fresh callbacks
+            self.app_instance.setup_websocket_handlers()
 
-            # Get the most recent call to socketio.on
-            calls = self.mock_socketio.on.call_args_list
-            for args, kwargs in calls:
-                event_name = args[0] if args else kwargs.get("event")
-                if event_name == "disconnect":
-                    # Call the decorated function with test data
-                    handle_disconnect("test_reason")
+            # Find the handler for disconnect
+            disconnect_handler = None
+            for call_args in self.mock_socketio.on.call_args_list:
+                args, kwargs = call_args
+                if args and args[0] == "disconnect":
+                    # Found the handler
+                    disconnect_handler = self.mock_socketio.on.return_value
+                    # Call it with a test reason
+                    disconnect_handler("test_reason")
                     break
-        else:
-            # Call the handler directly if we found it
-            disconnect_handler("test_reason")
+
+            # If we didn't find the handler, fail the test
+            self.assertIsNotNone(
+                disconnect_handler, "Could not find disconnect handler"
+            )
 
         # No specific assertions needed here, just verifying it doesn't raise exceptions
         # In a real test, you might want to verify any cleanup operations

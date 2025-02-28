@@ -17,6 +17,16 @@ class TestRateLimiting(unittest.TestCase):
         # Configure mocks
         self.mock_docker_service = MagicMock()
         mock_docker_service.return_value = self.mock_docker_service
+
+        # Set up the mock return values properly
+        self.mock_docker_service.get_all_containers.return_value = ([], None)
+        self.mock_docker_service.get_container_logs.return_value = ("Test logs", None)
+        self.mock_docker_service.start_container.return_value = (True, None)
+        self.mock_docker_service.stop_container.return_value = (True, None)
+        self.mock_docker_service.restart_container.return_value = (True, None)
+        self.mock_docker_service.delete_container.return_value = (True, None)
+        self.mock_docker_service.get_all_images.return_value = ([], None)
+
         self.app_instance.docker_service = self.mock_docker_service
 
         # Create a test client

@@ -30,7 +30,7 @@ class Config:
     # Frontend settings
     REFRESH_INTERVAL: int = int(os.getenv("REFRESH_INTERVAL", "30"))
 
-    # CORS settings
+    # CORS settings - Using default_factory for mutable default
     CORS_ORIGINS: list[str] = field(
         default_factory=lambda: os.getenv("CORS_ORIGINS", "*").split(",")
     )

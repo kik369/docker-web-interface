@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, call, patch
 
 
 class TestDockerEventSubscription(unittest.TestCase):
-    @patch("docker.from_env")
+    @patch("backend.docker_service.docker.from_env")
     def test_start_stop_event_subscription(self, mock_docker_from_env):
         from backend.docker_service import DockerService
 
@@ -39,7 +39,7 @@ class TestDockerEventSubscription(unittest.TestCase):
         # Verify thread is no longer alive
         self.assertFalse(service._event_thread.is_alive())
 
-    @patch("docker.from_env")
+    @patch("backend.docker_service.docker.from_env")
     def test_event_handling(self, mock_docker_from_env):
         from backend.docker_service import DockerService
 
@@ -78,7 +78,7 @@ class TestDockerEventSubscription(unittest.TestCase):
             ]
         )
 
-    @patch("docker.from_env")
+    @patch("backend.docker_service.docker.from_env")
     def test_map_event_to_state(self, mock_docker_from_env):
         from backend.docker_service import DockerService
 
@@ -108,7 +108,7 @@ class TestDockerEventSubscription(unittest.TestCase):
             actual_state = service._map_event_to_state(event_status)
             self.assertEqual(actual_state, expected_state)
 
-    @patch("docker.from_env")
+    @patch("backend.docker_service.docker.from_env")
     def test_emit_container_state(self, mock_docker_from_env):
         from backend.docker_service import DockerService
 
@@ -147,7 +147,7 @@ class TestDockerEventSubscription(unittest.TestCase):
         self.assertEqual(container_data["container_id"], "test_container_id")
         self.assertEqual(container_data["state"], "running")
 
-    @patch("docker.from_env")
+    @patch("backend.docker_service.docker.from_env")
     def test_event_subscription_exception_handling(self, mock_docker_from_env):
         from backend.docker_service import DockerService
 
@@ -164,7 +164,7 @@ class TestDockerEventSubscription(unittest.TestCase):
 
         # No assertions needed - we're just verifying it doesn't crash
 
-    @patch("docker.from_env")
+    @patch("backend.docker_service.docker.from_env")
     def test_event_subscription_stop_event(self, mock_docker_from_env):
         from backend.docker_service import DockerService
 

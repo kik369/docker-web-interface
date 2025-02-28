@@ -2,6 +2,8 @@ import logging
 import unittest
 from unittest.mock import MagicMock, patch
 
+from flask import Flask
+
 from backend.logging_utils import (
     RequestIdFilter,
     get_request_id,
@@ -15,6 +17,8 @@ class TestLoggingUtils(unittest.TestCase):
     def setUp(self):
         # Reset request ID between tests
         set_request_id("test-request-id")
+        # Create a test Flask app
+        self.test_app = Flask(__name__)
 
     def test_request_id_filter(self):
         # Create a test record
@@ -32,42 +36,52 @@ class TestLoggingUtils(unittest.TestCase):
         self.assertTrue(hasattr(record, "level"))
 
     def test_set_get_request_id(self):
-        # Test setting a new request ID
-        request_id = set_request_id("new-request-id")
-        self.assertEqual(request_id, "new-request-id")
+        # Testing within request context
+        with self.test_app.app_context():
+            with self.test_app.test_request_context():
+                # Test setting a new request ID
+                request_id = set_request_id("new-request-id")
+                self.assertEqual(request_id, "new-request-id")
 
-        # Test getting the request ID
-        retrieved_id = get_request_id()
-        self.assertEqual(retrieved_id, "new-request-id")
+                # Test getting the request ID
+                retrieved_id = get_request_id()
+                self.assertEqual(retrieved_id, "new-request-id")
 
-        # Test auto-generation of request ID
-        set_request_id(None)
-        auto_id = get_request_id()
-        self.assertIsNotNone(auto_id)
-        self.assertNotEqual(auto_id, "new-request-id")
+                # Test auto-generation of request ID
+                set_request_id(None)
+                auto_id = get_request_id()
+                self.assertIsNotNone(auto_id)
+                self.assertNotEqual(auto_id, "new-request-id")
 
-    @patch("flask.request")
-    @patch("flask.g")
-    def test_log_request_decorator(self, mock_g, mock_request):
-        # Setup mocks
-        mock_request.method = "GET"
-        mock_request.path = "/test"
-        mock_request.remote_addr = "127.0.0.1"
-        mock_request.headers = {"X-Request-ID": "existing-id"}
+    def test_log_request_decorator(self):
+        with self.test_app.app_context():
+            with self.test_app.test_request_context():
+                # Setup mocks
+                with (
+                    patch(
+                        "flask.request",
+                        MagicMock(
+                            method="GET",
+                            path="/test",
+                            remote_addr="127.0.0.1",
+                            headers={"X-Request-ID": "existing-id"},
+                        ),
+                    ),
+                    patch("flask.g") as mock_g,
+                ):
+                    # Create a test function to decorate
+                    @log_request()
+                    def test_function():
+                        return MagicMock(status_code=200)
 
-        # Create a test function to decorate
-        @log_request()
-        def test_function():
-            return MagicMock(status_code=200)
+                    # Call the decorated function
+                    with patch("logging.getLogger") as mock_logger:
+                        mock_logger_instance = mock_logger.return_value
+                        test_function()
 
-        # Call the decorated function
-        with patch("logging.getLogger") as mock_logger:
-            mock_logger_instance = mock_logger.return_value
-            test_function()
-
-            # Verify logging calls
-            self.assertEqual(mock_g.request_id, "existing-id")
-            mock_logger_instance.info.assert_called()
+                        # Verify logging calls
+                        self.assertEqual(mock_g.request_id, "existing-id")
+                        mock_logger_instance.info.assert_called()
 
     @patch("logging.handlers.RotatingFileHandler")
     @patch("logging.StreamHandler")
@@ -107,33 +121,41 @@ class TestLoggingUtils(unittest.TestCase):
             mock_specific_logger.addFilter.assert_called()
 
     def test_log_request_decorator_with_exception(self):
-        # Setup mocks
-        with patch("flask.request") as mock_request, patch("flask.g") as mock_g:
-            mock_request.method = "GET"
-            mock_request.path = "/test"
-            mock_request.remote_addr = "127.0.0.1"
-            mock_request.headers = {}
+        with self.test_app.app_context():
+            with self.test_app.test_request_context():
+                # Setup mocks
+                with (
+                    patch(
+                        "flask.request",
+                        MagicMock(
+                            method="GET",
+                            path="/test",
+                            remote_addr="127.0.0.1",
+                            headers={},
+                        ),
+                    ),
+                    patch("flask.g") as mock_g,
+                ):
+                    # Create a test function that raises an exception
+                    @log_request()
+                    def test_function_with_exception():
+                        raise ValueError("Test exception")
 
-            # Create a test function that raises an exception
-            @log_request()
-            def test_function_with_exception():
-                raise ValueError("Test exception")
+                    # Call the decorated function and expect exception
+                    with patch("logging.getLogger") as mock_logger:
+                        mock_logger_instance = mock_logger.return_value
 
-            # Call the decorated function and expect exception
-            with patch("logging.getLogger") as mock_logger:
-                mock_logger_instance = mock_logger.return_value
+                        with self.assertRaises(ValueError):
+                            test_function_with_exception()
 
-                with self.assertRaises(ValueError):
-                    test_function_with_exception()
+                        # Verify exception was logged
+                        mock_logger_instance.exception.assert_called_with(
+                            "Request failed", extra={"error": "Test exception"}
+                        )
 
-                # Verify exception was logged
-                mock_logger_instance.exception.assert_called_with(
-                    "Request failed", extra={"error": "Test exception"}
-                )
-
-                # Verify request_id was set on g
-                self.assertTrue(hasattr(mock_g, "request_id"))
-                self.assertIsNotNone(mock_g.request_id)
+                        # Verify request_id was set on g
+                        self.assertTrue(hasattr(mock_g, "request_id"))
+                        self.assertIsNotNone(mock_g.request_id)
 
 
 if __name__ == "__main__":
