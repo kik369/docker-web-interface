@@ -25,6 +25,9 @@ Docker Web Interface is a comprehensive system for monitoring and managing Docke
     -   Comprehensive logging with unique request IDs for improved traceability.
 -   **State Persistence**
     -   Maintains active tab selections, group expansion states, and log view settings between sessions.
+-   **Unit Testing**
+    -   Comprehensive test suite for backend services using pytest.
+    -   Mocked Docker client for reliable, reproducible tests.
 
 ## Architecture
 
@@ -104,11 +107,46 @@ For quicker prototyping and debugging, you can run the components locally outsid
 
 > 💡 **Tip:** Running the application locally allows for faster feedback and easier debugging. Ensure all dependencies are installed in your local environment.
 
+## Testing
+
+The project includes a comprehensive test suite for the backend services:
+
+### Running Tests
+
+To run the tests for the Docker service module:
+
+```bash
+cd backend
+python -m pytest tests/test_docker_service.py
+```
+
+To run tests with verbose output:
+
+```bash
+python -m pytest tests/test_docker_service.py -v
+```
+
+To check test coverage:
+
+```bash
+python -m pytest --cov=docker_service tests/test_docker_service.py
+```
+
+### Test Structure
+
+-   Tests are organized in the `backend/tests` directory
+-   Unit tests use pytest fixtures to mock the Docker client
+-   Key functionality tested includes:
+    -   Container operations (get, start, stop, restart, delete)
+    -   Container log retrieval
+    -   Image operations (get, delete)
+    -   Helper methods and error handling
+
 ## To-Do List and Pending Work
 
 -   [ ] Implement real-time container metrics updates
 -   [ ] Add container resource usage tracking
--   [ ] Add automated testing
+-   [ ] Expand test coverage for all backend modules
 -   [ ] Implement container log search functionality
 
 Completed tasks:
@@ -122,6 +160,7 @@ Completed tasks:
 -   [x] CSS styling optimisation
 -   [x] Docker Compose project grouping with bulk actions
 -   [x] Improved port mapping display with visual indicators for host/container ports and protocol information
+-   [x] Unit tests for Docker service module
 
 ## Developer Documentation
 
@@ -130,6 +169,7 @@ Completed tasks:
     -   `docker_service.py` – Interfacing with Docker Engine for container and image operations.
 -   **Frontend:** Developed in React with TypeScript. The UI leverages WebSocket for real-time updates and includes dedicated components for container and image management.
 -   **Logging:** Implemented using Python's logging module with custom JSON formatting and request ID tracking, ensuring detailed monitoring and debugging.
+-   **Testing:** Unit tests implemented with pytest, using mocking to isolate components and ensure reliable test results.
 
 ## Additional Notes
 
