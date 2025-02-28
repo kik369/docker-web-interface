@@ -5,7 +5,7 @@ import docker
 import pytest
 
 # Import the module we're testing
-from docker_service import DockerService
+from backend.docker_service import DockerService
 
 
 @pytest.fixture

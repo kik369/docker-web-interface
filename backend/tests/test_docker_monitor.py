@@ -3,8 +3,9 @@ from datetime import datetime
 from unittest.mock import Mock, patch
 
 import pytest
-from docker_monitor import FlaskApp
-from docker_service import Container
+
+from backend.docker_monitor import FlaskApp
+from backend.docker_service import Container
 
 
 @pytest.fixture
