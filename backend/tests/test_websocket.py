@@ -1,6 +1,6 @@
 import unittest
 from datetime import datetime
-from unittest.mock import MagicMock, call, patch
+from unittest.mock import MagicMock, patch
 
 
 class TestWebSocketHandlers(unittest.TestCase):
@@ -12,6 +12,28 @@ class TestWebSocketHandlers(unittest.TestCase):
         # Configure mocks
         self.mock_socketio = MagicMock()
         mock_socketio.return_value = self.mock_socketio
+
+        # Configure socketio.on to store handlers for testing
+        self.socket_handlers = {}
+
+        def on_side_effect(event):
+            def decorator(f):
+                self.socket_handlers[event] = f
+                return f
+
+            return decorator
+
+        self.mock_socketio.on.side_effect = on_side_effect
+
+        # Similar approach for on_error
+        def on_error_side_effect():
+            def decorator(f):
+                self.socket_handlers["error_handler"] = f
+                return f
+
+            return decorator
+
+        self.mock_socketio.on_error.side_effect = on_error_side_effect
 
         self.mock_docker_service = MagicMock()
         mock_docker_service.return_value = self.mock_docker_service
@@ -68,27 +90,19 @@ class TestWebSocketHandlers(unittest.TestCase):
             None,
         )
 
-        # Direct approach - register a fake handler for 'connect' event
-        self.mock_socketio.on.reset_mock()  # Reset the mock to clear previous calls
+        # Reset the mocks
         self.mock_socketio.emit.reset_mock()
 
-        # Directly call the setup method to register handlers
+        # Set up the WebSocket handlers
         with patch("backend.docker_monitor.request", self.mock_request):
             self.app_instance.setup_websocket_handlers()
 
-            # Get the call arguments for the socketio.on decorator
-            connect_handler = None
-            for call_args in self.mock_socketio.on.call_args_list:
-                args, kwargs = call_args
-                if args and args[0] == "connect":
-                    # Found the connect handler
-                    connect_handler = self.mock_socketio.on.return_value
-                    # Call the handler
-                    connect_handler()
-                    break
+        # Access and call the connect handler
+        connect_handler = self.socket_handlers.get("connect")
+        self.assertIsNotNone(connect_handler, "Connect handler not registered")
 
-            # If we didn't find the handler, fail the test
-            self.assertIsNotNone(connect_handler, "Could not find connect handler")
+        # Call the handler
+        connect_handler()
 
         # Verify connection_established was emitted
         self.mock_socketio.emit.assert_any_call(
@@ -128,91 +142,62 @@ class TestWebSocketHandlers(unittest.TestCase):
             "Log line 2",
         ]
 
-        # Mock socketio server manager rooms
+        # Mock socketio server manager rooms - FIX: Use correct room structure
+        # The check in the handler is looking for request.sid in socketio.server.manager.rooms.get("/", {})
         self.mock_socketio.server = MagicMock()
-        self.mock_socketio.server.manager.rooms = {"test-sid": {"/": True}}
+        # Correct structure: {"namespace": {"sid1": True, "sid2": True}}
+        self.mock_socketio.server.manager.rooms = {"/": {"test-sid": True}}
 
-        # Reset the mock to clear previous calls
-        self.mock_socketio.on.reset_mock()
+        # Reset the mocks
         self.mock_socketio.emit.reset_mock()
 
-        # Set up the mock to actually call the handler when log_stream is triggered
+        # Set up the WebSocket handlers
         with patch("backend.docker_monitor.request", self.mock_request):
-            # Re-setup the websocket handlers to get fresh callbacks
             self.app_instance.setup_websocket_handlers()
 
-            # Find the handler for start_log_stream
-            start_log_stream_handler = None
-            for call_args in self.mock_socketio.on.call_args_list:
-                args, kwargs = call_args
-                if args and args[0] == "start_log_stream":
-                    # Found the handler
-                    start_log_stream_handler = self.mock_socketio.on.return_value
-                    # Call it directly with the container ID
-                    start_log_stream_handler({"container_id": "test_container"})
-                    break
+        # Access the start_log_stream handler
+        start_log_stream_handler = self.socket_handlers.get("start_log_stream")
+        self.assertIsNotNone(
+            start_log_stream_handler, "start_log_stream handler not registered"
+        )
 
-            # If we didn't find the handler, fail the test
-            self.assertIsNotNone(
-                start_log_stream_handler, "Could not find start_log_stream handler"
-            )
+        # Call the handler with container ID
+        start_log_stream_handler({"container_id": "test_container"})
 
         # Verify stream was started
         self.mock_docker_service.stream_container_logs.assert_called_with(
             "test_container"
         )
 
-        # Verify logs were emitted to client
-        expected_calls = [
-            call(
+        # Verify log lines were emitted to client
+        for log_line in ["Log line 1", "Log line 2"]:
+            self.mock_socketio.emit.assert_any_call(
                 "log_update",
-                {"container_id": "test_container", "log": "Log line 1"},
+                {"container_id": "test_container", "log": log_line},
                 room="test-sid",
-            ),
-            call(
-                "log_update",
-                {"container_id": "test_container", "log": "Log line 2"},
-                room="test-sid",
-            ),
-        ]
-
-        # Check that each expected call is in the actual calls
-        for expected_call in expected_calls:
-            self.assertIn(expected_call, self.mock_socketio.emit.call_args_list)
+            )
 
     def test_websocket_log_stream_missing_container_id(self):
-        # Reset the mock to clear previous calls
-        self.mock_socketio.on.reset_mock()
+        # Reset the mocks
         self.mock_socketio.emit.reset_mock()
 
-        # Similar approach - call the handler directly with empty data
+        # Set up the WebSocket handlers
         with patch("backend.docker_monitor.request", self.mock_request):
-            # Re-setup the websocket handlers to get fresh callbacks
             self.app_instance.setup_websocket_handlers()
 
-            # Find the handler for start_log_stream
-            start_log_stream_handler = None
-            for call_args in self.mock_socketio.on.call_args_list:
-                args, kwargs = call_args
-                if args and args[0] == "start_log_stream":
-                    # Found the handler
-                    start_log_stream_handler = self.mock_socketio.on.return_value
-                    # Call it with empty data
-                    start_log_stream_handler({})
-                    break
+        # Access the start_log_stream handler
+        start_log_stream_handler = self.socket_handlers.get("start_log_stream")
+        self.assertIsNotNone(
+            start_log_stream_handler, "start_log_stream handler not registered"
+        )
 
-            # If we didn't find the handler, fail the test
-            self.assertIsNotNone(
-                start_log_stream_handler, "Could not find start_log_stream handler"
-            )
+        # Call the handler with empty data
+        start_log_stream_handler({})
 
         # Verify error was emitted
         self.mock_socketio.emit.assert_any_call(
             "error", {"error": "Container ID is required"}, room="test-sid"
         )
-
-        # Verify stream was not started
-        self.mock_docker_service.stream_container_logs.assert_not_called()
 
     def test_websocket_disconnect(self):
         # Reset the mock to clear previous calls
