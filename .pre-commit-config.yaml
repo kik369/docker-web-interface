@@ -8,4 +8,3 @@ repos:
         types: [python]
         args: ["--cov=backend", "--cov-report=term"]
         pass_filenames: false
-        # working_directory: backend
