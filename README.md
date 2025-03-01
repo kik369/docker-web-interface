@@ -2,7 +2,7 @@
 
 ## Overview
 
-Docker Web Interface is a comprehensive system for monitoring and managing Docker containers in real-time. It provides a modern, responsive web interface built with React and a robust Flask backend. The platform supports live container log streaming, Docker image management, and Docker Compose project grouping, all while offering enhanced logging and request tracing.
+Docker Web Interface is a comprehensive system for monitoring and managing Docker containers and images in real-time. It provides a modern, responsive web interface built with React and a robust Flask backend. The platform supports live container log streaming, Docker image management, and Docker Compose project grouping, all while offering enhanced logging and request tracing.
 
 ## Key Features
 
@@ -113,24 +113,37 @@ The project includes a comprehensive test suite for the backend services:
 
 ### Running Tests
 
-To run the tests for the Docker service module:
+To run all tests with verbose output:
 
 ```bash
 cd backend
-python -m pytest tests/test_docker_service.py
+python -m pytest -v
 ```
 
-To run tests with verbose output:
+To check test coverage for the entire backend:
 
 ```bash
-python -m pytest tests/test_docker_service.py -v
+python -m pytest --cov=backend --cov-report=term
 ```
 
-To check test coverage:
+To run all pre-commit hooks manually:
 
 ```bash
-python -m pytest --cov=docker_service tests/test_docker_service.py
+pre-commit run --all-files
 ```
+
+### Pre-commit Hooks
+
+The project uses pre-commit hooks to ensure code quality. The hooks are configured in `.pre-commit-config.yaml` and include running pytest with coverage reports.
+
+To install pre-commit hooks:
+
+```bash
+pip install pre-commit
+pre-commit install
+```
+
+The pre-commit hook will run pytest with coverage for backend code automatically before each commit.
 
 ### Test Structure
 
@@ -141,6 +154,9 @@ python -m pytest --cov=docker_service tests/test_docker_service.py
     -   Container log retrieval
     -   Image operations (get, delete)
     -   Helper methods and error handling
+    -   WebSocket connections and event handling
+    -   Rate limiting functionality
+    -   Docker event subscriptions
 
 ## To-Do List and Pending Work
 
@@ -165,13 +181,26 @@ Completed tasks:
 ## Developer Documentation
 
 -   **Backend:** Built with Flask and Gunicorn. Core modules include:
+
     -   `docker_monitor.py` – Application setup and WebSocket integration.
     -   `docker_service.py` – Interfacing with Docker Engine for container and image operations.
+    -   `logging_utils.py` – Utilities for structured logging and request ID tracking.
+    -   `config.py` – Configuration management and validation.
+
 -   **Frontend:** Developed in React with TypeScript. The UI leverages WebSocket for real-time updates and includes dedicated components for container and image management.
+
+    -   Components are organized in the `src/components` directory
+    -   Custom hooks in `src/hooks` handle data fetching and WebSocket integration
+    -   Context API for state management in `src/context`
+    -   Types defined in `src/types`
+
 -   **Logging:** Implemented using Python's logging module with custom JSON formatting and request ID tracking, ensuring detailed monitoring and debugging.
+
 -   **Testing:** Unit tests implemented with pytest, using mocking to isolate components and ensure reliable test results.
 
 ## Additional Notes
 
 -   The Docker socket is mounted into the backend container to enable direct communication with the Docker Engine.
 -   Future updates will include detailed container metrics and enhanced resource monitoring features.
+-   The frontend uses Tailwind CSS for styling.
+-   The application supports both production and development environments through the `.env` configuration.
