@@ -1,0 +1,11 @@
+repos:
+  - repo: local
+    hooks:
+      - id: pytest
+        name: Run Pytest with Coverage
+        entry: python -m pytest
+        language: system
+        types: [python]
+        args: ["--cov=backend", "--cov-report=term"]
+        pass_filenames: false
+        # working_directory: backend

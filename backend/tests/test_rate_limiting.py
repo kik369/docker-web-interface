@@ -1,6 +1,6 @@
 import json
 import unittest
-from datetime import datetime
+from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 
@@ -75,7 +75,8 @@ class TestRateLimiting(unittest.TestCase):
         # Set up old request counts (more than 2 minutes ago)
         now = datetime.now()
         current_minute = now.replace(second=0, microsecond=0)
-        old_minute = current_minute.replace(minute=current_minute.minute - 3)
+        # Use timedelta for proper datetime arithmetic
+        old_minute = current_minute - timedelta(minutes=3)
 
         # Add counts for both current and old minute
         self.app_instance.request_counts = {current_minute: 5, old_minute: 8}
@@ -123,7 +124,8 @@ class TestRateLimiting(unittest.TestCase):
         # Set up counts for previous minute
         now = datetime.now()
         current_minute = now.replace(second=0, microsecond=0)
-        previous_minute = current_minute.replace(minute=current_minute.minute - 1)
+        # Use timedelta for proper datetime arithmetic
+        previous_minute = current_minute - timedelta(minutes=1)
 
         self.app_instance.request_counts = {
             previous_minute: self.app_instance.current_rate_limit

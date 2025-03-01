@@ -94,7 +94,7 @@ LOGGING_CONFIG = {
     },
     "filters": {
         "request_id": {
-            "()": "logging_utils.RequestIdFilter",
+            "()": "backend.logging_utils.RequestIdFilter",
         },
     },
     "handlers": {

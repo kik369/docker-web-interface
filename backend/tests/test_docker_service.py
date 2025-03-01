@@ -443,3 +443,337 @@ class TestDockerService:
         docker_service._emit_container_state.assert_called_with(
             "test_container_id", expected_states[expected_method]
         )
+
+    def test_stream_container_logs_success(self, docker_service, mock_docker_client):
+        """Test successful streaming of container logs."""
+        # Setup mock container
+        mock_container = Mock()
+        mock_docker_client.containers.get.return_value = mock_container
+
+        # Create a generator function that yields log lines with timestamps as bytes
+        def log_generator():
+            for line in [
+                "2023-01-01T00:00:01Z Log line 1",
+                "2023-01-01T00:00:02Z Log line 2",
+                "2023-01-01T00:00:03Z Log line 3",
+            ]:
+                yield line.encode("utf-8")  # Docker SDK returns bytes
+
+        mock_container.logs.return_value = log_generator()
+
+        # Call the method
+        log_generator = docker_service.stream_container_logs("test_container_id")
+
+        # Verify logs are processed and returned
+        logs = list(log_generator)
+        assert len(logs) == 3
+        # Verify the implementation strips timestamps if needed
+        assert "Log line 1" in logs[0]
+        assert "Log line 2" in logs[1]
+        assert "Log line 3" in logs[2]
+
+        # Verify container.logs was called with correct parameters
+        mock_container.logs.assert_called_once()
+        call_kwargs = mock_container.logs.call_args[1]
+        assert call_kwargs.get("stream") is True
+        assert call_kwargs.get("follow") is True
+        assert call_kwargs.get("timestamps") is True
+
+    def test_stream_container_logs_with_since(self, docker_service, mock_docker_client):
+        """Test container log streaming with 'since' parameter."""
+        # Setup mock container
+        mock_container = Mock()
+        mock_docker_client.containers.get.return_value = mock_container
+
+        # Create a generator function that yields log lines with timestamps
+        def log_generator():
+            yield "2023-01-01T00:00:01Z Log with since param".encode("utf-8")
+
+        mock_container.logs.return_value = log_generator()
+
+        # Call with since parameter
+        log_generator = docker_service.stream_container_logs(
+            "test_container_id", since=1234
+        )
+        logs = list(log_generator)
+
+        # Verify timestamps parameter is True in the implementation
+        mock_container.logs.assert_called_once()
+        call_kwargs = mock_container.logs.call_args[1]
+        assert call_kwargs.get("stream") is True
+        assert call_kwargs.get("follow") is True
+        assert call_kwargs.get("timestamps") is True
+        assert call_kwargs.get("since") == 1234
+
+        # Verify log content
+        assert len(logs) == 1
+        assert "Log with since param" in logs[0]
+
+    def test_stream_container_logs_not_found(self, docker_service, mock_docker_client):
+        """Test container log streaming when container is not found."""
+        # Simulate container not found
+        mock_docker_client.containers.get.side_effect = docker.errors.NotFound(
+            "Container not found"
+        )
+
+        # Call the method
+        log_generator = docker_service.stream_container_logs("nonexistent_id")
+        first_log = next(log_generator)
+
+        # Verify error message
+        assert "Error" in first_log
+        assert "not found" in first_log.lower()
+
+    def test_stream_container_logs_api_error(self, docker_service, mock_docker_client):
+        """Test container log streaming with API error."""
+        # Simulate API error
+        mock_docker_client.containers.get.side_effect = docker.errors.APIError(
+            "API error"
+        )
+
+        # Call the method
+        log_generator = docker_service.stream_container_logs("test_container_id")
+        first_log = next(log_generator)
+
+        # Verify error message
+        assert "Error" in first_log
+        assert "api error" in first_log.lower()
+
+    def test_stream_container_logs_connection_error(
+        self, docker_service, mock_docker_client
+    ):
+        """Test container log streaming with connection error."""
+        import requests
+
+        # Simulate connection error
+        mock_docker_client.containers.get.side_effect = (
+            requests.exceptions.ConnectionError("Connection failed")
+        )
+
+        # Call the method
+        log_generator = docker_service.stream_container_logs("test_container_id")
+        first_log = next(log_generator)
+
+        # Verify error message
+        assert "Error" in first_log
+        assert "connection" in first_log.lower()
+
+    def test_complex_image_tags_handling(self, docker_service, mock_docker_client):
+        """Test image operations with complex tag formats."""
+        # Setup mock for image deletion
+        mock_image = Mock()
+        mock_docker_client.images.get.return_value = mock_image
+
+        # Looking at the logs, the implementation seems to add sha256: prefix
+        # and then use that to retrieve and remove images
+
+        # Use a spy to track actual calls without disrupting the flow
+        real_images_get = mock_docker_client.images.get
+        real_images_remove = mock_docker_client.images.remove
+        images_get_calls = []
+        images_remove_calls = []
+
+        def spy_images_get(*args, **kwargs):
+            images_get_calls.append((args, kwargs))
+            return mock_image
+
+        def spy_images_remove(*args, **kwargs):
+            images_remove_calls.append((args, kwargs))
+            return None
+
+        mock_docker_client.images.get = spy_images_get
+        mock_docker_client.images.remove = spy_images_remove
+
+        # Test with a standard image tag
+        image_tag = "registry.example.com/user/repo:tag"
+        success, error = docker_service.delete_image(image_tag)
+
+        # Verify the operation succeeded
+        assert success is True
+        assert error is None
+
+        # Verify the correct image tag was used
+        assert len(images_get_calls) > 0
+        assert any(f"sha256:{image_tag}" in str(call) for call in images_get_calls)
+
+        # Test with an image ID that already has sha256 prefix
+        images_get_calls.clear()
+        images_remove_calls.clear()
+
+        image_id = "sha256:1234567890abcdef"
+        success, error = docker_service.delete_image(image_id)
+
+        assert success is True
+        assert error is None
+
+        # For images with sha256 prefix, the implementation skips get and goes directly to remove
+        # So we should check remove calls instead of get calls
+        assert len(images_remove_calls) > 0
+        assert any(image_id in str(call) for call in images_remove_calls)
+
+        # Reset the mocks for future tests
+        mock_docker_client.images.get = real_images_get
+        mock_docker_client.images.remove = real_images_remove
+
+    def test_complex_image_tags_handling_with_errors(
+        self, docker_service, mock_docker_client
+    ):
+        """Test handling of errors with complex image tags."""
+        # Test image not found
+        mock_docker_client.images.get.side_effect = docker.errors.ImageNotFound(
+            "Image not found"
+        )
+        success, error = docker_service.delete_image("nonexistent:tag")
+        assert success is False
+        assert "not found" in error.lower()
+
+        # Test image in use
+        mock_docker_client.images.get.side_effect = None
+        mock_docker_client.images.get.return_value = Mock(id="used_image_id")
+        mock_docker_client.images.remove.side_effect = docker.errors.APIError(
+            "conflict: unable to remove repository reference - container is using its referenced image"
+        )
+
+        success, error = docker_service.delete_image("used:image")
+        assert success is False
+        assert "conflict" in error.lower()
+
+        # Test force deletion of image in use
+        mock_docker_client.images.remove.reset_mock()
+        mock_docker_client.images.remove.side_effect = None
+
+        success, error = docker_service.delete_image("used:image", force=True)
+        mock_docker_client.images.remove.assert_called_once()
+        assert success is True
+        assert error is None
+
+    def test_emit_container_state(self, docker_service, mock_docker_client):
+        """Test the _emit_container_state method."""
+        # Create a complete mock setup for container retrieval
+        mock_container = Mock()
+        mock_container.name = "test_container"
+
+        # Create mock image with necessary attributes
+        mock_image = Mock()
+        mock_image.tags = ["test:latest"]
+        mock_image.id = "sha256:test_image_id"
+        mock_container.image = mock_image
+
+        # Set up all required container attributes
+        mock_container.attrs = {
+            "State": {"Status": "running"},
+            "Config": {"Labels": {}},
+            "Created": "2023-01-01T00:00:00Z",
+            "HostConfig": {"PortBindings": {"80/tcp": [{"HostPort": "8080"}]}},
+        }
+        mock_docker_client.containers.get.return_value = mock_container
+
+        # Important: Restore the original emit_container_state method
+        # The fixture mocks this method, but we want to test the real one
+        docker_service._emit_container_state = (
+            DockerService._emit_container_state.__get__(docker_service)
+        )
+
+        # Create a new socketio mock that we can control
+        mock_socketio = Mock()
+        docker_service.socketio = mock_socketio
+
+        # Call the method
+        docker_service._emit_container_state("test_container_id", "running")
+
+        # Verify emit was called with the correct event name and payload
+        mock_socketio.emit.assert_called_once()
+        args, kwargs = mock_socketio.emit.call_args
+
+        # The first arg should be the event name
+        assert args[0] == "container_state_changed"
+
+        # The second arg should be a dict with container data
+        container_data = args[1]
+        assert container_data["container_id"] == "test_container_id"
+        assert container_data["state"] == "running"
+        assert container_data["name"] == "test_container"
+        assert container_data["image"] == "test:latest"
+
+    def test_map_event_to_state(self, docker_service):
+        """Test the _map_event_to_state method."""
+        # Test various event statuses - match the actual implementation
+        assert docker_service._map_event_to_state("start") == "running"
+        assert docker_service._map_event_to_state("die") == "stopped"
+        assert docker_service._map_event_to_state("stop") == "stopped"
+        assert docker_service._map_event_to_state("kill") == "stopped"
+        assert docker_service._map_event_to_state("pause") == "paused"
+        assert docker_service._map_event_to_state("unpause") == "running"
+        assert docker_service._map_event_to_state("create") == "created"
+        assert (
+            docker_service._map_event_to_state("destroy") == "deleted"
+        )  # Not "removed"
+        assert docker_service._map_event_to_state("unknown") == "unknown"
+
+    def test_handle_container_event(self, docker_service, mock_docker_client):
+        """Test the _handle_container_event method."""
+        # Set up mock for _emit_container_state
+        docker_service._emit_container_state = Mock()
+
+        # Create a mock event matching the format expected by the Docker SDK
+        # The key is likely "status" not "Action" based on the Docker SDK
+        event = {
+            "Type": "container",
+            "status": "start",  # Use "status" instead of "Action"
+            "Actor": {
+                "ID": "test_container_id",
+                "Attributes": {"name": "test_container"},
+            },
+        }
+
+        # Call the method
+        docker_service._handle_container_event(event)
+
+        # Check if it was called
+        assert docker_service._emit_container_state.call_count > 0
+
+        # Check the arguments
+        docker_service._emit_container_state.assert_called_with(
+            "test_container_id", "running"
+        )
+
+    def test_subscribe_to_docker_events(self, docker_service, mock_docker_client):
+        """Test the subscribe_to_docker_events method."""
+        # Directly check the events method is called
+        mock_docker_client.events.return_value = iter(
+            [
+                {"Type": "container", "status": "start", "Actor": {"ID": "test_id"}},
+                {"Type": "container", "status": "stop", "Actor": {"ID": "test_id"}},
+            ]
+        )
+
+        # Skip testing internal iteration logic and just verify the method calls
+        with patch.object(docker_service, "_stop_event") as mock_stop_event:
+            # Configure the mock to stop after being checked once
+            mock_stop_event.is_set.side_effect = [
+                False,
+                True,
+            ]  # Return False first, then True
+
+            # Call the method
+            docker_service.subscribe_to_docker_events()
+
+            # Verify basic functionality
+            mock_docker_client.events.assert_called_once()
+            assert mock_stop_event.is_set.call_count >= 1
+
+    def test_subscribe_to_docker_events_with_error(
+        self, docker_service, mock_docker_client
+    ):
+        """Test error handling in subscribe_to_docker_events."""
+        # Setup mock to raise an exception
+        mock_docker_client.events.side_effect = docker.errors.APIError("API error")
+
+        # Set the stop event to ensure the method returns
+        docker_service._stop_event.set()
+
+        # Call the method - should not raise exception
+        docker_service.subscribe_to_docker_events()
+
+        # Verify events API was called
+        mock_docker_client.events.assert_called_once()
