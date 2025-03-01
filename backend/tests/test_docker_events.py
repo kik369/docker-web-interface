@@ -212,6 +212,57 @@ class TestDockerEventSubscription(unittest.TestCase):
         # Verify _emit_container_state was called at least once
         service._emit_container_state.assert_called()
 
+    @patch("backend.docker_service.docker.from_env")
+    def test_complex_container_lifecycle_events(self, mock_docker_from_env):
+        """Test a sequence of events representing a container lifecycle."""
+        from backend.docker_service import DockerService
+
+        # Create mock client and service
+        mock_client = MagicMock()
+        mock_docker_from_env.return_value = mock_client
+        mock_socketio = MagicMock()
+        service = DockerService(socketio=mock_socketio)
+
+        # Setup a sequence of events
+        mock_events = [
+            {"Type": "container", "Actor": {"ID": "test_id"}, "status": "create"},
+            {"Type": "container", "Actor": {"ID": "test_id"}, "status": "start"},
+            {"Type": "container", "Actor": {"ID": "test_id"}, "status": "pause"},
+            {"Type": "container", "Actor": {"ID": "test_id"}, "status": "unpause"},
+            {"Type": "container", "Actor": {"ID": "test_id"}, "status": "stop"},
+            {"Type": "container", "Actor": {"ID": "test_id"}, "status": "kill"},
+            {"Type": "container", "Actor": {"ID": "test_id"}, "status": "die"},
+            {"Type": "container", "Actor": {"ID": "test_id"}, "status": "destroy"},
+        ]
+
+        # Expected states after mapping
+        expected_states = [
+            "created",
+            "running",
+            "paused",
+            "running",
+            "stopped",
+            "stopped",
+            "stopped",
+            "deleted",
+        ]
+
+        # Process each event and verify correct state mapping
+        for event, expected_state in zip(mock_events, expected_states):
+            actual_state = service._map_event_to_state(event["status"])
+            self.assertEqual(
+                actual_state,
+                expected_state,
+                f"Event '{event['status']}' should map to state '{expected_state}', but got '{actual_state}'",
+            )
+
+            # Test emitting the state for each event
+            service._emit_container_state = MagicMock()
+            service._handle_container_event(event)
+            service._emit_container_state.assert_called_once_with(
+                "test_id", expected_state
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

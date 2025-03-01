@@ -313,3 +313,123 @@ class TestDockerService:
         # Verify we got the expected result
         assert success is True
         assert error is None
+
+    def test_rebuild_container(self, docker_service, mock_docker_client):
+        """Test comprehensive rebuild container functionality."""
+        # Setup more detailed mocks for the complex rebuild operation
+        mock_container = mock_docker_client.containers.get.return_value
+        mock_container.attrs = {
+            "Config": {
+                "Image": "test_image:latest",
+                "Env": ["TEST=value"],
+                "Labels": {"key": "value"},
+            },
+            "HostConfig": {
+                "PortBindings": {"80/tcp": [{"HostPort": "8080"}]},
+                "Binds": ["/host:/container"],
+                "NetworkMode": "bridge",
+            },
+            "Name": "/test_container",
+        }
+
+        # Test rebuild operation
+        success, error = docker_service.rebuild_container("test_container_id")
+
+        # Verify the correct sequence of operations
+        mock_container.stop.assert_called_once()
+        mock_container.remove.assert_called_once()
+        mock_docker_client.images.pull.assert_called_once_with("test_image:latest")
+        mock_docker_client.containers.run.assert_called_once()
+        docker_service._emit_container_state.assert_called()
+
+        # Verify success
+        assert success is True
+        assert error is None
+
+    def test_docker_api_timeout_handling(self, docker_service, mock_docker_client):
+        """Test handling of Docker API timeouts."""
+        # Configure mock to time out
+        import requests
+
+        mock_docker_client.containers.list.side_effect = (
+            requests.exceptions.ReadTimeout("Connection timed out")
+        )
+
+        # Call method and verify graceful error handling
+        containers, error = docker_service.get_all_containers()
+
+        assert containers is None
+        assert "timed out" in error.lower()
+
+    def test_image_deletion_with_complex_scenarios(
+        self, docker_service, mock_docker_client
+    ):
+        """Test image deletion with various complex scenarios."""
+
+        # Test case 1: Image with multiple tags
+        mock_docker_client.images.remove.side_effect = [
+            docker.errors.APIError("image is referenced in multiple repositories")
+        ]
+        success, error = docker_service.delete_image("test_image_id")
+        assert success is False
+        assert "multiple repositories" in error
+
+        # Test case 2: Image with child dependencies
+        mock_docker_client.images.remove.side_effect = [
+            docker.errors.APIError("image has dependent child images")
+        ]
+        success, error = docker_service.delete_image("test_image_id")
+        assert success is False
+        assert "dependent child images" in error
+
+        # Test case 3: Image used by running container
+        mock_docker_client.images.remove.side_effect = [
+            docker.errors.APIError("image is being used by running container")
+        ]
+        success, error = docker_service.delete_image("test_image_id")
+        assert success is False
+        assert "running container" in error
+
+        # Reset side effect for next test
+        mock_docker_client.images.remove.side_effect = None
+
+    @pytest.mark.parametrize(
+        "container_action,expected_method",
+        [
+            ("start", "start_container"),
+            ("stop", "stop_container"),
+            ("restart", "restart_container"),
+            ("delete", "delete_container"),
+            ("rebuild", "rebuild_container"),
+        ],
+    )
+    def test_container_actions_parameterized(
+        self, docker_service, mock_docker_client, container_action, expected_method
+    ):
+        """Test different container actions using parameterization."""
+        # Set up the mock container
+        mock_container = mock_docker_client.containers.get.return_value
+
+        # Don't try to mock the method, just call it and verify results
+        method = getattr(docker_service, expected_method)
+        success, error = method("test_container_id")
+
+        # Verify success
+        assert success is True
+        assert error is None
+
+        # Verify Docker client was called properly
+        mock_docker_client.containers.get.assert_called_with("test_container_id")
+
+        # Verify WebSocket event was emitted with correct state
+        expected_states = {
+            "start_container": "running",
+            "stop_container": "stopped",
+            "restart_container": "running",
+            "delete_container": "deleted",
+            "rebuild_container": "running",
+        }
+
+        docker_service._emit_container_state.assert_called_with(
+            "test_container_id", expected_states[expected_method]
+        )

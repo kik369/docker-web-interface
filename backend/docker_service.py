@@ -598,6 +598,8 @@ class DockerService:
             "pause": "paused",
             "unpause": "running",
             "restart": "running",
+            "create": "created",
+            "destroy": "deleted",
         }
         return status_map.get(event_status, event_status)
 

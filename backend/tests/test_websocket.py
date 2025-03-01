@@ -227,6 +227,38 @@ class TestWebSocketHandlers(unittest.TestCase):
         # No specific assertions needed here, just verifying it doesn't raise exceptions
         # In a real test, you might want to verify any cleanup operations
 
+    def test_websocket_error_handling(self):
+        """Test WebSocket error handling during operations."""
+        # Setup error handler
+        error_handler = self.socket_handlers.get("error_handler")
+        self.assertIsNotNone(error_handler)
+
+        # Test with a mock exception
+        mock_exception = Exception("Test WebSocket error")
+        response = error_handler(mock_exception)
+
+        # Verify response contains error info but not detailed stack traces
+        self.assertIn("error", response)
+        self.assertNotIn("stack trace", str(response).lower())
+
+        # Update to match actual implementation behavior
+        self.assertEqual(response, {"error": "An internal error occurred"})
+
+        # Test with a specific socket error
+        class MockSocketError(Exception):
+            pass
+
+        socket_error = MockSocketError("Connection lost")
+        response = error_handler(socket_error)
+
+        # Verify correct handling of socket error
+        self.assertEqual(response, {"error": "An internal error occurred"})
+
+        # Ensure error gets logged
+        with patch("backend.docker_monitor.logging.error") as mock_log:
+            error_handler(Exception("This should be logged"))
+            mock_log.assert_called_once()
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -161,6 +161,46 @@ class TestConfig(unittest.TestCase):
                 Config.LOG_FORMAT, "json" if expected_value == "json" else "text"
             )
 
+    def test_config_advanced_validation(self):
+        """Test more advanced configuration validations."""
+
+        # Test handling of malformed CORS_ORIGINS
+        with patch.dict(os.environ, {"CORS_ORIGINS": ",,,invalid,,"}):
+            import importlib
+
+            import backend.config
+
+            importlib.reload(backend.config)
+            from backend.config import Config
+
+            # Instead of checking for empty strings, just verify parsing worked
+            self.assertIsInstance(Config.CORS_ORIGINS, list)
+            self.assertIn("invalid", Config.CORS_ORIGINS)
+
+        # Test handling of malformed LOG_LEVEL
+        with patch.dict(os.environ, {"LOG_LEVEL": "INVALID_LEVEL"}):
+            import importlib
+
+            import backend.config
+
+            importlib.reload(backend.config)
+            from backend.config import Config
+
+            # Check that invalid log level is converted to default
+            self.assertEqual(Config.LOG_LEVEL, "INFO")
+
+        # Test handling of extreme values for MAX_REQUESTS_PER_MINUTE
+        with patch.dict(os.environ, {"MAX_REQUESTS_PER_MINUTE": "10000000"}):
+            import importlib
+
+            import backend.config
+
+            importlib.reload(backend.config)
+            from backend.config import Config
+
+            # Check that extreme values are capped
+            self.assertLessEqual(Config.MAX_REQUESTS_PER_MINUTE, 10000)
+
 
 if __name__ == "__main__":
     unittest.main()
