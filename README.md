@@ -95,17 +95,23 @@ For quicker prototyping and debugging, you can run the components locally outsid
 
 1. **Start the Frontend:**
 
+    From the `frontend` directory, run:
+
     ```bash
     PORT=3002 npm start
     ```
 
 2. **Start the Backend:**
 
+    From the root directory, run:
+
     ```bash
-    gunicorn -b 0.0.0.0:5000 -k eventlet --timeout 120 --worker-class eventlet --workers 1 --reload docker_monitor:app
+    gunicorn -b 0.0.0.0:5000 -k eventlet --timeout 120 --worker-class eventlet --workers 1 --reload backend.docker_monitor:app
     ```
 
-> 💡 **Tip:** Running the application locally allows for faster feedback and easier debugging. Ensure all dependencies are installed in your local environment.
+    This command tells Gunicorn to load the WSGI application from the `backend.docker_monitor` module (instead of just `docker_monitor`), ensuring the `backend` package is correctly imported.
+
+> 💡 **Tip:** Running the application locally allows for faster feedback and easier debugging. Ensure that all dependencies are installed in your local environment.
 
 ## Testing
 
