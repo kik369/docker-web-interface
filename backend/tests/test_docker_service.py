@@ -35,11 +35,17 @@ def mock_docker_client():
             "Labels": {
                 "com.docker.compose.project": "test_project",
                 "com.docker.compose.service": "test_service",
-            }
+            },
+            "Image": "test_image:latest",  # Required for rebuild
+            "Env": ["TEST=value"],
         },
-        "Created": "2023-01-01T00:00:00Z",
-        "HostConfig": {"PortBindings": {"80/tcp": [{"HostPort": "8080"}]}},
+        "HostConfig": {
+            "PortBindings": {"80/tcp": [{"HostPort": "8080"}]},
+            "Binds": ["/host:/container"],
+            "NetworkMode": "bridge",
+        },
         "Name": "/test_container",
+        "Created": "2023-01-01T00:00:00Z",
     }
 
     # Set up the mock client's containers.list method
@@ -47,6 +53,10 @@ def mock_docker_client():
 
     # Set up the mock client's containers.get method
     mock_client.containers.get.return_value = mock_container
+
+    # Required for the rebuild test
+    mock_client.images.pull.return_value = Mock()
+    mock_client.containers.run.return_value = mock_container
 
     return mock_client
 

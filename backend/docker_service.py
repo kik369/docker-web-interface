@@ -590,18 +590,27 @@ class DockerService:
 
     def _map_event_to_state(self, event_status: str) -> str:
         """Map Docker event status to container state."""
-        status_map = {
+        state_mapping = {
+            "create": "created",
             "start": "running",
-            "die": "stopped",
-            "stop": "stopped",
-            "kill": "stopped",
             "pause": "paused",
             "unpause": "running",
-            "restart": "running",
-            "create": "created",
+            "stop": "stopped",
+            "kill": "stopped",
+            "die": "stopped",
             "destroy": "deleted",
+            "restart": "running",
         }
-        return status_map.get(event_status, event_status)
+        return state_mapping.get(event_status, event_status)
+
+    def _handle_container_event(self, event):
+        """Handle a Docker container event."""
+        container_id = event.get("Actor", {}).get("ID")
+        status = event.get("status")
+
+        if container_id and status:
+            state = self._map_event_to_state(status)
+            self._emit_container_state(container_id, state)
 
     def start_event_subscription(self):
         """Start the Docker events subscription in a background thread."""

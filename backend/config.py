@@ -50,11 +50,27 @@ class Config:
         if cls.MAX_REQUESTS_PER_MINUTE < 1:
             raise ValueError("MAX_REQUESTS_PER_MINUTE must be greater than 0")
 
+        # Cap extremely large MAX_REQUESTS_PER_MINUTE values
+        if cls.MAX_REQUESTS_PER_MINUTE > 10000:
+            cls.MAX_REQUESTS_PER_MINUTE = 10000
+            print(
+                "Warning: MAX_REQUESTS_PER_MINUTE capped at maximum allowed value of 10000"
+            )
+
         if cls.REFRESH_INTERVAL < 1:
             raise ValueError("REFRESH_INTERVAL must be greater than 0")
 
         if cls.PORT < 1 or cls.PORT > 65535:
             raise ValueError("PORT must be between 1 and 65535")
+
+        # Validate LOG_LEVEL - set to INFO if invalid
+        valid_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+        if cls.LOG_LEVEL not in valid_levels:
+            # Use INFO as default for invalid levels
+            cls.LOG_LEVEL = "INFO"
+            # We can't use the logger here as it's not set up yet
+            # This will be printed to stdout during imports
+            print("Warning: Invalid LOG_LEVEL provided, using INFO instead")
 
 
 # Define CORS_ORIGINS as a class attribute
