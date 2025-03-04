@@ -65,3 +65,21 @@ export interface ImageListProps {
     isLoading: boolean;
     error: string | null;
 }
+
+export interface ContainerStats {
+    cpu_percent: number;
+    memory: {
+        usage: number;
+        limit: number;
+        percent: number;
+    };
+    network: {
+        rx_bytes: number;
+        tx_bytes: number;
+    };
+    disk_io: {
+        read_bytes: number;
+        write_bytes: number;
+    };
+    timestamp: string;
+}

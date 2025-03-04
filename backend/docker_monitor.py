@@ -1,4 +1,5 @@
 import logging
+import time
 from datetime import datetime, timedelta
 from functools import wraps
 from typing import Any, Callable, Dict
@@ -456,6 +457,39 @@ class FlaskApp:
             )
             return self.success_response({"message": "Image deleted successfully"})
 
+        @self.app.route("/api/containers/<container_id>/stats")
+        @self.rate_limit
+        @log_request()
+        def get_container_stats(container_id: str) -> Response:
+            logger.info(
+                "Received request to fetch container stats",
+                extra={
+                    "event": "fetch_container_stats",
+                    "container_id": container_id,
+                },
+            )
+            stats, error = self.docker_service.get_container_stats(container_id)
+
+            if error:
+                logger.error(
+                    "Error fetching container stats",
+                    extra={
+                        "event": "fetch_container_stats_error",
+                        "container_id": container_id,
+                        "error": error,
+                    },
+                )
+                return self.error_response(error)
+
+            logger.info(
+                "Successfully fetched container stats",
+                extra={
+                    "event": "fetch_container_stats_success",
+                    "container_id": container_id,
+                },
+            )
+            return self.success_response({"stats": stats})
+
         @self.app.errorhandler(Exception)
         def handle_error(error: Exception) -> Response:
             if isinstance(error, HTTPException):
@@ -704,6 +738,131 @@ class FlaskApp:
                 self.socketio.emit(
                     "error",
                     {"error": f"Error streaming logs: {str(e)}"},
+                    room=request.sid,
+                )
+
+        @self.socketio.on("start_stats_stream")
+        def handle_start_stats_stream(data):
+            """Handle start of stats streaming for a container."""
+            try:
+                container_id = data.get("container_id")
+                if not container_id:
+                    logger.warning(
+                        "Missing container ID in stats stream request",
+                        extra={
+                            "event": "stats_stream_error",
+                            "error": "Container ID is required",
+                            "client": request.remote_addr,
+                            "sid": request.sid,
+                        },
+                    )
+                    self.socketio.emit(
+                        "error", {"error": "Container ID is required"}, room=request.sid
+                    )
+                    return
+
+                logger.info(
+                    "Starting stats stream",
+                    extra={
+                        "event": "stats_stream_start",
+                        "container_id": container_id,
+                        "client": request.remote_addr,
+                        "sid": request.sid,
+                    },
+                )
+
+                # Get stats stream generator
+                stats_generator = self.docker_service.stream_container_stats(
+                    container_id
+                )
+
+                # Process stats and emit to client
+                if stats_generator:
+                    stats_count = 0
+                    for stats in stats_generator:
+                        stats_count += 1
+                        logger.info(
+                            f"Generated stats #{stats_count} for container",
+                            extra={
+                                "event": "stats_generated",
+                                "container_id": container_id,
+                                "stats_count": stats_count,
+                                "has_error": "error" in stats,
+                                "sid": request.sid,
+                            },
+                        )
+
+                        # Check if client is still connected
+                        if request.sid not in self.socketio.server.manager.rooms.get(
+                            "/", {}
+                        ):
+                            logger.info(
+                                "Client disconnected, stopping stats stream",
+                                extra={
+                                    "event": "stats_stream_stop",
+                                    "container_id": container_id,
+                                    "reason": "client_disconnected",
+                                    "sid": request.sid,
+                                },
+                            )
+                            break
+
+                        # Emit stats to client
+                        logger.info(
+                            f"Emitting stats #{stats_count} to client",
+                            extra={
+                                "event": "stats_emit",
+                                "container_id": container_id,
+                                "sid": request.sid,
+                            },
+                        )
+                        self.socketio.emit(
+                            "stats_update",
+                            {"container_id": container_id, "stats": stats},
+                            room=request.sid,
+                        )
+
+                        # Sleep briefly to avoid overwhelming the client
+                        time.sleep(1)
+
+                    logger.info(
+                        "Stats stream completed",
+                        extra={
+                            "event": "stats_stream_complete",
+                            "container_id": container_id,
+                            "stats_count": stats_count,
+                            "sid": request.sid,
+                        },
+                    )
+                else:
+                    logger.warning(
+                        "Failed to start stats stream",
+                        extra={
+                            "event": "stats_stream_error",
+                            "container_id": container_id,
+                            "error": "Failed to get container stats",
+                            "sid": request.sid,
+                        },
+                    )
+                    self.socketio.emit(
+                        "error",
+                        {"error": "Failed to get container stats"},
+                        room=request.sid,
+                    )
+
+            except Exception as e:
+                logger.error(
+                    "Error in stats stream handler",
+                    extra={
+                        "error": str(e),
+                        "event": "stats_stream_error",
+                        "container_id": data.get("container_id", "unknown"),
+                        "sid": request.sid,
+                    },
+                )
+                self.socketio.emit(
+                    "error",
+                    {"error": f"Error streaming stats: {str(e)}"},
                     room=request.sid,
                 )
 

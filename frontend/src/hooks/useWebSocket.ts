@@ -2,6 +2,7 @@ import { useEffect, useCallback, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { config } from '../config';
 import { logger } from '../services/logging';
+import { ContainerStats } from '../types/docker';
 
 interface ContainerState {
     container_id: string;
@@ -20,6 +21,7 @@ interface UseWebSocketProps {
     onContainerStateChange?: (containerData: ContainerState) => void;
     onInitialState?: (containers: ContainerState[]) => void;
     onError?: (error: string) => void;
+    onStatsUpdate?: (containerId: string, stats: ContainerStats) => void;
     enabled?: boolean;
 }
 
@@ -97,6 +99,17 @@ const initializeSocket = () => {
         globalHandlers.forEach(handler => handler.onLogUpdate?.(data.container_id, data.log));
     });
 
+    // Handle stats updates
+    globalSocket.on('stats_update', (data: { container_id: string; stats: ContainerStats }) => {
+        logger.info('Received container stats update:', {
+            containerId: data.container_id,
+            hasStats: !!data.stats,
+            timestamp: data.stats?.timestamp || 'none',
+            handlers: globalHandlers.size
+        });
+        globalHandlers.forEach(handler => handler.onStatsUpdate?.(data.container_id, data.stats));
+    });
+
     globalSocket.connect();
     logger.info('Initializing WebSocket connection...');
 };
@@ -106,20 +119,22 @@ export const useWebSocket = ({
     onContainerStateChange,
     onInitialState,
     onError,
+    onStatsUpdate,
     enabled = true
 }: UseWebSocketProps) => {
     const handlers = useRef<UseWebSocketProps>({
         onLogUpdate,
         onContainerStateChange,
         onInitialState,
-        onError
+        onError,
+        onStatsUpdate
     });
 
     useEffect(() => {
         if (!enabled) return;
 
         // Update handlers ref
-        handlers.current = { onLogUpdate, onContainerStateChange, onInitialState, onError };
+        handlers.current = { onLogUpdate, onContainerStateChange, onInitialState, onError, onStatsUpdate };
         globalHandlers.add(handlers.current);
         activeSubscriptions++;
 
@@ -137,7 +152,7 @@ export const useWebSocket = ({
                 isInitializing = false;
             }
         };
-    }, [enabled, onLogUpdate, onContainerStateChange, onInitialState, onError]);
+    }, [enabled, onLogUpdate, onContainerStateChange, onInitialState, onError, onStatsUpdate]);
 
     const startLogStream = useCallback((containerId: string) => {
         if (globalSocket && enabled) {
@@ -146,8 +161,16 @@ export const useWebSocket = ({
         }
     }, [enabled]);
 
+    const startStatsStream = useCallback((containerId: string) => {
+        if (globalSocket && enabled) {
+            globalSocket.emit('start_stats_stream', { container_id: containerId });
+            logger.info('Started stats stream for container', { containerId });
+        }
+    }, [enabled]);
+
     return {
         startLogStream,
+        startStatsStream,
         isConnected: globalSocket?.connected || false,
     };
 };

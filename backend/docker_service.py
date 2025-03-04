@@ -629,3 +629,130 @@ class DockerService:
             self._stop_event.set()
             self._event_thread.join(timeout=5)
             logger.info("Stopped Docker events subscription thread")
+
+    def get_container_stats(
+        self, container_id: str
+    ) -> Tuple[Optional[dict], Optional[str]]:
+        """Get real-time stats for a specific container."""
+        try:
+            container = self.client.containers.get(container_id)
+
+            # Container must be running to get stats
+            if container.status != "running":
+                return {"error": "Container not running"}, None
+
+            # Get stats with stream=False to get a single stats object
+            stats = container.stats(stream=False)
+
+            # Process the raw stats into more usable metrics
+            processed_stats = self._process_container_stats(stats)
+
+            return processed_stats, None
+        except docker.errors.NotFound:
+            error_msg = f"Container {container_id} not found"
+            logger.error(error_msg)
+            return None, error_msg
+        except Exception as e:
+            error_msg = f"Failed to get container stats: {str(e)}"
+            logger.error(error_msg)
+            return None, error_msg
+
+    def _process_container_stats(self, stats: dict) -> dict:
+        """Process raw Docker stats into a more usable format."""
+        # CPU stats
+        cpu_delta = stats.get("cpu_stats", {}).get("cpu_usage", {}).get(
+            "total_usage", 0
+        ) - stats.get("precpu_stats", {}).get("cpu_usage", {}).get("total_usage", 0)
+        system_delta = stats.get("cpu_stats", {}).get(
+            "system_cpu_usage", 0
+        ) - stats.get("precpu_stats", {}).get("system_cpu_usage", 0)
+        num_cpus = stats.get("cpu_stats", {}).get("online_cpus", 1)
+
+        # Avoid division by zero
+        cpu_percent = 0.0
+        if system_delta > 0:
+            cpu_percent = (cpu_delta / system_delta) * num_cpus * 100.0
+
+        # Memory stats
+        mem_usage = stats.get("memory_stats", {}).get("usage", 0)
+        mem_limit = stats.get("memory_stats", {}).get("limit", 1)
+        mem_percent = (mem_usage / mem_limit) * 100.0 if mem_limit > 0 else 0.0
+
+        # Network stats
+        networks = stats.get("networks", {})
+        net_rx_bytes = (
+            sum(net.get("rx_bytes", 0) for net in networks.values()) if networks else 0
+        )
+        net_tx_bytes = (
+            sum(net.get("tx_bytes", 0) for net in networks.values()) if networks else 0
+        )
+
+        # Block I/O stats
+        blkio_stats = stats.get("blkio_stats", {})
+        io_service_bytes_recursive = blkio_stats.get("io_service_bytes_recursive", [])
+
+        # Extract read and write bytes
+        read_bytes = 0
+        write_bytes = 0
+        for stat in io_service_bytes_recursive:
+            if stat.get("op") == "Read":
+                read_bytes += stat.get("value", 0)
+            elif stat.get("op") == "Write":
+                write_bytes += stat.get("value", 0)
+
+        return {
+            "cpu_percent": round(cpu_percent, 2),
+            "memory": {
+                "usage": mem_usage,
+                "limit": mem_limit,
+                "percent": round(mem_percent, 2),
+            },
+            "network": {"rx_bytes": net_rx_bytes, "tx_bytes": net_tx_bytes},
+            "disk_io": {"read_bytes": read_bytes, "write_bytes": write_bytes},
+            "timestamp": datetime.now().isoformat(),
+        }
+
+    def stream_container_stats(self, container_id: str) -> Generator[dict, None, None]:
+        """Stream stats for a specific container in real-time."""
+        try:
+            logger.info(
+                f"Attempting to get container {container_id} for stats streaming"
+            )
+            container = self.client.containers.get(container_id)
+
+            # Container must be running to get stats
+            if container.status != "running":
+                logger.warning(
+                    f"Container {container_id} is not running, cannot stream stats"
+                )
+                yield {"error": "Container not running"}
+                return
+
+            logger.info(
+                f"Starting stats stream for container {container_id} (status: {container.status})"
+            )
+
+            # Get stats with stream=True to get a continuous stream
+            stats_count = 0
+            for stats in container.stats(stream=True):
+                stats_count += 1
+                logger.info(
+                    f"Received raw stats #{stats_count} for container {container_id}"
+                )
+
+                # Process the raw stats
+                processed_stats = self._process_container_stats(stats)
+                logger.info(
+                    f"Processed stats #{stats_count} for container {container_id}: CPU {processed_stats['cpu_percent']}%, Memory {processed_stats['memory']['percent']}%"
+                )
+
+                yield processed_stats
+
+        except docker.errors.NotFound:
+            error_msg = f"Container {container_id} not found"
+            logger.error(error_msg)
+            yield {"error": error_msg}
+        except Exception as e:
+            error_msg = f"Failed to stream container stats: {str(e)}"
+            logger.error(error_msg)
+            yield {"error": error_msg}

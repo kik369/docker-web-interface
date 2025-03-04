@@ -85,7 +85,7 @@ function MainApp() {
                 }
             }
 
-            // ⌃/ for search focus
+            // Ctrl+/ for search focus
             if (event.ctrlKey && event.key === '/') {
                 event.preventDefault();
                 if (searchInputRef.current) {
@@ -146,7 +146,7 @@ function MainApp() {
                                 ref={searchInputRef}
                                 value={searchTerm}
                                 onChange={setSearchTerm}
-                                placeholder="⌃/"
+                                placeholder="Ctrl+/"
                             />
                         </div>
                     </div>

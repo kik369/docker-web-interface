@@ -4,11 +4,12 @@ import ReactDOM from 'react-dom';
 import { IconBaseProps } from 'react-icons';
 import { HiDocument, HiPlay, HiStop, HiRefresh, HiCog, HiTrash } from 'react-icons/hi';
 import { HiOutlineInformationCircle, HiOutlineDesktopComputer, HiOutlineServer } from 'react-icons/hi';
-import { HiOutlineTemplate, HiOutlineStatusOnline } from 'react-icons/hi';
+import { HiOutlineTemplate, HiOutlineStatusOnline, HiOutlineChartBar } from 'react-icons/hi';
 import { ContainerRowProps } from '../types/docker';
 import { logger } from '../services/logging';
 import { config } from '../config';
 import { useWebSocket } from '../hooks/useWebSocket';
+import { ContainerStats } from './ContainerStats';
 
 // Create wrapper components for icons
 const DocumentIcon: React.FC<IconBaseProps> = (props): React.JSX.Element => (
@@ -214,8 +215,7 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
     onAction,
     actionInProgress
 }) => {
-    const [logs, setLogs] = React.useState<string>('');
-    const [showLogs, setShowLogs] = React.useState<boolean>(() => {
+    const [showLogs, setShowLogs] = useState<boolean>(() => {
         try {
             // Initialize from localStorage on component mount
             const saved = localStorage.getItem(`${LOGS_STORAGE_KEY_PREFIX}${container.id}`);
@@ -225,7 +225,9 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
             return false;
         }
     });
-    const [isLoadingLogs, setIsLoadingLogs] = React.useState(false);
+    const [showStats, setShowStats] = useState<boolean>(false);
+    const [logs, setLogs] = useState<string>('');
+    const [isLoadingLogs, setIsLoadingLogs] = useState(false);
     const logContainerRef = useRef<HTMLPreElement>(null);
     const showLogsRef = useRef(showLogs);
 
@@ -256,13 +258,14 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
             logger.error('Error streaming logs:', new Error(error));
             console.error('Failed to stream logs:', error);
         },
-        enabled: showLogs // Only enable WebSocket when logs are being viewed
+        enabled: showLogs
     });
 
     const handleViewLogs = useCallback(async (isRestoring: boolean = false) => {
         if (showLogs && !isRestoring) {
             setShowLogs(false);
             setLogs('');
+            setShowStats(false);
             return;
         }
 
@@ -282,6 +285,7 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
             setLogs(data.data.logs);
             if (!isRestoring) {
                 setShowLogs(true);
+                setShowStats(false);
             }
             // Start WebSocket streaming for new logs
             startLogStream(container.id);
@@ -300,12 +304,12 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
         }
     }, [container.id, isExpanded, onToggleExpand, setLogs, setShowLogs, showLogs, startLogStream]);
 
-    // Load logs if showLogs is true on mount or after state restoration
-    useEffect(() => {
-        if (showLogsRef.current) {
-            handleViewLogs(true);
+    const handleViewStats = useCallback(() => {
+        setShowStats(prev => !prev);
+        if (!showStats) {
+            setShowLogs(false);
         }
-    }, [handleViewLogs]); // Now we can safely include handleViewLogs
+    }, [showStats]);
 
     const handleAction = async (action: string) => {
         try {
@@ -347,6 +351,7 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
     return (
         <div className="bg-gray-800 rounded-lg shadow-lg overflow-hidden">
             <div className="p-4">
+                {/* Container header */}
                 <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
                         <Tooltip text={container.status || getStatusDescription(container.state, actionInProgress)}>
@@ -391,7 +396,7 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                             title={`Show logs (docker logs ${container.name})`}
                         >
                             <DocumentIcon className="w-4 h-4 mr-1 text-blue-400" />
-                            Show Logs
+                            {showLogs ? 'Hide Logs' : 'Show Logs'}
                         </button>
                         {isContainerRunning ? (
                             <button
@@ -441,6 +446,14 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                             <TrashIcon className={`w-4 h-4 mr-1 text-red-500 ${actionInProgress === 'delete' ? 'animate-pulse' : ''}`} />
                             Delete
                         </button>
+                        <button
+                            onClick={handleViewStats}
+                            className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white hover:bg-gray-600 transition-colors"
+                            title="Show container resources"
+                        >
+                            <HiOutlineChartBar className="w-4 h-4 mr-1 text-purple-400" />
+                            {showStats ? 'Hide Stats' : 'Show Stats'}
+                        </button>
                     </div>
                 </div>
                 <div className="mt-2 space-y-1">
@@ -468,6 +481,8 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                     </div>
                 </div>
             </div>
+
+            {/* Container logs */}
             {showLogs && (
                 <div className="px-4 pb-4">
                     <div className="bg-gray-900 p-4 rounded">
@@ -475,9 +490,19 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                             ref={logContainerRef}
                             className="text-sm text-gray-300 whitespace-pre-wrap max-h-96 overflow-y-auto"
                         >
-                            {logs}
+                            {isLoadingLogs ? 'Loading logs...' : logs || 'No logs available'}
                         </pre>
                     </div>
+                </div>
+            )}
+
+            {/* Container stats */}
+            {showStats && (
+                <div className="px-4 pb-4">
+                    <ContainerStats
+                        containerId={container.id}
+                        isVisible={showStats}
+                    />
                 </div>
             )}
         </div>
