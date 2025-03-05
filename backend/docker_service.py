@@ -629,3 +629,44 @@ class DockerService:
             self._stop_event.set()
             self._event_thread.join(timeout=5)
             logger.info("Stopped Docker events subscription thread")
+
+    def get_container_cpu_stats(
+        self, container_id: str
+    ) -> Tuple[Optional[dict], Optional[str]]:
+        """Get CPU stats for a specific container."""
+        try:
+            container = self.client.containers.get(container_id)
+
+            # Container must be running to get stats
+            if container.attrs.get("State", {}).get("Status") != "running":
+                return {"cpu_percent": 0, "status": "not running"}, None
+
+            # Get stats with stream=False to get a single stats object
+            stats = container.stats(stream=False)
+
+            # Calculate CPU percentage
+            cpu_delta = stats.get("cpu_stats", {}).get("cpu_usage", {}).get(
+                "total_usage", 0
+            ) - stats.get("precpu_stats", {}).get("cpu_usage", {}).get("total_usage", 0)
+            system_delta = stats.get("cpu_stats", {}).get(
+                "system_cpu_usage", 0
+            ) - stats.get("precpu_stats", {}).get("system_cpu_usage", 0)
+            num_cpus = stats.get("cpu_stats", {}).get("online_cpus", 1)
+
+            # Avoid division by zero
+            cpu_percent = 0.0
+            if system_delta > 0:
+                cpu_percent = (cpu_delta / system_delta) * num_cpus * 100.0
+
+            return {
+                "cpu_percent": round(cpu_percent, 2),
+                "timestamp": datetime.now().isoformat(),
+            }, None
+        except docker.errors.NotFound:
+            error_msg = f"Container {container_id} not found"
+            logger.error(error_msg)
+            return None, error_msg
+        except Exception as e:
+            error_msg = f"Failed to get container stats: {str(e)}"
+            logger.error(error_msg)
+            return None, error_msg

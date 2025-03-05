@@ -269,6 +269,40 @@ class FlaskApp:
             )
             return self.success_response({"logs": logs})
 
+        @self.app.route("/api/containers/<container_id>/cpu-stats")
+        @self.rate_limit
+        @log_request()
+        def get_container_cpu_stats(container_id: str) -> Response:
+            """Get CPU stats for a specific container."""
+            logger.info(
+                "Received request to fetch container CPU stats",
+                extra={
+                    "event": "fetch_container_cpu_stats",
+                    "container_id": container_id,
+                },
+            )
+            stats, error = self.docker_service.get_container_cpu_stats(container_id)
+
+            if error:
+                logger.error(
+                    "Error fetching container CPU stats",
+                    extra={
+                        "event": "fetch_container_cpu_stats_error",
+                        "container_id": container_id,
+                        "error": error,
+                    },
+                )
+                return self.error_response(error)
+
+            logger.info(
+                "Successfully fetched container CPU stats",
+                extra={
+                    "event": "fetch_container_cpu_stats_success",
+                    "container_id": container_id,
+                },
+            )
+            return self.success_response({"stats": stats})
+
         @self.app.route("/api/containers/<container_id>/<action>", methods=["POST"])
         @self.rate_limit
         @log_request()

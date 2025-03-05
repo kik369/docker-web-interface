@@ -4,11 +4,12 @@ import ReactDOM from 'react-dom';
 import { IconBaseProps } from 'react-icons';
 import { HiDocument, HiPlay, HiStop, HiRefresh, HiCog, HiTrash } from 'react-icons/hi';
 import { HiOutlineInformationCircle, HiOutlineDesktopComputer, HiOutlineServer } from 'react-icons/hi';
-import { HiOutlineTemplate, HiOutlineStatusOnline } from 'react-icons/hi';
+import { HiOutlineTemplate, HiOutlineStatusOnline, HiOutlineChartBar } from 'react-icons/hi';
 import { ContainerRowProps } from '../types/docker';
 import { logger } from '../services/logging';
 import { config } from '../config';
 import { useWebSocket } from '../hooks/useWebSocket';
+import { ContainerCpuStats } from './ContainerCpuStats';
 
 // Create wrapper components for icons
 const DocumentIcon: React.FC<IconBaseProps> = (props): React.JSX.Element => (
@@ -225,6 +226,7 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
             return false;
         }
     });
+    const [showCpuStats, setShowCpuStats] = useState<boolean>(false);
     const [isLoadingLogs, setIsLoadingLogs] = React.useState(false);
     const logContainerRef = useRef<HTMLPreElement>(null);
     const showLogsRef = useRef(showLogs);
@@ -393,6 +395,15 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                             <DocumentIcon className="w-4 h-4 mr-1 text-blue-400" />
                             Show Logs
                         </button>
+                        <button
+                            onClick={() => setShowCpuStats(!showCpuStats)}
+                            className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white hover:bg-gray-600 transition-colors"
+                            disabled={container.state !== 'running'}
+                            title={container.state === 'running' ? "Show CPU usage" : "Container must be running to show CPU usage"}
+                        >
+                            <HiOutlineChartBar className="w-4 h-4 mr-1 text-blue-400" />
+                            {showCpuStats ? 'Hide CPU' : 'Show CPU'}
+                        </button>
                         {isContainerRunning ? (
                             <button
                                 onClick={() => handleAction('stop')}
@@ -469,16 +480,34 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                 </div>
             </div>
             {showLogs && (
-                <div className="px-4 pb-4">
-                    <div className="bg-gray-900 p-4 rounded">
+                <div className="bg-gray-900 p-4 rounded-lg mt-2">
+                    <div className="flex justify-between items-center mb-2">
+                        <h3 className="text-lg font-semibold text-white">Container Logs</h3>
+                        <button
+                            onClick={() => handleViewLogs()}
+                            className="text-xs text-gray-400 hover:text-white"
+                        >
+                            Close
+                        </button>
+                    </div>
+                    {isLoadingLogs ? (
+                        <div className="text-gray-400">Loading logs...</div>
+                    ) : (
                         <pre
                             ref={logContainerRef}
-                            className="text-sm text-gray-300 whitespace-pre-wrap max-h-96 overflow-y-auto"
+                            className="bg-black p-3 rounded text-xs text-gray-300 font-mono overflow-auto max-h-96"
                         >
-                            {logs}
+                            {logs || 'No logs available'}
                         </pre>
-                    </div>
+                    )}
                 </div>
+            )}
+
+            {showCpuStats && (
+                <ContainerCpuStats
+                    containerId={container.id}
+                    isVisible={showCpuStats}
+                />
             )}
         </div>
     );
