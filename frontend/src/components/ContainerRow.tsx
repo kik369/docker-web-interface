@@ -90,7 +90,7 @@ const PortDisplay: React.FC<{ portsString: string }> = ({ portsString }) => {
                 const [port, protocol] = containerPort ? containerPort.split('/') : [hostPort, ''];
 
                 return (
-                    <div key={index} className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs">
+                    <div key={index} className="inline-flex items-center bg-gray-800 border border-gray-600 rounded px-2 py-1 text-xs">
                         {containerPort ? (
                             <>
                                 <span className="flex items-center mr-1" title="Host Port (your computer)">
@@ -377,7 +377,7 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                                         <Tooltip text={<>
                                             Docker Compose Service Name
                                         </>}>
-                                            <span className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white">
+                                            <span className="inline-flex items-center bg-gray-800 border border-gray-600 rounded px-2 py-1 text-xs text-white">
                                                 {container.compose_service}
                                             </span>
                                         </Tooltip>
@@ -457,13 +457,13 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                 <div className="mt-2 space-y-1">
                     <div className="grid grid-cols-[80px_auto] gap-y-1">
                         <p className="text-sm text-gray-400">Image:</p>
-                        <p><span className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white">
+                        <p><span className="inline-flex items-center bg-gray-800 border border-gray-600 rounded px-2 py-1 text-xs text-white">
                             <HiOutlineTemplate className="mr-1 text-purple-400" />
                             {container.image}
                         </span></p>
 
                         <p className="text-sm text-gray-400">Status:</p>
-                        <p><span className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white">
+                        <p><span className="inline-flex items-center bg-gray-800 border border-gray-600 rounded px-2 py-1 text-xs text-white">
                             <HiOutlineStatusOnline className="mr-1 text-blue-400" />
                             {getStatusText()}
                         </span></p>

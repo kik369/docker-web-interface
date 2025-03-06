@@ -248,7 +248,7 @@ export const ContainerList = ({
                                     <h2 className="text-xl font-semibold text-white flex-grow">
                                         {group.projectName}
                                         <div className="inline-flex items-center ml-2">
-                                            <span className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white">
+                                            <span className="inline-flex items-center bg-gray-800 border border-gray-600 rounded px-2 py-1 text-xs text-white">
                                                 <HiOutlineTemplate className="w-4 h-4 mr-1 text-purple-400" />
                                                 <span>{group.containers.length}</span>
                                             </span>

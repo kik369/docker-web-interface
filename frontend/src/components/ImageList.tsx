@@ -259,7 +259,7 @@ const ImageRow: React.FC<{
                 <div className="mt-2 space-y-1">
                     <div className="grid grid-cols-[80px_auto] gap-y-1">
                         <p className="text-sm text-gray-400">ID:</p>
-                        <p><span className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white">
+                        <p><span className="inline-flex items-center bg-gray-800 border border-gray-600 rounded px-2 py-1 text-xs text-white">
                             <TemplateIcon className="mr-1 text-purple-400" />
                             {shortId}
                         </span></p>
@@ -267,7 +267,7 @@ const ImageRow: React.FC<{
                         <p className="text-sm text-gray-400">Size:</p>
                         <p>
                             <Tooltip text={exactSizeInBytes}>
-                                <span className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white">
+                                <span className="inline-flex items-center bg-gray-800 border border-gray-600 rounded px-2 py-1 text-xs text-white">
                                     {formattedSize}
                                 </span>
                             </Tooltip>
@@ -276,7 +276,7 @@ const ImageRow: React.FC<{
                         <p className="text-sm text-gray-400">Created:</p>
                         <p>
                             <Tooltip text={fullDateTime}>
-                                <span className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white">
+                                <span className="inline-flex items-center bg-gray-800 border border-gray-600 rounded px-2 py-1 text-xs text-white">
                                     {relativeTime}
                                 </span>
                             </Tooltip>
@@ -287,7 +287,7 @@ const ImageRow: React.FC<{
                                 <p className="text-sm text-gray-400">Tags:</p>
                                 <div className="flex flex-wrap gap-1">
                                     {image.tags.slice(1).map(tag => (
-                                        <span key={tag} className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white">
+                                        <span key={tag} className="inline-flex items-center bg-gray-800 border border-gray-600 rounded px-2 py-1 text-xs text-white">
                                             {tag}
                                         </span>
                                     ))}
@@ -373,7 +373,7 @@ export const ImageList: React.FC<ImageListProps> = ({ searchTerm = '', onSearchC
                 <div className="flex items-center gap-4">
                     <h2 className="text-xl font-semibold text-white mb-2 sm:mb-0">Docker Images</h2>
                     <div className="flex items-center gap-2">
-                        <div className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white">
+                        <div className="inline-flex items-center bg-gray-800 border border-gray-600 rounded px-2 py-1 text-xs text-white">
                             <TemplateIcon className="w-4 h-4 mr-1 text-purple-400" />
                             <span>{filteredImages.length}</span>
                         </div>
