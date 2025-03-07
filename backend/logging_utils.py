@@ -3,7 +3,7 @@ import logging
 import time
 import uuid
 from contextvars import ContextVar
-from datetime import datetime
+from datetime import datetime, timezone  # Added timezone import
 from functools import wraps
 from typing import Optional
 
@@ -19,7 +19,7 @@ class CustomJsonFormatter(logging.Formatter):
     def format(self, record):
         # Ensure timestamp is present
         if not hasattr(record, "timestamp"):
-            record.timestamp = datetime.utcnow().isoformat()
+            record.timestamp = datetime.now(timezone.utc).isoformat()
 
         # Ensure level is present
         if not hasattr(record, "level"):
@@ -54,7 +54,7 @@ class RequestIdFilter(logging.Filter):
         record.request_id = request_id_var.get()
         # Add timestamp and level if not present
         if not hasattr(record, "timestamp"):
-            record.timestamp = datetime.utcnow().isoformat()
+            record.timestamp = datetime.now(timezone.utc).isoformat()
         if not hasattr(record, "level"):
             record.level = record.levelname
         return True

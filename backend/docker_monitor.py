@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone  # Added timezone import
 from functools import wraps
 from typing import Any, Callable, Dict
 
@@ -33,6 +33,7 @@ class FlaskApp:
         engineio_logger = logging.getLogger("engineio.server")
         engineio_logger.setLevel(logging.INFO)
 
+        # The WebSocket is initialised with the Flask app
         self.socketio = SocketIO(
             self.app,
             cors_allowed_origins="*",
@@ -123,18 +124,14 @@ class FlaskApp:
 
         @wraps(f)
         def decorated_function(*args: Any, **kwargs: Any) -> Response:
-            now = datetime.now()
-            min_ago = now.replace(second=0, microsecond=0)
+            now = datetime.now()  # Use naive datetime
+            current_minute = now.replace(second=0, microsecond=0)
+            # Reset counter if minute has changed to avoid iterating over all entries
+            if getattr(self, '_last_minute', current_minute) != current_minute:
+                self.request_counts = {}
+            self._last_minute = current_minute
 
-            # Clean up old entries (keep only last 2 minutes)
-            self.request_counts = {
-                ts: count
-                for ts, count in self.request_counts.items()
-                if now - ts < timedelta(minutes=2)
-            }
-
-            # Check if rate limit is exceeded
-            current_count = self.request_counts.get(min_ago, 0)
+            current_count = self.request_counts.get(current_minute, 0)
             if current_count >= self.current_rate_limit:
                 logger.warning(
                     f"Rate limit exceeded: {current_count} requests in the last minute (limit: {self.current_rate_limit})"
@@ -144,8 +141,7 @@ class FlaskApp:
                     429,
                 )
 
-            # Increment count only after checking limits
-            self.request_counts[min_ago] = current_count + 1
+            self.request_counts[current_minute] = current_count + 1
 
             return f(*args, **kwargs)
 
@@ -225,6 +221,14 @@ class FlaskApp:
                     },
                 )
                 return self.error_response("Failed to fetch container data")
+
+            # Added definitions for current_minute
+            now = datetime.now()
+            current_minute = now.replace(second=0, microsecond=0)
+            threshold = current_minute - timedelta(minutes=2)
+            for minute in list(self.request_counts.keys()):
+                if minute < threshold:
+                    del self.request_counts[minute]
 
             formatted_data = self.format_container_data(containers)
             logger.info(
@@ -602,10 +606,9 @@ class FlaskApp:
                 return True  # Explicitly accept the connection
 
             except Exception as e:
-                logger.error(
+                logger.exception(  # Improved logging: logs stack trace
                     "Error in WebSocket connect handler",
                     extra={
-                        "error": str(e),
                         "event": "websocket_connect_error",
                         "client": request.remote_addr,
                         "sid": request.sid,
@@ -626,10 +629,9 @@ class FlaskApp:
                     },
                 )
             except Exception as e:
-                logger.error(
+                logger.exception(  # Improved logging for disconnect errors
                     "Error in WebSocket disconnect handler",
                     extra={
-                        "error": str(e),
                         "event": "websocket_disconnect_error",
                         "reason": reason,
                     },
@@ -638,10 +640,9 @@ class FlaskApp:
         @self.socketio.on_error()
         def handle_error(e):
             """Handle general Socket.IO errors."""
-            logger.error(
+            logger.exception(  # Captures full error context
                 "WebSocket error occurred",
                 extra={
-                    "error": str(e),
                     "event": "websocket_error",
                     "client": getattr(request, "remote_addr", "unknown"),
                     "sid": getattr(request, "sid", "unknown"),
