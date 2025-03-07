@@ -91,25 +91,23 @@ graph TD
 
 ### Local Development Setup
 
-For quicker prototyping and debugging, you can run the components locally outside of Docker.
+For quicker prototyping and debugging, you can run the components locally outside of Docker from the root directory.
 
 1. **Start the Frontend:**
 
-    From the `frontend` directory, run:
+   Run the following command from the root directory:
 
-    ```bash
-    PORT=3002 npm start
-    ```
+   ```bash
+   PORT=3002 npm --prefix frontend start
+   ```
 
 2. **Start the Backend:**
 
-    From the root directory, run:
+   Run the following command from the root directory:
 
-    ```bash
-    gunicorn -b 0.0.0.0:5000 -k eventlet --timeout 120 --worker-class eventlet --workers 1 --reload backend.docker_monitor:app
-    ```
-
-    This command tells Gunicorn to load the WSGI application from the `backend.docker_monitor` module (instead of just `docker_monitor`), ensuring the `backend` package is correctly imported.
+   ```bash
+   gunicorn -b 0.0.0.0:5000 -k eventlet --timeout 120 --worker-class eventlet --workers 1 --reload backend.docker_monitor:app
+   ```
 
 > 💡 **Tip:** Running the application locally allows for faster feedback and easier debugging. Ensure that all dependencies are installed in your local environment.
 
