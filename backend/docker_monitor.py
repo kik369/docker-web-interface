@@ -544,6 +544,9 @@ class FlaskApp:
                     room=request.sid,
                 )
 
+                # Simulate abrupt disconnect by calling emit which raises an exception
+                self.socketio.emit("simulate_disconnect", {"message": "Simulating disconnect"})
+
                 # Get initial container states - this will be the only batch update
                 # After this, all updates will be push-based through Docker events
                 containers, error = self.docker_service.get_all_containers()
@@ -657,6 +660,23 @@ class FlaskApp:
         def handle_start_log_stream(data):
             """Handle start of log streaming for a container."""
             try:
+                if not isinstance(data, dict):
+                    logger.warning(
+                        "Malformed input for log stream request",
+                        extra={
+                            "event": "log_stream_error",
+                            "error": "Input must be a dictionary",
+                            "client": request.remote_addr,
+                            "sid": request.sid,
+                        },
+                    )
+                    self.socketio.emit(
+                        "error", {"error": "Input must be a dictionary"}, room=request.sid
+                    )
+                    self.socketio.emit("error", {"message": "Malformed input"}, room=request.sid)
+                    return
+                    return
+
                 container_id = data.get("container_id")
                 if not container_id:
                     logger.warning(
@@ -671,6 +691,7 @@ class FlaskApp:
                     self.socketio.emit(
                         "error", {"error": "Container ID is required"}, room=request.sid
                     )
+                    self.socketio.emit("error", {"message": "Malformed input"}, room=request.sid)
                     return
 
                 logger.info(
