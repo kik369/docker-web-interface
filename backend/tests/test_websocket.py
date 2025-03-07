@@ -1,5 +1,5 @@
 import unittest
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 
@@ -74,7 +74,7 @@ class TestWebSocketHandlers(unittest.TestCase):
         self.mock_container.ports = "80/tcp->8080"
         self.mock_container.compose_project = "test-project"
         self.mock_container.compose_service = "test-service"
-        self.mock_container.created = datetime.now()
+        self.mock_container.created = datetime.now(timezone.utc)
 
     def tearDown(self):
         # Stop request patcher

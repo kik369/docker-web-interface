@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime, timedelta, timezone  # Added timezone import
+from datetime import datetime, timedelta, timezone
 from functools import wraps
 from typing import Any, Callable, Dict
 
@@ -124,10 +124,10 @@ class FlaskApp:
 
         @wraps(f)
         def decorated_function(*args: Any, **kwargs: Any) -> Response:
-            now = datetime.now()  # Use naive datetime
-            current_minute = now.replace(second=0, microsecond=0)
+            now = datetime.now(timezone.utc).replace(second=0, microsecond=0)
+            current_minute = now
             # Reset counter if minute has changed to avoid iterating over all entries
-            if getattr(self, '_last_minute', current_minute) != current_minute:
+            if getattr(self, "_last_minute", current_minute) != current_minute:
                 self.request_counts = {}
             self._last_minute = current_minute
 
@@ -222,9 +222,9 @@ class FlaskApp:
                 )
                 return self.error_response("Failed to fetch container data")
 
-            # Added definitions for current_minute
-            now = datetime.now()
-            current_minute = now.replace(second=0, microsecond=0)
+            # Use aware UTC datetime for cleanup
+            now = datetime.now(timezone.utc).replace(second=0, microsecond=0)
+            current_minute = now
             threshold = current_minute - timedelta(minutes=2)
             for minute in list(self.request_counts.keys()):
                 if minute < threshold:
@@ -605,7 +605,7 @@ class FlaskApp:
 
                 return True  # Explicitly accept the connection
 
-            except Exception as e:
+            except Exception:
                 logger.exception(  # Improved logging: logs stack trace
                     "Error in WebSocket connect handler",
                     extra={
@@ -628,7 +628,7 @@ class FlaskApp:
                         "reason": reason,
                     },
                 )
-            except Exception as e:
+            except Exception:
                 logger.exception(  # Improved logging for disconnect errors
                     "Error in WebSocket disconnect handler",
                     extra={

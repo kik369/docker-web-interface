@@ -1,6 +1,6 @@
 import json
 import unittest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
 
@@ -49,13 +49,13 @@ class TestRateLimiting(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
 
         # Verify a count was recorded
-        current_minute = datetime.now().replace(second=0, microsecond=0)
+        current_minute = datetime.now(timezone.utc).replace(second=0, microsecond=0)
         self.assertIn(current_minute, self.app_instance.request_counts)
         self.assertEqual(self.app_instance.request_counts[current_minute], 1)
 
     def test_rate_limit_exceeded(self):
         # Set up a situation where rate limit is exceeded
-        current_minute = datetime.now().replace(second=0, microsecond=0)
+        current_minute = datetime.now(timezone.utc).replace(second=0, microsecond=0)
         self.app_instance.request_counts = {
             current_minute: self.app_instance.current_rate_limit
         }
@@ -73,7 +73,7 @@ class TestRateLimiting(unittest.TestCase):
 
     def test_rate_limit_cleanup(self):
         # Set up old request counts (more than 2 minutes ago)
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         current_minute = now.replace(second=0, microsecond=0)
         # Use timedelta for proper datetime arithmetic
         old_minute = current_minute - timedelta(minutes=3)
@@ -101,7 +101,7 @@ class TestRateLimiting(unittest.TestCase):
             self.assertEqual(response.status_code, 200)
 
         # Check that counter was incremented correctly
-        current_minute = datetime.now().replace(second=0, microsecond=0)
+        current_minute = datetime.now(timezone.utc).replace(second=0, microsecond=0)
         self.assertEqual(self.app_instance.request_counts[current_minute], 5)
 
     def test_rate_limit_different_endpoints(self):
@@ -117,12 +117,12 @@ class TestRateLimiting(unittest.TestCase):
             self.assertEqual(response.status_code, 200)
 
         # Check that all requests counted toward the same limit
-        current_minute = datetime.now().replace(second=0, microsecond=0)
+        current_minute = datetime.now(timezone.utc).replace(second=0, microsecond=0)
         self.assertEqual(self.app_instance.request_counts[current_minute], 3)
 
     def test_rate_limit_reset_after_minute_change(self):
         # Set up counts for previous minute
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         current_minute = now.replace(second=0, microsecond=0)
         # Use timedelta for proper datetime arithmetic
         previous_minute = current_minute - timedelta(minutes=1)
