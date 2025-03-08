@@ -12,14 +12,23 @@ RUN apt-get update && apt-get install -y \
     && apt-get update \
     && apt-get install -y docker-ce-cli
 
+# Set the working directory
 WORKDIR /app
-COPY . /app
 
-# Install dependencies and the backend package in development mode
-RUN pip install --no-cache-dir -r requirements.txt && \
-    pip install -e .
+# Create log directory
+RUN mkdir -p /app/logs
+
+# Copy requirements first to leverage Docker cache
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy the rest of the application
+COPY . .
+
+# Install the package in development mode
+RUN pip install -e .
 
 EXPOSE 5000
 
-# This CMD will be overridden by the command in docker-compose.yml
+# The CMD will be provided by docker-compose.yml
 CMD ["gunicorn", "-b", "0.0.0.0:5000", "docker_monitor:app"]

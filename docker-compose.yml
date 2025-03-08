@@ -1,6 +1,8 @@
 services:
     backend:
-        build: ./backend
+        build:
+            context: ./backend
+            dockerfile: Dockerfile
         ports:
             - '5000:5000'
         environment:
@@ -8,13 +10,13 @@ services:
             - FLASK_APP=${FLASK_APP:-docker_monitor.py}
             - LOG_LEVEL=${LOG_LEVEL:-INFO}
             - LOG_FORMAT=${LOG_FORMAT:-json}
-            - PYTHONPATH=${PYTHONPATH:-/app}
+            - PYTHONPATH=/app
             - PYTHONUNBUFFERED=1
         volumes:
             - ./backend:/app
             - /var/run/docker.sock:/var/run/docker.sock
         user: root
-        command: gunicorn -b 0.0.0.0:5000 -k eventlet --timeout 120 --workers 1 --reload backend.docker_monitor:app
+        command: gunicorn -b 0.0.0.0:5000 -k eventlet --timeout 120 --workers 1 --reload docker_monitor:app
         container_name: docker_web_backend
         develop:
             watch:
