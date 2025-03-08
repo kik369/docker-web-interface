@@ -77,7 +77,7 @@ class FlaskApp:
         if socketio is None:
             self.socketio = SocketIO(
                 self.app,
-                cors_allowed_origins=Config.CORS_ORIGINS,
+                cors_allowed_origins="*",  # Use wildcard string to allow all origins
                 async_mode="eventlet",
             )
             logging.info("Server initialized for eventlet.")
@@ -764,6 +764,9 @@ def create_app():
         return flask_app.app
     return None
 
+
+# Create the global app instance for Gunicorn to use
+app = create_app()
 
 # Only create the app if this module is being run directly
 if __name__ == "__main__":
