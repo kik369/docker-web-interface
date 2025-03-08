@@ -38,17 +38,18 @@ class TestWebSocketHandlers(unittest.TestCase):
         self.mock_docker_service = MagicMock()
         mock_docker_service.return_value = self.mock_docker_service
 
+        # Reset FlaskApp singleton to ensure clean tests
+        FlaskApp._instance = None
+        FlaskApp._routes_registered = False
+
         # Create app instance
-        self.app_instance = FlaskApp()
+        self.app_instance = FlaskApp(socketio=self.mock_socketio)
+        self.app_instance.docker_service = self.mock_docker_service
         self.app = self.app_instance.app
         self.app.config["TESTING"] = True
         self.app.config["SERVER_NAME"] = "localhost"
 
-        # Set up request context for WebSocket tests
-        self.request_context = self.app.test_request_context()
-        self.request_context.push()
-
-        # Mock request object for WebSocket handlers
+        # Create a mock request for the WebSocket tests
         self.mock_request = MagicMock()
         self.mock_request.sid = "test-sid"
         self.mock_request.remote_addr = "127.0.0.1"
@@ -61,20 +62,24 @@ class TestWebSocketHandlers(unittest.TestCase):
         )
         self.request_patcher.start()
 
-        # Set docker_service on app instance
-        self.app_instance.docker_service = self.mock_docker_service
+        # Set up request context for WebSocket tests
+        self.request_context = self.app.test_request_context()
+        self.request_context.push()
+
+        # Call setup_websocket_handlers to register the handlers
+        self.app_instance.setup_websocket_handlers()
 
         # Create a mock container for use in tests
         self.mock_container = MagicMock()
-        self.mock_container.id = "test-container-id"
-        self.mock_container.name = "test-container"
-        self.mock_container.image = "test-image"
-        self.mock_container.status = "Up 2 hours"
+        self.mock_container.id = "test_container_id"
+        self.mock_container.name = "test_container"
+        self.mock_container.image = "test_image:latest"
+        self.mock_container.status = "running"
         self.mock_container.state = "running"
-        self.mock_container.ports = "80/tcp->8080"
-        self.mock_container.compose_project = "test-project"
-        self.mock_container.compose_service = "test-service"
-        self.mock_container.created = datetime.now(timezone.utc)
+        self.mock_container.created = datetime(2023, 1, 1, tzinfo=timezone.utc)
+        self.mock_container.ports = "8080->80/tcp"
+        self.mock_container.compose_project = "test_project"
+        self.mock_container.compose_service = "test_service"
 
     def tearDown(self):
         # Stop request patcher
@@ -92,10 +97,6 @@ class TestWebSocketHandlers(unittest.TestCase):
 
         # Reset the mocks
         self.mock_socketio.emit.reset_mock()
-
-        # Set up the WebSocket handlers
-        with patch("backend.docker_monitor.request", self.mock_request):
-            self.app_instance.setup_websocket_handlers()
 
         # Access and call the connect handler
         connect_handler = self.socket_handlers.get("connect")
@@ -120,14 +121,14 @@ class TestWebSocketHandlers(unittest.TestCase):
             {
                 "containers": [
                     {
-                        "container_id": "test-container-id",
-                        "name": "test-container",
-                        "image": "test-image",
-                        "status": "Up 2 hours",
+                        "container_id": "test_container_id",
+                        "name": "test_container",
+                        "image": "test_image:latest",
+                        "status": "running",
                         "state": "running",
-                        "ports": "80/tcp->8080",
-                        "compose_project": "test-project",
-                        "compose_service": "test-service",
+                        "ports": "8080->80/tcp",
+                        "compose_project": "test_project",
+                        "compose_service": "test_service",
                         "created": self.mock_container.created.isoformat(),
                     }
                 ]
@@ -150,10 +151,6 @@ class TestWebSocketHandlers(unittest.TestCase):
 
         # Reset the mocks
         self.mock_socketio.emit.reset_mock()
-
-        # Set up the WebSocket handlers
-        with patch("backend.docker_monitor.request", self.mock_request):
-            self.app_instance.setup_websocket_handlers()
 
         # Access the start_log_stream handler
         start_log_stream_handler = self.socket_handlers.get("start_log_stream")
@@ -180,10 +177,6 @@ class TestWebSocketHandlers(unittest.TestCase):
     def test_websocket_log_stream_missing_container_id(self):
         # Reset the mocks
         self.mock_socketio.emit.reset_mock()
-
-        # Set up the WebSocket handlers
-        with patch("backend.docker_monitor.request", self.mock_request):
-            self.app_instance.setup_websocket_handlers()
 
         # Access the start_log_stream handler
         start_log_stream_handler = self.socket_handlers.get("start_log_stream")

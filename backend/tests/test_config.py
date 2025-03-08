@@ -2,6 +2,9 @@ import os
 import unittest
 from unittest.mock import patch
 
+# Import directly from the modules, not from backend package
+from config import Config
+
 
 class TestConfig(unittest.TestCase):
     def setUp(self):
@@ -18,9 +21,6 @@ class TestConfig(unittest.TestCase):
                 del os.environ[key]
 
     def test_default_config(self):
-        # Import the module to load default config
-        from backend.config import Config
-
         # Check default values
         self.assertFalse(Config.DEBUG)
         self.assertEqual(Config.PORT, 5000)
@@ -91,9 +91,6 @@ class TestConfig(unittest.TestCase):
                 importlib.reload(backend.config)
 
     def test_config_to_dict(self):
-        # Import the module
-        from backend.config import Config
-
         # Get config as dictionary
         config_dict = Config.to_dict()
 

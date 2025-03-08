@@ -4,8 +4,9 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from backend.docker_monitor import FlaskApp
-from backend.docker_service import Container
+# Import directly from the modules, not from backend package
+from docker_monitor import FlaskApp
+from docker_service import Container
 
 
 @pytest.fixture
@@ -80,21 +81,23 @@ def mock_docker_service():
 @pytest.fixture
 def flask_app(mock_docker_service):
     """Create a Flask app with routes for testing."""
+    # Reset the static variables to allow clean test runs
+    from docker_monitor import FlaskApp
+
+    FlaskApp._instance = None
+    FlaskApp._routes_registered = False
+
     # Patch the SocketIO class to avoid socket operations
-    with patch("backend.docker_monitor.SocketIO") as mock_socketio_class:
+    with patch("docker_monitor.SocketIO") as mock_socketio_class:
         mock_socketio = Mock()
         mock_socketio_class.return_value = mock_socketio
 
         # Patch other dependencies
         with (
-            patch(
-                "backend.docker_monitor.DockerService", return_value=mock_docker_service
-            ),
-            patch("backend.docker_monitor.logging.getLogger"),
-            patch(
-                "backend.docker_monitor.set_request_id", return_value="test-request-id"
-            ),
-            patch("backend.docker_monitor.RequestIdFilter"),
+            patch("docker_monitor.DockerService", return_value=mock_docker_service),
+            patch("docker_monitor.logging.getLogger"),
+            patch("docker_monitor.set_request_id", return_value="test-request-id"),
+            patch("docker_monitor.RequestIdFilter"),
         ):
             # Create FlaskApp instance
             app_instance = FlaskApp()
@@ -138,7 +141,7 @@ class TestDockerMonitor:
         assert response.status_code == 200
         data = json.loads(response.data)
         assert data["status"] == "success"
-        assert "Backend is up and running" in data["data"]["message"]
+        assert "Docker Web Interface API is running" in str(data["data"])
 
     def test_get_containers(self, client, flask_app):
         """Test the get_containers endpoint."""
