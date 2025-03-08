@@ -1,10 +1,17 @@
 import logging
 import threading
 from dataclasses import dataclass
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Generator, List, Optional, Tuple
 
 import docker
+
+try:
+    # For Docker environment
+    from config import Config
+except ImportError:
+    # For local development
+    pass
 
 logger = logging.getLogger(__name__)
 
@@ -61,7 +68,9 @@ class DockerService:
         # ...existing code before rate limiting...
         current_minute = self.get_current_minute()
         self.cleanup_request_counts()
-        self.request_counts[current_minute] = self.request_counts.get(current_minute, 0) + 1
+        self.request_counts[current_minute] = (
+            self.request_counts.get(current_minute, 0) + 1
+        )
 
         if self.request_counts[current_minute] > self.current_rate_limit:
             # Rate limit exceeded: return a 429 response
@@ -435,7 +444,9 @@ class DockerService:
                     except (ValueError, AttributeError):
                         try:
                             # Fallback to timestamp if ISO format fails
-                            created = datetime.fromtimestamp(float(created_str), timezone.utc)
+                            created = datetime.fromtimestamp(
+                                float(created_str), timezone.utc
+                            )
                         except (ValueError, TypeError):
                             # Use current time as fallback if all parsing fails
                             logger.warning(
@@ -549,7 +560,9 @@ class DockerService:
             formatted_history = []
             for layer in history:
                 formatted_layer = {
-                    "created": datetime.fromtimestamp(layer.get("Created", 0), timezone.utc),
+                    "created": datetime.fromtimestamp(
+                        layer.get("Created", 0), timezone.utc
+                    ),
                     "created_by": layer.get("CreatedBy", ""),
                     "size": round(
                         layer.get("Size", 0) / (1024 * 1024), 2

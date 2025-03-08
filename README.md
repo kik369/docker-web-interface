@@ -95,19 +95,19 @@ For quicker prototyping and debugging, you can run the components locally outsid
 
 1. **Start the Frontend:**
 
-   Run the following command from the root directory:
+    Run the following command from the root directory:
 
-   ```bash
-   PORT=3002 npm --prefix frontend start
-   ```
+    ```bash
+    PORT=3002 npm --prefix frontend start
+    ```
 
 2. **Start the Backend:**
 
-   Run the following command from the root directory:
+    Run the following command from the root directory:
 
-   ```bash
-   gunicorn -b 0.0.0.0:5000 -k eventlet --timeout 120 --worker-class eventlet --workers 1 --reload backend.docker_monitor:app
-   ```
+    ```bash
+    gunicorn -b 0.0.0.0:5000 -k eventlet --timeout 120 --workers 1 --reload backend.docker_monitor:app
+    ```
 
 > 💡 **Tip:** Running the application locally allows for faster feedback and easier debugging. Ensure that all dependencies are installed in your local environment.
 

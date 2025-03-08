@@ -9,6 +9,13 @@ from typing import Optional
 
 from flask import g, request
 
+try:
+    # For Docker environment
+    from config import Config
+except ImportError:
+    # For local development
+    pass
+
 # Context variable to store request ID
 request_id_var: ContextVar[str] = ContextVar("request_id", default="")
 
