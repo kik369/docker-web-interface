@@ -3,21 +3,20 @@ from datetime import datetime, timedelta, timezone
 from functools import wraps
 from typing import Any, Callable, Dict
 
+from config import Config
+from docker_service import Container, DockerService
 from flask import Flask, Response, g, jsonify, request
 from flask_cors import CORS
 from flask_socketio import SocketIO
-from werkzeug.exceptions import HTTPException
-from werkzeug.middleware.proxy_fix import ProxyFix
-
-from backend.config import Config
-from backend.docker_service import Container, DockerService
-from backend.logging_utils import (
+from logging_utils import (
     RequestIdFilter,
     get_request_id,
     log_request,
     set_request_id,
     setup_logging,
 )
+from werkzeug.exceptions import HTTPException
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 # Configure logging
 setup_logging()
@@ -545,7 +544,9 @@ class FlaskApp:
                 )
 
                 # Simulate abrupt disconnect by calling emit which raises an exception
-                self.socketio.emit("simulate_disconnect", {"message": "Simulating disconnect"})
+                self.socketio.emit(
+                    "simulate_disconnect", {"message": "Simulating disconnect"}
+                )
 
                 # Get initial container states - this will be the only batch update
                 # After this, all updates will be push-based through Docker events
@@ -671,9 +672,13 @@ class FlaskApp:
                         },
                     )
                     self.socketio.emit(
-                        "error", {"error": "Input must be a dictionary"}, room=request.sid
+                        "error",
+                        {"error": "Input must be a dictionary"},
+                        room=request.sid,
                     )
-                    self.socketio.emit("error", {"message": "Malformed input"}, room=request.sid)
+                    self.socketio.emit(
+                        "error", {"message": "Malformed input"}, room=request.sid
+                    )
                     return
                     return
 
@@ -691,7 +696,9 @@ class FlaskApp:
                     self.socketio.emit(
                         "error", {"error": "Container ID is required"}, room=request.sid
                     )
-                    self.socketio.emit("error", {"message": "Malformed input"}, room=request.sid)
+                    self.socketio.emit(
+                        "error", {"message": "Malformed input"}, room=request.sid
+                    )
                     return
 
                 logger.info(

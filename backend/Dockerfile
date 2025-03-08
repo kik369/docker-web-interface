@@ -21,5 +21,5 @@ RUN pip install --no-cache-dir -r requirements.txt && \
 
 EXPOSE 5000
 
-# Start the application with gunicorn
+# This CMD will be overridden by the command in docker-compose.yml
 CMD ["gunicorn", "-b", "0.0.0.0:5000", "docker_monitor:app"]

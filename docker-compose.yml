@@ -4,11 +4,11 @@ services:
         ports:
             - '5000:5000'
         environment:
-            - FLASK_DEBUG=${FLASK_DEBUG}
-            - FLASK_APP=${FLASK_APP}
-            - LOG_LEVEL=${LOG_LEVEL}
-            - LOG_FORMAT=${LOG_FORMAT}
-            - PYTHONPATH=${PYTHONPATH}
+            - FLASK_DEBUG=${FLASK_DEBUG:-1}
+            - FLASK_APP=${FLASK_APP:-docker_monitor.py}
+            - LOG_LEVEL=${LOG_LEVEL:-INFO}
+            - LOG_FORMAT=${LOG_FORMAT:-json}
+            - PYTHONPATH=${PYTHONPATH:-/app}
             - PYTHONUNBUFFERED=1
             - GUNICORN_WORKERS=1
             - GUNICORN_WORKER_CLASS=eventlet
@@ -41,9 +41,9 @@ services:
             - ./frontend:/app
             - /app/node_modules
         environment:
-            - REACT_APP_API_URL=${REACT_APP_API_URL}
-            - REACT_APP_LOG_LEVEL=${REACT_APP_LOG_LEVEL}
-            - REACT_APP_SEND_LOGS_TO_BACKEND=${REACT_APP_SEND_LOGS_TO_BACKEND}
+            - REACT_APP_API_URL=${REACT_APP_API_URL:-http://localhost:5000}
+            - REACT_APP_LOG_LEVEL=${REACT_APP_LOG_LEVEL:-info}
+            - REACT_APP_SEND_LOGS_TO_BACKEND=${REACT_APP_SEND_LOGS_TO_BACKEND:-true}
             - WATCHPACK_POLLING=true
         container_name: docker_web_frontend
         develop:
