@@ -146,7 +146,7 @@ function MainApp() {
                                 ref={searchInputRef}
                                 value={searchTerm}
                                 onChange={setSearchTerm}
-                                placeholder="⌃/"
+                                placeholder="CTRL+/"
                             />
                         </div>
                     </div>
