@@ -101,6 +101,9 @@ class FlaskApp:
         self.last_cleanup = datetime.now(timezone.utc)
         self.current_rate_limit = Config.MAX_REQUESTS_PER_MINUTE
 
+        # Track active log streams
+        self.active_streams = {}
+
     # Add class method versions of the global functions for testing
     def error_response(self, message, status_code=400):
         """Return an error response (class method version)."""
@@ -600,7 +603,7 @@ class FlaskApp:
                     )
                     self.socketio.emit(
                         "error",
-                        {"error": "Malformed input"},
+                        {"error": "Input must be a dictionary"},
                         room=request.sid,
                     )
                     return
@@ -632,6 +635,10 @@ class FlaskApp:
                         "sid": request.sid,
                     },
                 )
+
+                # Create a unique key for this stream
+                stream_key = f"{request.sid}_{container_id}"
+                self.active_streams[stream_key] = False  # False means don't stop
 
                 def stream_logs_background():
                     try:
@@ -693,13 +700,16 @@ class FlaskApp:
                                     not in self.socketio.server.manager.rooms.get(
                                         "/", {}
                                     )
+                                    or self.active_streams.get(
+                                        stream_key, True
+                                    )  # True = stop by default
                                 ):
                                     logger.info(
-                                        "Client disconnected, stopping log stream",
+                                        "Client disconnected or requested stop, stopping log stream",
                                         extra={
                                             "event": "log_stream_stop",
                                             "container_id": container_id,
-                                            "reason": "client_disconnected",
+                                            "reason": "client_disconnected_or_stopped",
                                             "sid": request.sid,
                                         },
                                     )
@@ -724,6 +734,11 @@ class FlaskApp:
                                 {"error": "Failed to get container logs"},
                                 room=request.sid,
                             )
+
+                        # Clean up stream key when done
+                        if stream_key in self.active_streams:
+                            del self.active_streams[stream_key]
+
                     except Exception as e:
                         logger.error(
                             "Error in log stream background task",
@@ -741,13 +756,11 @@ class FlaskApp:
                             room=request.sid,
                         )
 
-                # Check if we're in a test environment
-                if hasattr(self.app, "config") and self.app.config.get("TESTING"):
-                    # For tests, run synchronously
-                    stream_logs_background()
-                else:
-                    # For production, run in background
-                    eventlet.spawn(stream_logs_background)
+                        # Clean up stream key on error
+                        if stream_key in self.active_streams:
+                            del self.active_streams[stream_key]
+
+                eventlet.spawn(stream_logs_background)
                 return {"status": "stream_started"}
 
             except Exception as e:
@@ -767,6 +780,67 @@ class FlaskApp:
                     room=request.sid,
                 )
                 return {"status": "error", "message": str(e)}
+
+        @self.socketio.on("stop_log_stream")
+        def handle_stop_log_stream(data):
+            """Handle stop of log streaming for a container."""
+            try:
+                if not isinstance(data, dict):
+                    logger.warning(
+                        "Malformed input for stop log stream request",
+                        extra={
+                            "event": "log_stream_error",
+                            "error": "Input must be a dictionary",
+                            "client": request.remote_addr,
+                            "sid": request.sid,
+                        },
+                    )
+                    return
+
+                container_id = data.get("container_id")
+                if not container_id:
+                    logger.warning(
+                        "Missing container ID in stop log stream request",
+                        extra={
+                            "event": "log_stream_error",
+                            "error": "Container ID is required",
+                            "client": request.remote_addr,
+                            "sid": request.sid,
+                        },
+                    )
+                    return
+
+                logger.info(
+                    "Stopping log stream",
+                    extra={
+                        "event": "log_stream_stop",
+                        "container_id": container_id,
+                        "client": request.remote_addr,
+                        "sid": request.sid,
+                    },
+                )
+
+                # Set the stop flag for this stream
+                stream_key = f"{request.sid}_{container_id}"
+                if stream_key in self.active_streams:
+                    self.active_streams[stream_key] = True  # True means stop
+
+                self.socketio.emit(
+                    "log_stream_stopped",
+                    {"container_id": container_id, "message": "Log stream stopped"},
+                    room=request.sid,
+                )
+
+            except Exception as e:
+                logger.error(
+                    "Error in stop log stream handler",
+                    extra={
+                        "error": str(e),
+                        "event": "log_stream_error",
+                        "sid": request.sid,
+                    },
+                    exc_info=True,
+                )
 
     def is_rate_limited(self):
         """Check if the current request is rate limited."""

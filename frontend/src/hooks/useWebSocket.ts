@@ -135,7 +135,7 @@ const initializeSocket = () => {
                 if (bufferToFlush) {
                     globalHandlers.forEach(handler => handler.onLogUpdate?.(containerId, bufferToFlush));
                 }
-            }, 50); // 50ms debounce
+            }, 20); // Reduced from 50ms to 20ms for more responsive updates
         }
     });
 
@@ -188,8 +188,16 @@ export const useWebSocket = ({
         }
     }, [enabled]);
 
+    const stopLogStream = useCallback((containerId: string) => {
+        if (globalSocket && enabled) {
+            globalSocket.emit('stop_log_stream', { container_id: containerId });
+            logger.info('Stopped log stream for container', { containerId });
+        }
+    }, [enabled]);
+
     return {
         startLogStream,
+        stopLogStream,
         isConnected: globalSocket?.connected || false,
     };
 };

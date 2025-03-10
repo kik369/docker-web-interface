@@ -149,48 +149,50 @@ class TestWebSocketHandlers(unittest.TestCase):
             "Log line 2",
         ]
 
-        # Mock socketio server manager rooms - FIX: Use correct room structure
-        # The check in the handler is looking for request.sid in socketio.server.manager.rooms.get("/", {})
+        # Mock socketio server manager rooms
         self.mock_socketio.server = MagicMock()
-        # Correct structure: {"namespace": {"sid1": True, "sid2": True}}
         self.mock_socketio.server.manager.rooms = {"/": {"test-sid": True}}
 
-        # Reset the mocks
-        self.mock_socketio.emit.reset_mock()
+        # Mock eventlet.spawn to execute the function immediately instead of in background
+        with patch("backend.docker_monitor.eventlet.spawn", lambda f: f()):
+            # Reset the mocks
+            self.mock_socketio.emit.reset_mock()
+            self.mock_docker_service.get_container_logs.reset_mock()
+            self.mock_docker_service.stream_container_logs.reset_mock()
 
-        # Access the start_log_stream handler
-        start_log_stream_handler = self.socket_handlers.get("start_log_stream")
-        self.assertIsNotNone(
-            start_log_stream_handler, "start_log_stream handler not registered"
-        )
+            # Access the start_log_stream handler
+            start_log_stream_handler = self.socket_handlers.get("start_log_stream")
+            self.assertIsNotNone(
+                start_log_stream_handler, "start_log_stream handler not registered"
+            )
 
-        # Call the handler with container ID
-        start_log_stream_handler({"container_id": "test_container"})
+            # Call the handler with container ID
+            start_log_stream_handler({"container_id": "test_container"})
 
-        # Verify initial logs were fetched
-        self.mock_docker_service.get_container_logs.assert_called_with(
-            "test_container", lines=100
-        )
+            # Verify initial logs were fetched
+            self.mock_docker_service.get_container_logs.assert_called_with(
+                "test_container", lines=100
+            )
 
-        # Verify stream was started
-        self.mock_docker_service.stream_container_logs.assert_called_with(
-            "test_container", since=None
-        )
+            # Verify stream was started
+            self.mock_docker_service.stream_container_logs.assert_called_with(
+                "test_container", since=None
+            )
 
-        # Verify initial logs were emitted
-        self.mock_socketio.emit.assert_any_call(
-            "log_update",
-            {"container_id": "test_container", "log": "Initial logs"},
-            room="test-sid",
-        )
-
-        # Verify streamed log lines were emitted to client
-        for log_line in ["Log line 1", "Log line 2"]:
+            # Verify initial logs were emitted
             self.mock_socketio.emit.assert_any_call(
                 "log_update",
-                {"container_id": "test_container", "log": log_line},
+                {"container_id": "test_container", "log": "Initial logs"},
                 room="test-sid",
             )
+
+            # Verify streamed log lines were emitted to client
+            for log_line in ["Log line 1", "Log line 2"]:
+                self.mock_socketio.emit.assert_any_call(
+                    "log_update",
+                    {"container_id": "test_container", "log": log_line},
+                    room="test-sid",
+                )
 
     def test_websocket_log_stream_missing_container_id(self):
         # Reset the mocks

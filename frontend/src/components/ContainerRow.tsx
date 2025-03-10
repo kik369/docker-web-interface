@@ -213,12 +213,14 @@ const LogContainer = React.memo(({
     logs,
     isLoading,
     containerId,
-    onClose
+    onClose,
+    isStreamActive
 }: {
     logs: string;
     isLoading: boolean;
     containerId: string;
     onClose: () => void;
+    isStreamActive: boolean;
 }) => {
     const logContainerRef = useRef<HTMLPreElement>(null);
     const [lastUpdateTime, setLastUpdateTime] = useState<Date>(new Date());
@@ -260,7 +262,7 @@ const LogContainer = React.memo(({
                     className="bg-black p-3 rounded text-xs text-gray-300 font-mono overflow-auto max-h-96"
                 >
                     {logs || 'No logs available'}
-                    {logs && (
+                    {logs && isStreamActive && (
                         <div className="text-xs text-green-500 mt-2 flex items-center">
                             <span className="inline-block w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
                             Log streaming active...
@@ -292,7 +294,10 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
     });
     const [showCpuStats, setShowCpuStats] = useState<boolean>(false);
     const [isLoadingLogs, setIsLoadingLogs] = React.useState(false);
+    const [isStreamActive, setIsStreamActive] = React.useState(false);
     const showLogsRef = useRef(showLogs);
+    const streamActiveRef = useRef(false);
+    const logContainerRef = useRef<HTMLPreElement>(null);
 
     useEffect(() => {
         showLogsRef.current = showLogs;
@@ -307,19 +312,23 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
         }
     }, [showLogs, container.id]);
 
-    // Use separate ref to track if streaming is active to prevent duplicate streams
-    const streamActiveRef = useRef(false);
-
-    const { startLogStream } = useWebSocket({
+    const { startLogStream, stopLogStream } = useWebSocket({
         onLogUpdate: (containerId, log) => {
             if (containerId === container.id && showLogsRef.current) {
                 setLogs(prevLogs => prevLogs + log);
-                // Auto-scroll is now handled in the LogContainer component
+                if (!isStreamActive) {
+                    setIsStreamActive(true);
+                    setIsLoadingLogs(false);
+                }
+                if (logContainerRef.current) {
+                    logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+                }
             }
         },
         onError: (error) => {
             logger.error('Error streaming logs:', new Error(error));
             console.error('Failed to stream logs:', error);
+            setIsLoadingLogs(false);
         },
         enabled: true // Always keep WebSocket connection enabled
     });
@@ -331,22 +340,34 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
             streamActiveRef.current = true;
             logger.info('Starting log stream due to showLogs change', { containerId: container.id });
             startLogStream(container.id);
+            setIsStreamActive(true);
         }
 
         // Cleanup function will handle the case when logs are hidden
         return () => {
-            if (!showLogs) {
+            if (!showLogs && streamActiveRef.current) {
                 streamActiveRef.current = false;
+                stopLogStream(container.id);
+                setIsStreamActive(false);
                 logger.info('Log stream inactive due to showLogs change', { containerId: container.id });
             }
         };
-    }, [showLogs, container.id, startLogStream]);
+    }, [showLogs, container.id, startLogStream, stopLogStream]);
+
+    const handleCloseLogs = useCallback(() => {
+        stopLogStream(container.id);
+        setShowLogs(false);
+        streamActiveRef.current = false;
+        setIsStreamActive(false);
+    }, [container.id, stopLogStream]);
 
     const handleViewLogs = useCallback(async (isRestoring: boolean = false) => {
         if (showLogs && !isRestoring) {
-            // Don't clear logs immediately to prevent flickering
+            // Stop streaming when closing logs view
+            stopLogStream(container.id);
             setShowLogs(false);
             streamActiveRef.current = false;
+            setIsStreamActive(false);
             return;
         }
 
@@ -356,7 +377,6 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
             if (!isExpanded) {
                 onToggleExpand();
             }
-            // Set showLogs to true immediately to ensure consistent UI
             if (!isRestoring) {
                 setShowLogs(true);
             }
@@ -369,64 +389,22 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
             }
 
             setLogs(data.data.logs);
-
             // The streaming will be started by the useEffect that watches showLogs
+            streamActiveRef.current = true;
+            startLogStream(container.id);
             logger.info('Successfully fetched container logs', { containerId: container.id });
         } catch (err) {
             logger.error('Failed to fetch container logs', err instanceof Error ? err : undefined, {
                 containerId: container.id
             });
             console.error('Failed to fetch logs:', err);
-            // If there's an error while restoring state, reset the showLogs state
             if (isRestoring) {
                 setShowLogs(false);
             }
         } finally {
             setIsLoadingLogs(false);
         }
-    }, [container.id, isExpanded, onToggleExpand, setLogs, setShowLogs, showLogs]);
-
-    // Load logs if showLogs is true on mount or after state restoration
-    useEffect(() => {
-        let mounted = true;
-
-        if (showLogsRef.current && !streamActiveRef.current) {
-            (async () => {
-                try {
-                    // Don't use handleViewLogs here to avoid dependencies issues
-                    logger.info('Restoring logs view', { containerId: container.id });
-                    setIsLoadingLogs(true);
-
-                    const response = await fetch(`${config.API_URL}/api/containers/${container.id}/logs`);
-                    const data = await response.json();
-
-                    if (!response.ok) {
-                        throw new Error(data.error || 'Failed to fetch logs');
-                    }
-
-                    if (mounted) {
-                        setLogs(data.data.logs);
-                        // The streaming will be started by the useEffect that watches showLogs
-                    }
-                } catch (err) {
-                    logger.error('Failed to restore logs view', err instanceof Error ? err : undefined, {
-                        containerId: container.id
-                    });
-                    if (mounted) {
-                        setShowLogs(false);
-                    }
-                } finally {
-                    if (mounted) {
-                        setIsLoadingLogs(false);
-                    }
-                }
-            })();
-        }
-
-        return () => {
-            mounted = false;
-        };
-    }, [container.id]); // Dependencies reduced to just container.id
+    }, [container.id, isExpanded, onToggleExpand, setLogs, setShowLogs, showLogs, startLogStream, stopLogStream]);
 
     const handleAction = async (action: string) => {
         try {
@@ -603,7 +581,8 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                     logs={logs}
                     isLoading={isLoadingLogs}
                     containerId={container.id}
-                    onClose={() => handleViewLogs()}
+                    onClose={handleCloseLogs}
+                    isStreamActive={isStreamActive}
                 />
             )}
 
