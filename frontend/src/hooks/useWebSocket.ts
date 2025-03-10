@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useRef } from 'react';
+import { useEffect, useCallback, useRef, useState } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { config } from '../config';
 import { logger } from '../services/logging';
@@ -32,6 +32,23 @@ let globalSocket: Socket | null = null;
 let activeSubscriptions = 0;
 let isInitializing = false;
 let globalHandlers: Set<UseWebSocketProps> = new Set();
+
+// Debounce function to prevent too many re-renders
+const useDebounce = <T>(value: T, delay: number): T => {
+    const [debouncedValue, setDebouncedValue] = useState<T>(value);
+
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedValue(value);
+        }, delay);
+
+        return () => {
+            clearTimeout(handler);
+        };
+    }, [value, delay]);
+
+    return debouncedValue;
+};
 
 const initializeSocket = () => {
     if (globalSocket || isInitializing) return;
@@ -92,9 +109,34 @@ const initializeSocket = () => {
         globalHandlers.forEach(handler => handler.onInitialState?.(data.containers));
     });
 
+    // Add these variables before the globalSocket.on('log_update', ...) line
+    const logBuffers = new Map<string, string>();
+    const pendingFlushes = new Set<string>();
+
     // Handle log updates
     globalSocket.on('log_update', (data: { container_id: string; log: string }) => {
-        globalHandlers.forEach(handler => handler.onLogUpdate?.(data.container_id, data.log));
+        // Group log updates by container ID to minimize re-renders
+        const containerId = data.container_id;
+        const logBuffer = logBuffers.get(containerId) || '';
+        const newBuffer = logBuffer + data.log;
+        logBuffers.set(containerId, newBuffer);
+
+        // If there's a pending flush, don't schedule another one
+        if (!pendingFlushes.has(containerId)) {
+            pendingFlushes.add(containerId);
+
+            // Flush buffer after a short delay
+            setTimeout(() => {
+                const bufferToFlush = logBuffers.get(containerId) || '';
+                logBuffers.set(containerId, '');
+                pendingFlushes.delete(containerId);
+
+                // Only notify handlers if there's something to flush
+                if (bufferToFlush) {
+                    globalHandlers.forEach(handler => handler.onLogUpdate?.(containerId, bufferToFlush));
+                }
+            }, 50); // 50ms debounce
+        }
     });
 
     globalSocket.connect();

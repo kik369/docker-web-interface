@@ -208,6 +208,57 @@ const Tooltip: React.FC<TooltipProps> = ({ children, text }) => {
     );
 };
 
+// Extract Log Container to its own memoized component to prevent unnecessary re-renders
+const LogContainer = React.memo(({
+    logs,
+    isLoading,
+    containerId,
+    onClose
+}: {
+    logs: string;
+    isLoading: boolean;
+    containerId: string;
+    onClose: () => void;
+}) => {
+    const logContainerRef = useRef<HTMLPreElement>(null);
+
+    // Scroll to bottom when logs update
+    useEffect(() => {
+        if (logContainerRef.current && logs) {
+            logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+        }
+    }, [logs]);
+
+    return (
+        <div className="bg-gray-900 p-4 rounded-lg mt-2">
+            <div className="flex justify-between items-center mb-2">
+                <h3 className="text-lg font-semibold text-white">Container Logs</h3>
+                <button
+                    onClick={onClose}
+                    className="text-xs text-gray-400 hover:text-white"
+                >
+                    Close
+                </button>
+            </div>
+            {isLoading ? (
+                <div className="text-gray-400">Loading logs...</div>
+            ) : (
+                <pre
+                    ref={logContainerRef}
+                    className="bg-black p-3 rounded text-xs text-gray-300 font-mono overflow-auto max-h-96"
+                >
+                    {logs || 'No logs available'}
+                    {logs && (
+                        <div className="text-xs text-green-500 mt-2">
+                            Log streaming active...
+                        </div>
+                    )}
+                </pre>
+            )}
+        </div>
+    );
+});
+
 export const ContainerRow: React.FC<ContainerRowProps> = ({
     container,
     isExpanded,
@@ -228,7 +279,6 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
     });
     const [showCpuStats, setShowCpuStats] = useState<boolean>(false);
     const [isLoadingLogs, setIsLoadingLogs] = React.useState(false);
-    const logContainerRef = useRef<HTMLPreElement>(null);
     const showLogsRef = useRef(showLogs);
 
     useEffect(() => {
@@ -246,25 +296,22 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
 
     const { startLogStream } = useWebSocket({
         onLogUpdate: (containerId, log) => {
-            if (containerId === container.id && showLogs) {
+            if (containerId === container.id && showLogsRef.current) {
                 setLogs(prevLogs => prevLogs + log);
-                // Auto-scroll to bottom
-                if (logContainerRef.current) {
-                    logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
-                }
+                // Auto-scroll is now handled in the LogContainer component
             }
         },
         onError: (error) => {
             logger.error('Error streaming logs:', new Error(error));
             console.error('Failed to stream logs:', error);
         },
-        enabled: showLogs // Only enable WebSocket when logs are being viewed
+        enabled: showLogsRef.current // Use ref instead of state to prevent re-renders
     });
 
     const handleViewLogs = useCallback(async (isRestoring: boolean = false) => {
         if (showLogs && !isRestoring) {
+            // Don't clear logs immediately to prevent flickering
             setShowLogs(false);
-            setLogs('');
             return;
         }
 
@@ -274,6 +321,11 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
             if (!isExpanded) {
                 onToggleExpand();
             }
+            // Set showLogs to true immediately to ensure consistent UI
+            if (!isRestoring) {
+                setShowLogs(true);
+            }
+
             const response = await fetch(`${config.API_URL}/api/containers/${container.id}/logs`);
             const data = await response.json();
 
@@ -282,9 +334,7 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
             }
 
             setLogs(data.data.logs);
-            if (!isRestoring) {
-                setShowLogs(true);
-            }
+
             // Start WebSocket streaming for new logs
             startLogStream(container.id);
             logger.info('Successfully fetched container logs', { containerId: container.id });
@@ -304,10 +354,45 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
 
     // Load logs if showLogs is true on mount or after state restoration
     useEffect(() => {
+        let mounted = true;
+
         if (showLogsRef.current) {
-            handleViewLogs(true);
+            (async () => {
+                try {
+                    // Don't use handleViewLogs here to avoid dependencies issues
+                    logger.info('Restoring logs view', { containerId: container.id });
+                    setIsLoadingLogs(true);
+
+                    const response = await fetch(`${config.API_URL}/api/containers/${container.id}/logs`);
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(data.error || 'Failed to fetch logs');
+                    }
+
+                    if (mounted) {
+                        setLogs(data.data.logs);
+                        startLogStream(container.id);
+                    }
+                } catch (err) {
+                    logger.error('Failed to restore logs view', err instanceof Error ? err : undefined, {
+                        containerId: container.id
+                    });
+                    if (mounted) {
+                        setShowLogs(false);
+                    }
+                } finally {
+                    if (mounted) {
+                        setIsLoadingLogs(false);
+                    }
+                }
+            })();
         }
-    }, [handleViewLogs]); // Now we can safely include handleViewLogs
+
+        return () => {
+            mounted = false;
+        };
+    }, [container.id, startLogStream]); // Remove handleViewLogs dependency
 
     const handleAction = async (action: string) => {
         try {
@@ -480,27 +565,12 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                 </div>
             </div>
             {showLogs && (
-                <div className="bg-gray-900 p-4 rounded-lg mt-2">
-                    <div className="flex justify-between items-center mb-2">
-                        <h3 className="text-lg font-semibold text-white">Container Logs</h3>
-                        <button
-                            onClick={() => handleViewLogs()}
-                            className="text-xs text-gray-400 hover:text-white"
-                        >
-                            Close
-                        </button>
-                    </div>
-                    {isLoadingLogs ? (
-                        <div className="text-gray-400">Loading logs...</div>
-                    ) : (
-                        <pre
-                            ref={logContainerRef}
-                            className="bg-black p-3 rounded text-xs text-gray-300 font-mono overflow-auto max-h-96"
-                        >
-                            {logs || 'No logs available'}
-                        </pre>
-                    )}
-                </div>
+                <LogContainer
+                    logs={logs}
+                    isLoading={isLoadingLogs}
+                    containerId={container.id}
+                    onClose={() => handleViewLogs()}
+                />
             )}
 
             {showCpuStats && (

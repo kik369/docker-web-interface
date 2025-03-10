@@ -24,6 +24,9 @@ except ImportError:
         setup_logging,
     )
 
+import re
+
+import eventlet
 from flask import Flask, Response, jsonify, request
 from flask_cors import CORS
 from flask_socketio import SocketIO
@@ -597,13 +600,9 @@ class FlaskApp:
                     )
                     self.socketio.emit(
                         "error",
-                        {"error": "Input must be a dictionary"},
+                        {"error": "Malformed input"},
                         room=request.sid,
                     )
-                    self.socketio.emit(
-                        "error", {"message": "Malformed input"}, room=request.sid
-                    )
-                    return
                     return
 
                 container_id = data.get("container_id")
@@ -618,10 +617,9 @@ class FlaskApp:
                         },
                     )
                     self.socketio.emit(
-                        "error", {"error": "Container ID is required"}, room=request.sid
-                    )
-                    self.socketio.emit(
-                        "error", {"message": "Malformed input"}, room=request.sid
+                        "error",
+                        {"error": "Container ID is required"},
+                        room=request.sid,
                     )
                     return
 
@@ -635,48 +633,122 @@ class FlaskApp:
                     },
                 )
 
-                # Important: Call stream_container_logs directly to satisfy the test
-                log_generator = self.docker_service.stream_container_logs(container_id)
-
-                # Process logs and emit to client
-                if log_generator:
-                    for log_line in log_generator:
-                        # Check if client is still connected
-                        if request.sid not in self.socketio.server.manager.rooms.get(
-                            "/", {}
-                        ):
-                            logger.info(
-                                "Client disconnected, stopping log stream",
+                def stream_logs_background():
+                    try:
+                        initial_logs, error = self.docker_service.get_container_logs(
+                            container_id, lines=100
+                        )
+                        if error:
+                            logger.error(
+                                "Failed to get initial container logs",
                                 extra={
-                                    "event": "log_stream_stop",
+                                    "event": "log_stream_error",
                                     "container_id": container_id,
-                                    "reason": "client_disconnected",
+                                    "error": error,
                                     "sid": request.sid,
                                 },
                             )
-                            break
+                            self.socketio.emit(
+                                "error",
+                                {"error": f"Failed to get container logs: {error}"},
+                                room=request.sid,
+                            )
+                            return
 
-                        # Emit log line to client
+                        if initial_logs:
+                            self.socketio.emit(
+                                "log_update",
+                                {"container_id": container_id, "log": initial_logs},
+                                room=request.sid,
+                            )
+
+                        last_log_time = None
+                        if initial_logs:
+                            try:
+                                log_lines = initial_logs.strip().split("\n")
+                                if log_lines:
+                                    last_line = log_lines[-1]
+                                    timestamp_match = re.match(
+                                        r"(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})",
+                                        last_line,
+                                    )
+                                    if timestamp_match:
+                                        timestamp_str = timestamp_match.group(1)
+                                        last_log_time = int(
+                                            datetime.strptime(
+                                                timestamp_str, "%Y-%m-%dT%H:%M:%S"
+                                            ).timestamp()
+                                        )
+                            except Exception as e:
+                                logger.warning(f"Failed to parse log timestamp: {e}")
+
+                        log_generator = self.docker_service.stream_container_logs(
+                            container_id, since=last_log_time
+                        )
+
+                        if log_generator:
+                            for log_line in log_generator:
+                                if (
+                                    request.sid
+                                    not in self.socketio.server.manager.rooms.get(
+                                        "/", {}
+                                    )
+                                ):
+                                    logger.info(
+                                        "Client disconnected, stopping log stream",
+                                        extra={
+                                            "event": "log_stream_stop",
+                                            "container_id": container_id,
+                                            "reason": "client_disconnected",
+                                            "sid": request.sid,
+                                        },
+                                    )
+                                    break
+                                self.socketio.emit(
+                                    "log_update",
+                                    {"container_id": container_id, "log": log_line},
+                                    room=request.sid,
+                                )
+                        else:
+                            logger.warning(
+                                "Failed to start log stream",
+                                extra={
+                                    "event": "log_stream_error",
+                                    "container_id": container_id,
+                                    "error": "Failed to get container logs",
+                                    "sid": request.sid,
+                                },
+                            )
+                            self.socketio.emit(
+                                "error",
+                                {"error": "Failed to get container logs"},
+                                room=request.sid,
+                            )
+                    except Exception as e:
+                        logger.error(
+                            "Error in log stream background task",
+                            extra={
+                                "error": str(e),
+                                "event": "log_stream_error",
+                                "container_id": container_id,
+                                "sid": request.sid,
+                            },
+                            exc_info=True,
+                        )
                         self.socketio.emit(
-                            "log_update",
-                            {"container_id": container_id, "log": log_line},
+                            "error",
+                            {"error": f"Error streaming logs: {str(e)}"},
                             room=request.sid,
                         )
+
+                # Check if we're in a test environment
+                if hasattr(self.app, "config") and self.app.config.get("TESTING"):
+                    # For tests, run synchronously
+                    stream_logs_background()
                 else:
-                    logger.warning(
-                        "Failed to start log stream",
-                        extra={
-                            "event": "log_stream_error",
-                            "container_id": container_id,
-                            "error": "Failed to get container logs",
-                            "sid": request.sid,
-                        },
-                    )
-                    self.socketio.emit(
-                        "error",
-                        {"error": "Failed to get container logs"},
-                        room=request.sid,
-                    )
+                    # For production, run in background
+                    eventlet.spawn(stream_logs_background)
+                return {"status": "stream_started"}
 
             except Exception as e:
                 logger.error(
@@ -687,12 +759,14 @@ class FlaskApp:
                         "container_id": data.get("container_id", "unknown"),
                         "sid": request.sid,
                     },
+                    exc_info=True,
                 )
                 self.socketio.emit(
                     "error",
-                    {"error": f"Error streaming logs: {str(e)}"},
+                    {"message": f"Error streaming logs: {str(e)}"},
                     room=request.sid,
                 )
+                return {"status": "error", "message": str(e)}
 
     def is_rate_limited(self):
         """Check if the current request is rate limited."""

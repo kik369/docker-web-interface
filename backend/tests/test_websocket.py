@@ -137,6 +137,12 @@ class TestWebSocketHandlers(unittest.TestCase):
         )
 
     def test_websocket_log_stream(self):
+        # Setup mock container logs
+        self.mock_docker_service.get_container_logs.return_value = (
+            "Initial logs",
+            None,
+        )
+
         # Mock log stream generator
         self.mock_docker_service.stream_container_logs.return_value = [
             "Log line 1",
@@ -161,12 +167,24 @@ class TestWebSocketHandlers(unittest.TestCase):
         # Call the handler with container ID
         start_log_stream_handler({"container_id": "test_container"})
 
-        # Verify stream was started
-        self.mock_docker_service.stream_container_logs.assert_called_with(
-            "test_container"
+        # Verify initial logs were fetched
+        self.mock_docker_service.get_container_logs.assert_called_with(
+            "test_container", lines=100
         )
 
-        # Verify log lines were emitted to client
+        # Verify stream was started
+        self.mock_docker_service.stream_container_logs.assert_called_with(
+            "test_container", since=None
+        )
+
+        # Verify initial logs were emitted
+        self.mock_socketio.emit.assert_any_call(
+            "log_update",
+            {"container_id": "test_container", "log": "Initial logs"},
+            room="test-sid",
+        )
+
+        # Verify streamed log lines were emitted to client
         for log_line in ["Log line 1", "Log line 2"]:
             self.mock_socketio.emit.assert_any_call(
                 "log_update",
