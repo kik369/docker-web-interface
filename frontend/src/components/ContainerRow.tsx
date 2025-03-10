@@ -1,5 +1,5 @@
 /// <reference types="react" />
-import React, { useRef, useEffect, useCallback, useState } from 'react';
+import React, { useRef, useEffect, useCallback, useState, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import { IconBaseProps } from 'react-icons';
 import { HiDocument, HiPlay, HiStop, HiRefresh, HiCog, HiTrash } from 'react-icons/hi';
@@ -221,24 +221,36 @@ const LogContainer = React.memo(({
     onClose: () => void;
 }) => {
     const logContainerRef = useRef<HTMLPreElement>(null);
+    const [lastUpdateTime, setLastUpdateTime] = useState<Date>(new Date());
 
     // Scroll to bottom when logs update
     useEffect(() => {
         if (logContainerRef.current && logs) {
             logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+            setLastUpdateTime(new Date()); // Update time when logs change
         }
     }, [logs]);
+
+    // Create formatted time for display
+    const formattedTime = useMemo(() => {
+        return `${lastUpdateTime.getHours().toString().padStart(2, '0')}:${lastUpdateTime.getMinutes().toString().padStart(2, '0')}:${lastUpdateTime.getSeconds().toString().padStart(2, '0')}`;
+    }, [lastUpdateTime]);
 
     return (
         <div className="bg-gray-900 p-4 rounded-lg mt-2">
             <div className="flex justify-between items-center mb-2">
                 <h3 className="text-lg font-semibold text-white">Container Logs</h3>
-                <button
-                    onClick={onClose}
-                    className="text-xs text-gray-400 hover:text-white"
-                >
-                    Close
-                </button>
+                <div className="flex items-center">
+                    <span className="text-xs text-gray-400 mr-3">
+                        Last update: {formattedTime}
+                    </span>
+                    <button
+                        onClick={onClose}
+                        className="text-xs text-gray-400 hover:text-white"
+                    >
+                        Close
+                    </button>
+                </div>
             </div>
             {isLoading ? (
                 <div className="text-gray-400">Loading logs...</div>
@@ -249,7 +261,8 @@ const LogContainer = React.memo(({
                 >
                     {logs || 'No logs available'}
                     {logs && (
-                        <div className="text-xs text-green-500 mt-2">
+                        <div className="text-xs text-green-500 mt-2 flex items-center">
+                            <span className="inline-block w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
                             Log streaming active...
                         </div>
                     )}
@@ -294,6 +307,9 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
         }
     }, [showLogs, container.id]);
 
+    // Use separate ref to track if streaming is active to prevent duplicate streams
+    const streamActiveRef = useRef(false);
+
     const { startLogStream } = useWebSocket({
         onLogUpdate: (containerId, log) => {
             if (containerId === container.id && showLogsRef.current) {
@@ -305,13 +321,32 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
             logger.error('Error streaming logs:', new Error(error));
             console.error('Failed to stream logs:', error);
         },
-        enabled: showLogsRef.current // Use ref instead of state to prevent re-renders
+        enabled: true // Always keep WebSocket connection enabled
     });
+
+    // Start or stop log streaming based on showLogs state
+    useEffect(() => {
+        // When logs become visible
+        if (showLogs && !streamActiveRef.current) {
+            streamActiveRef.current = true;
+            logger.info('Starting log stream due to showLogs change', { containerId: container.id });
+            startLogStream(container.id);
+        }
+
+        // Cleanup function will handle the case when logs are hidden
+        return () => {
+            if (!showLogs) {
+                streamActiveRef.current = false;
+                logger.info('Log stream inactive due to showLogs change', { containerId: container.id });
+            }
+        };
+    }, [showLogs, container.id, startLogStream]);
 
     const handleViewLogs = useCallback(async (isRestoring: boolean = false) => {
         if (showLogs && !isRestoring) {
             // Don't clear logs immediately to prevent flickering
             setShowLogs(false);
+            streamActiveRef.current = false;
             return;
         }
 
@@ -335,8 +370,7 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
 
             setLogs(data.data.logs);
 
-            // Start WebSocket streaming for new logs
-            startLogStream(container.id);
+            // The streaming will be started by the useEffect that watches showLogs
             logger.info('Successfully fetched container logs', { containerId: container.id });
         } catch (err) {
             logger.error('Failed to fetch container logs', err instanceof Error ? err : undefined, {
@@ -350,13 +384,13 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
         } finally {
             setIsLoadingLogs(false);
         }
-    }, [container.id, isExpanded, onToggleExpand, setLogs, setShowLogs, showLogs, startLogStream]);
+    }, [container.id, isExpanded, onToggleExpand, setLogs, setShowLogs, showLogs]);
 
     // Load logs if showLogs is true on mount or after state restoration
     useEffect(() => {
         let mounted = true;
 
-        if (showLogsRef.current) {
+        if (showLogsRef.current && !streamActiveRef.current) {
             (async () => {
                 try {
                     // Don't use handleViewLogs here to avoid dependencies issues
@@ -372,7 +406,7 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
 
                     if (mounted) {
                         setLogs(data.data.logs);
-                        startLogStream(container.id);
+                        // The streaming will be started by the useEffect that watches showLogs
                     }
                 } catch (err) {
                     logger.error('Failed to restore logs view', err instanceof Error ? err : undefined, {
@@ -392,7 +426,7 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
         return () => {
             mounted = false;
         };
-    }, [container.id, startLogStream]); // Remove handleViewLogs dependency
+    }, [container.id]); // Dependencies reduced to just container.id
 
     const handleAction = async (action: string) => {
         try {

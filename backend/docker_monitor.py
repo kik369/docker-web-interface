@@ -763,7 +763,7 @@ class FlaskApp:
                 )
                 self.socketio.emit(
                     "error",
-                    {"message": f"Error streaming logs: {str(e)}"},
+                    {"error": f"Error streaming logs: {str(e)}"},
                     room=request.sid,
                 )
                 return {"status": "error", "message": str(e)}
