@@ -8,6 +8,8 @@ import { useWebSocket } from '../hooks/useWebSocket';
 import { logger } from '../services/logging';
 import { useContainerContext, useContainerOperations } from '../context/ContainerContext';
 import { SearchBar } from './SearchBar';
+import { ShortcutsModal } from './ShortcutsModal';
+import { HiQuestionMarkCircle } from 'react-icons/hi';
 import '../App.css';
 
 // No settings needed anymore
@@ -26,6 +28,7 @@ function MainApp() {
     const [wsError, setWsError] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState<string>('');
     const searchInputRef = useRef<HTMLInputElement>(null);
+    const [showShortcutsModal, setShowShortcutsModal] = useState<boolean>(false);
 
     // Set up WebSocket handlers
     useWebSocket({
@@ -85,12 +88,32 @@ function MainApp() {
                 }
             }
 
-            // ⌃/ for search focus
-            if (event.ctrlKey && event.key === '/') {
+            // Ctrl+Shift+C for Containers tab
+            if (event.ctrlKey && event.shiftKey && event.key === 'C') {
+                event.preventDefault();
+                setActiveTab('containers');
+                localStorage.setItem('app-active-tab', 'containers');
+            }
+
+            // Ctrl+Shift+I for Images tab
+            if (event.ctrlKey && event.shiftKey && event.key === 'I') {
+                event.preventDefault();
+                setActiveTab('images');
+                localStorage.setItem('app-active-tab', 'images');
+            }
+
+            // Ctrl+Shift+S for search focus
+            if (event.ctrlKey && event.shiftKey && event.key === 'S') {
                 event.preventDefault();
                 if (searchInputRef.current) {
                     searchInputRef.current.focus();
                 }
+            }
+
+            // Ctrl+/ for showing keyboard shortcuts
+            if (event.ctrlKey && event.key === '/') {
+                event.preventDefault();
+                setShowShortcutsModal(true);
             }
         };
 
@@ -125,6 +148,7 @@ function MainApp() {
                                     ? 'border-blue-500 text-blue-500'
                                     : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
                                     }`}
+                                title="Switch to Containers (Ctrl+Shift+C)"
                             >
                                 Containers
                             </button>
@@ -137,6 +161,7 @@ function MainApp() {
                                     ? 'border-blue-500 text-blue-500'
                                     : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
                                     }`}
+                                title="Switch to Images (Ctrl+Shift+I)"
                             >
                                 Images
                             </button>
@@ -146,7 +171,7 @@ function MainApp() {
                                 ref={searchInputRef}
                                 value={searchTerm}
                                 onChange={setSearchTerm}
-                                placeholder="CTRL+/"
+                                placeholder="Ctrl+Shift+S"
                             />
                         </div>
                     </div>
@@ -168,6 +193,17 @@ function MainApp() {
                     )}
                 </ErrorBoundary>
             </div>
+
+            {/* Help Button */}
+            <button
+                onClick={() => setShowShortcutsModal(true)}
+                className="fixed bottom-6 right-6 bg-gray-700 hover:bg-gray-600 text-blue-400 rounded-full p-2 shadow-lg transition-colors z-20"
+                title="Keyboard Shortcuts (Ctrl+/)"
+            >
+                <HiQuestionMarkCircle className="w-8 h-8" />
+            </button>
+
+            <ShortcutsModal isOpen={showShortcutsModal} onClose={() => setShowShortcutsModal(false)} />
         </div>
     );
 }

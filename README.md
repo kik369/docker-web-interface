@@ -11,6 +11,7 @@ Docker Web Interface is a comprehensive system for monitoring and managing Docke
 -   **Modern Web Interface**
     -   Intuitive React-based UI with simplified styling.
     -   Enhanced port visualization with clear host-to-container mapping and protocol tooltips.
+    -   Keyboard shortcuts for quick navigation and actions.
 -   **RESTful API Backend**
     -   Flask-powered endpoints to manage containers and images.
 -   **Live Log Streaming**
@@ -197,6 +198,14 @@ Completed tasks:
     -   Custom hooks in `src/hooks` handle data fetching and WebSocket integration
     -   Context API for state management in `src/context`
     -   Types defined in `src/types`
+
+-   **Keyboard Shortcuts:** The application provides keyboard shortcuts for quick navigation and access to features:
+
+    -   `Ctrl + Shift + C` – Switch to Containers tab
+    -   `Ctrl + Shift + I` – Switch to Images tab
+    -   `Ctrl + Shift + S` – Focus on search box
+    -   `Ctrl + /` – Show keyboard shortcuts modal
+    -   A help button (?) in the lower-right corner also opens the shortcuts modal
 
 -   **Logging:** Implemented using Python's logging module with custom JSON formatting and request ID tracking, ensuring detailed monitoring and debugging.
 
