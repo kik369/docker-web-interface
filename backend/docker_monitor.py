@@ -2,6 +2,7 @@ import logging
 import sys
 from datetime import datetime, timedelta, timezone
 from functools import wraps
+import sqlite3
 
 try:
     # For Docker environment
@@ -103,6 +104,23 @@ class FlaskApp:
 
         # Track active log streams
         self.active_streams = {}
+
+        # Initialize SQLite database
+        self.init_db()
+
+    def init_db(self):
+        """Initialize the SQLite database."""
+        self.db_connection = sqlite3.connect("resource_usage.db", check_same_thread=False)
+        self.db_cursor = self.db_connection.cursor()
+        self.db_cursor.execute("""
+            CREATE TABLE IF NOT EXISTS cpu_stats (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                container_id TEXT,
+                cpu_percent REAL,
+                timestamp TEXT
+            )
+        """)
+        self.db_connection.commit()
 
     # Add class method versions of the global functions for testing
     def error_response(self, message, status_code=400):
@@ -227,7 +245,50 @@ class FlaskApp:
                     "container_id": container_id,
                 },
             )
+
+            # Store CPU stats in SQLite database
+            self.db_cursor.execute(
+                "INSERT INTO cpu_stats (container_id, cpu_percent, timestamp) VALUES (?, ?, ?)",
+                (container_id, stats["cpu_percent"], stats["timestamp"])
+            )
+            self.db_connection.commit()
+
             return self.success_response({"stats": stats})
+
+        @self.app.route(
+            "/api/resource-usage-metrics",
+            endpoint="get_resource_usage_metrics",
+        )
+        @self.rate_limit
+        @log_request()
+        def get_resource_usage_metrics() -> Response:
+            """Fetch resource usage metrics from the SQLite database."""
+            logger.info(
+                "Received request to fetch resource usage metrics",
+                extra={
+                    "event": "fetch_resource_usage_metrics",
+                },
+            )
+            self.db_cursor.execute("SELECT * FROM cpu_stats")
+            rows = self.db_cursor.fetchall()
+            metrics = [
+                {
+                    "id": row[0],
+                    "container_id": row[1],
+                    "cpu_percent": row[2],
+                    "timestamp": row[3],
+                }
+                for row in rows
+            ]
+
+            logger.info(
+                "Successfully fetched resource usage metrics",
+                extra={
+                    "event": "fetch_resource_usage_metrics_success",
+                    "metrics_count": len(metrics),
+                },
+            )
+            return self.success_response({"metrics": metrics})
 
         @self.app.route(
             "/api/containers/<container_id>/<action>",
