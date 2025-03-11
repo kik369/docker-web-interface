@@ -14,11 +14,19 @@ export const useContainerCpuStats = (containerId: string | null) => {
 
         try {
             setIsLoading(true);
-            const response = await fetch(`${config.API_URL}/api/containers/${containerId}/cpu-stats`);
+            const response = await fetch(`${config.API_URL}/api/resource-usage-metrics`);
             const data = await response.json();
 
             if (response.ok && data.status === 'success') {
-                setCpuStats(data.data.stats);
+                const containerStats = data.data.metrics.find((stat: any) => stat.container_id === containerId);
+                if (containerStats) {
+                    setCpuStats({
+                        cpu_percent: containerStats.cpu_percent,
+                        timestamp: containerStats.timestamp
+                    });
+                } else {
+                    setError('No CPU stats found for the specified container');
+                }
             } else {
                 setError(data.error || 'Failed to fetch CPU stats');
             }

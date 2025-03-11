@@ -3,6 +3,7 @@ import threading
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Generator, List, Optional, Tuple
+import sqlite3
 
 import docker
 
@@ -50,9 +51,24 @@ class DockerService:
             self._stop_event = threading.Event()
             self.request_counts = {}
             self.current_rate_limit = 100  # or whatever limit is appropriate
+            self.init_db()
         except Exception as e:
             logger.error(f"Failed to initialize Docker client: {e}")
             raise
+
+    def init_db(self):
+        """Initialize the SQLite database."""
+        self.db_connection = sqlite3.connect("resource_usage.db", check_same_thread=False)
+        self.db_cursor = self.db_connection.cursor()
+        self.db_cursor.execute("""
+            CREATE TABLE IF NOT EXISTS cpu_stats (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                container_id TEXT,
+                cpu_percent REAL,
+                timestamp TEXT
+            )
+        """)
+        self.db_connection.commit()
 
     def get_current_minute(self):
         # Use datetime.now() for a naive local timestamp to match test keys
@@ -696,6 +712,13 @@ class DockerService:
             cpu_percent = 0.0
             if system_delta > 0:
                 cpu_percent = (cpu_delta / system_delta) * num_cpus * 100.0
+
+            # Store CPU stats in SQLite database
+            self.db_cursor.execute(
+                "INSERT INTO cpu_stats (container_id, cpu_percent, timestamp) VALUES (?, ?, ?)",
+                (container_id, round(cpu_percent, 2), datetime.now(timezone.utc).isoformat())
+            )
+            self.db_connection.commit()
 
             return {
                 "cpu_percent": round(cpu_percent, 2),
