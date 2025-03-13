@@ -67,6 +67,17 @@ class RequestIdFilter(logging.Filter):
         return True
 
 
+class SocketErrorFilter(logging.Filter):
+    """Logging filter that suppresses socket shutdown errors."""
+
+    def filter(self, record):
+        # Check if the log message contains socket shutdown error
+        if hasattr(record, "msg") and isinstance(record.msg, str):
+            if "socket shutdown error: [Errno 9] Bad file descriptor" in record.msg:
+                return False
+        return True
+
+
 def get_request_id() -> str:
     """Get the current request ID or generate a new one."""
     try:
@@ -203,6 +214,11 @@ def setup_logging():
     formatter = CustomJsonFormatter()
     console_handler.setFormatter(formatter)
     file_handler.setFormatter(formatter)
+
+    # Add socket error filter to both handlers
+    socket_error_filter = SocketErrorFilter()
+    console_handler.addFilter(socket_error_filter)
+    file_handler.addFilter(socket_error_filter)
 
     # Configure root logger
     root_logger = logging.getLogger()

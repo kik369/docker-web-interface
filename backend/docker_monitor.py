@@ -755,7 +755,13 @@ class FlaskApp:
                 stream_key = f"{request.sid}_{container_id}"
                 self.active_streams[stream_key] = False  # False means don't stop
 
+                # Capture request context values before starting the background task
+                sid = request.sid
+                remote_addr = request.remote_addr
+
                 def stream_logs_background():
+                    """Background task to stream container logs to the client."""
+                    # Use captured sid instead of request.sid to avoid "Working outside of request context" error
                     try:
                         initial_logs, error = self.docker_service.get_container_logs(
                             container_id, lines=100
@@ -767,13 +773,13 @@ class FlaskApp:
                                     "event": "log_stream_error",
                                     "container_id": container_id,
                                     "error": error,
-                                    "sid": request.sid,
+                                    "sid": sid,
                                 },
                             )
                             self.socketio.emit(
                                 "error",
                                 {"error": f"Failed to get container logs: {error}"},
-                                room=request.sid,
+                                room=sid,
                             )
                             return
 
@@ -781,7 +787,7 @@ class FlaskApp:
                             self.socketio.emit(
                                 "log_update",
                                 {"container_id": container_id, "log": initial_logs},
-                                room=request.sid,
+                                room=sid,
                             )
 
                         last_log_time = None
@@ -811,22 +817,16 @@ class FlaskApp:
                         if log_generator:
                             log_count = 0
                             for log_line in log_generator:
-                                if (
-                                    request.sid
-                                    not in self.socketio.server.manager.rooms.get(
-                                        "/", {}
-                                    )
-                                    or self.active_streams.get(
-                                        stream_key, True
-                                    )  # True = stop by default
-                                ):
+                                if sid not in self.socketio.server.manager.rooms.get(
+                                    "/", {}
+                                ) or self.active_streams.get(stream_key, True):
                                     logger.info(
                                         "Client disconnected or requested stop, stopping log stream",
                                         extra={
                                             "event": "log_stream_stop",
                                             "container_id": container_id,
                                             "reason": "client_disconnected_or_stopped",
-                                            "sid": request.sid,
+                                            "sid": sid,
                                         },
                                     )
                                     break
@@ -834,7 +834,7 @@ class FlaskApp:
                                 self.socketio.emit(
                                     "log_update",
                                     {"container_id": container_id, "log": log_line},
-                                    room=request.sid,
+                                    room=sid,
                                 )
                                 log_count += 1
 
@@ -846,7 +846,7 @@ class FlaskApp:
                                             "event": "log_stream_progress",
                                             "container_id": container_id,
                                             "lines_streamed": log_count,
-                                            "sid": request.sid,
+                                            "sid": sid,
                                         },
                                     )
 
@@ -857,7 +857,7 @@ class FlaskApp:
                                     "event": "log_stream_complete",
                                     "container_id": container_id,
                                     "lines_streamed": log_count,
-                                    "sid": request.sid,
+                                    "sid": sid,
                                 },
                             )
                         else:
@@ -867,13 +867,13 @@ class FlaskApp:
                                     "event": "log_stream_error",
                                     "container_id": container_id,
                                     "error": "Failed to get container logs",
-                                    "sid": request.sid,
+                                    "sid": sid,
                                 },
                             )
                             self.socketio.emit(
                                 "error",
                                 {"error": "Failed to get container logs"},
-                                room=request.sid,
+                                room=sid,
                             )
 
                         # Clean up stream key when done
@@ -887,14 +887,14 @@ class FlaskApp:
                                 "error": str(e),
                                 "event": "log_stream_error",
                                 "container_id": container_id,
-                                "sid": request.sid,
+                                "sid": sid,
                             },
                             exc_info=True,
                         )
                         self.socketio.emit(
                             "error",
                             {"error": f"Error streaming logs: {str(e)}"},
-                            room=request.sid,
+                            room=sid,
                         )
 
                         # Clean up stream key on error

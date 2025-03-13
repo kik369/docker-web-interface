@@ -63,6 +63,13 @@ After reviewing the codebase, we've identified the following key components of t
 -   [x] Improve \_extract_compose_info method to handle None labels
 -   [x] Add type checking for container_info to prevent attribute errors
 
+### Phase 6: Advanced Error Handling
+
+-   [x] Add SocketErrorFilter to suppress socket shutdown errors
+-   [x] Fix "Working outside of request context" error in log streaming
+-   [x] Capture request context values before starting background tasks
+-   [x] Improve error handling in background tasks
+
 ## Progress Tracking
 
 ### Current Status
@@ -74,6 +81,7 @@ After reviewing the codebase, we've identified the following key components of t
 -   Phase 3 completed: Testing and validation completed
 -   Phase 4 completed: Additional improvements implemented
 -   Phase 5 completed: Final optimizations implemented
+-   Phase 6 completed: Advanced error handling implemented
 -   All tasks completed successfully
 
 ### Results
@@ -170,10 +178,22 @@ Updated environment variables in docker-compose.yml:
     - Reduced log volume from common not-found requests
 
 10. **NoneType Error Prevention**:
+
     - Added type checking for container_info
     - Improved \_extract_compose_info method to handle None labels
     - Added better error handling in \_emit_container_state method
     - Moved common errors to DEBUG level
+
+11. **Socket Error Filtering**:
+
+    - Added SocketErrorFilter to suppress socket shutdown errors
+    - Applied filter to all log handlers
+    - Eliminated noisy "Bad file descriptor" errors
+
+12. **Request Context Handling**:
+    - Fixed "Working outside of request context" error in log streaming
+    - Captured request context values before starting background tasks
+    - Improved error handling in background tasks
 
 ### Test Fixes
 
@@ -206,6 +226,12 @@ By addressing these key areas, we've seen a significant reduction in log volume 
 -   Summary information instead of per-line details
 -   Server errors (5xx) at ERROR level and client errors (4xx) at WARNING level
 -   Common errors like 404s and NoneType errors at DEBUG level
+
+We've also eliminated noisy error messages that don't indicate actual problems:
+
+-   Socket shutdown errors are now filtered out
+-   Request context errors in background tasks are prevented
+-   Common NoneType errors are handled gracefully
 
 This approach provides a better signal-to-noise ratio in the logs, making it easier to identify and troubleshoot issues.
 
