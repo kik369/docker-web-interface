@@ -8,7 +8,7 @@ services:
         environment:
             - FLASK_DEBUG=${FLASK_DEBUG:-1}
             - FLASK_APP=${FLASK_APP:-docker_monitor.py}
-            - LOG_LEVEL=${LOG_LEVEL:-INFO}
+            - LOG_LEVEL=${LOG_LEVEL:-WARNING}
             - LOG_FORMAT=${LOG_FORMAT:-json}
             - PYTHONPATH=/app
             - PYTHONUNBUFFERED=1
@@ -42,8 +42,8 @@ services:
         environment:
             - PORT=3002
             - REACT_APP_API_URL=${REACT_APP_API_URL:-http://localhost:5000}
-            - REACT_APP_LOG_LEVEL=${REACT_APP_LOG_LEVEL:-info}
-            - REACT_APP_SEND_LOGS_TO_BACKEND=${REACT_APP_SEND_LOGS_TO_BACKEND:-true}
+            - REACT_APP_LOG_LEVEL=${REACT_APP_LOG_LEVEL:-warning}
+            - REACT_APP_SEND_LOGS_TO_BACKEND=${REACT_APP_SEND_LOGS_TO_BACKEND:-false}
             - WATCHPACK_POLLING=true
         container_name: docker_web_frontend
         develop:

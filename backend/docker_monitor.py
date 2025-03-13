@@ -1,8 +1,8 @@
 import logging
+import sqlite3
 import sys
 from datetime import datetime, timedelta, timezone
 from functools import wraps
-import sqlite3
 
 try:
     # For Docker environment
@@ -110,7 +110,9 @@ class FlaskApp:
 
     def init_db(self):
         """Initialize the SQLite database."""
-        self.db_connection = sqlite3.connect("resource_usage.db", check_same_thread=False)
+        self.db_connection = sqlite3.connect(
+            "resource_usage.db", check_same_thread=False
+        )
         self.db_cursor = self.db_connection.cursor()
         self.db_cursor.execute("""
             CREATE TABLE IF NOT EXISTS cpu_stats (
@@ -249,7 +251,7 @@ class FlaskApp:
             # Store CPU stats in SQLite database
             self.db_cursor.execute(
                 "INSERT INTO cpu_stats (container_id, cpu_percent, timestamp) VALUES (?, ?, ?)",
-                (container_id, stats["cpu_percent"], stats["timestamp"])
+                (container_id, stats["cpu_percent"], stats["timestamp"]),
             )
             self.db_connection.commit()
 
@@ -517,12 +519,11 @@ class FlaskApp:
                 request_id = request.headers.get("X-Request-ID") or set_request_id()
 
                 logger.info(
-                    "Client connected to WebSocket",
+                    "WebSocket client connected",
                     extra={
                         "event": "websocket_connect",
                         "client": request.remote_addr,
                         "sid": request.sid,
-                        "transport": request.args.get("transport", "unknown"),
                         "request_id": request_id,
                     },
                 )
@@ -560,8 +561,8 @@ class FlaskApp:
                             }
                         )
 
-                    # Send initial state in a single event
-                    logger.info(
+                    # Send initial state in a single event - log at debug level
+                    logger.debug(
                         "Sending initial container states",
                         extra={
                             "event": "initial_state_sending",
@@ -574,7 +575,7 @@ class FlaskApp:
                         {"containers": container_states},
                         room=request.sid,  # Use room consistently
                     )
-                    logger.info(
+                    logger.debug(
                         "Sent initial container states",
                         extra={
                             "event": "initial_state_sent",
@@ -755,6 +756,7 @@ class FlaskApp:
                         )
 
                         if log_generator:
+                            log_count = 0
                             for log_line in log_generator:
                                 if (
                                     request.sid
@@ -775,11 +777,36 @@ class FlaskApp:
                                         },
                                     )
                                     break
+                                # Send the log line to the client without logging each line
                                 self.socketio.emit(
                                     "log_update",
                                     {"container_id": container_id, "log": log_line},
                                     room=request.sid,
                                 )
+                                log_count += 1
+
+                                # Optionally log a summary every 1000 lines
+                                if log_count % 1000 == 0:
+                                    logger.debug(
+                                        f"Streamed {log_count} log lines for container {container_id}",
+                                        extra={
+                                            "event": "log_stream_progress",
+                                            "container_id": container_id,
+                                            "lines_streamed": log_count,
+                                            "sid": request.sid,
+                                        },
+                                    )
+
+                            # Log summary at the end of streaming
+                            logger.debug(
+                                f"Completed streaming {log_count} log lines for container {container_id}",
+                                extra={
+                                    "event": "log_stream_complete",
+                                    "container_id": container_id,
+                                    "lines_streamed": log_count,
+                                    "sid": request.sid,
+                                },
+                            )
                         else:
                             logger.warning(
                                 "Failed to start log stream",

@@ -1,9 +1,9 @@
 import logging
+import sqlite3
 import threading
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Generator, List, Optional, Tuple
-import sqlite3
 
 import docker
 
@@ -58,7 +58,9 @@ class DockerService:
 
     def init_db(self):
         """Initialize the SQLite database."""
-        self.db_connection = sqlite3.connect("resource_usage.db", check_same_thread=False)
+        self.db_connection = sqlite3.connect(
+            "resource_usage.db", check_same_thread=False
+        )
         self.db_cursor = self.db_connection.cursor()
         self.db_cursor.execute("""
             CREATE TABLE IF NOT EXISTS cpu_stats (
@@ -270,46 +272,66 @@ class DockerService:
                 # Extract compose information
                 compose_project, compose_service = self._extract_compose_info(labels)
 
+                # Handle both string and object image representations (for test compatibility)
+                image_name = container.image
+                if hasattr(container.image, "tags") and container.image.tags:
+                    image_name = container.image.tags[0]
+                elif hasattr(container.image, "id"):
+                    image_name = container.image.id
+
                 # Create a detailed container state update
                 container_data = {
                     "container_id": container_id,
                     "name": container.name,
-                    "image": container.image.tags[0]
-                    if container.image.tags
-                    else container.image.id,
-                    "status": container_info.get("State", {}).get("Status", "unknown"),
+                    "image": image_name,
+                    "status": container.status,
                     "state": state,
                     "ports": self._format_ports(container_info),
                     "compose_project": compose_project,
                     "compose_service": compose_service,
-                    "created": container_info["Created"].split(".")[0],
                 }
 
-                # Emit the detailed state change
+                # Only log significant state changes at INFO level
+                significant_states = ["created", "running", "stopped", "deleted"]
+                if state in significant_states:
+                    logger.info(
+                        f"Container {container.name} ({container_id[:12]}) state: {state}",
+                        extra={
+                            "event": "container_state_change",
+                            "container_id": container_id,
+                            "container_name": container.name,
+                            "state": state,
+                        },
+                    )
+                else:
+                    # Log routine state changes at DEBUG level
+                    logger.debug(
+                        f"Container {container.name} ({container_id[:12]}) state: {state}",
+                        extra={
+                            "event": "container_state_change",
+                            "container_id": container_id,
+                            "container_name": container.name,
+                            "state": state,
+                        },
+                    )
+
+                # Emit the event to all connected clients
                 self.socketio.emit("container_state_changed", container_data)
-                logger.info(
-                    f"Emitted detailed state change for container {container_id}: {state}"
-                )
 
             except docker.errors.NotFound:
-                # If container not found (e.g., after deletion), emit basic state change
-                self.socketio.emit(
-                    "container_state_changed",
-                    {
-                        "container_id": container_id,
-                        "state": "deleted",
-                        "status": "deleted",
-                    },
-                )
-                logger.info(
-                    f"Container {container_id} not found, emitted deletion state"
+                # Container might have been deleted
+                logger.debug(
+                    f"Container {container_id} not found when emitting state change",
+                    extra={"container_id": container_id, "state": state},
                 )
             except Exception as e:
-                logger.error(f"Error emitting container state: {e}")
-                # Fallback to basic state change on error
-                self.socketio.emit(
-                    "container_state_changed",
-                    {"container_id": container_id, "state": state},
+                logger.error(
+                    f"Error emitting container state: {str(e)}",
+                    extra={
+                        "container_id": container_id,
+                        "state": state,
+                        "error": str(e),
+                    },
                 )
 
     def start_container(self, container_id: str) -> Tuple[bool, Optional[str]]:
@@ -633,9 +655,36 @@ class DockerService:
                     if container_id and status:
                         # Map Docker event status to our container states
                         state = self._map_event_to_state(status)
-                        logger.info(
-                            f"Container event: {container_id} -> {status} (mapped to {state})"
-                        )
+
+                        # Only log significant state changes at INFO level
+                        significant_states = [
+                            "created",
+                            "running",
+                            "stopped",
+                            "deleted",
+                        ]
+                        if state in significant_states:
+                            logger.info(
+                                f"Container {container_id} state changed to {state}",
+                                extra={
+                                    "event": "container_state_change",
+                                    "container_id": container_id,
+                                    "status": status,
+                                    "state": state,
+                                },
+                            )
+                        else:
+                            # Log routine events at DEBUG level
+                            logger.debug(
+                                f"Container event: {container_id} -> {status} (mapped to {state})",
+                                extra={
+                                    "event": "container_event",
+                                    "container_id": container_id,
+                                    "status": status,
+                                    "state": state,
+                                },
+                            )
+
                         self._emit_container_state(container_id, state)
 
         except Exception as e:
@@ -716,7 +765,11 @@ class DockerService:
             # Store CPU stats in SQLite database
             self.db_cursor.execute(
                 "INSERT INTO cpu_stats (container_id, cpu_percent, timestamp) VALUES (?, ?, ?)",
-                (container_id, round(cpu_percent, 2), datetime.now(timezone.utc).isoformat())
+                (
+                    container_id,
+                    round(cpu_percent, 2),
+                    datetime.now(timezone.utc).isoformat(),
+                ),
             )
             self.db_connection.commit()
 

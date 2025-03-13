@@ -110,8 +110,19 @@ def log_request():
             # Get logger
             logger = logging.getLogger("docker_service")
 
-            # Log request
-            logger.info(
+            # Define paths that should be excluded from routine logging
+            routine_paths = [
+                "/api/containers",  # Container list endpoint
+                "/api/images",  # Images list endpoint
+            ]
+
+            # Check if this is a routine GET request to a high-volume endpoint
+            is_routine_request = request.method == "GET" and any(
+                request.path.startswith(path) for path in routine_paths
+            )
+
+            # Log all requests at DEBUG level
+            logger.debug(
                 "Request started",
                 extra={
                     "method": request.method,
@@ -120,6 +131,18 @@ def log_request():
                     "request_id": request_id,
                 },
             )
+
+            # Only log non-routine requests at INFO level
+            if not is_routine_request:
+                logger.info(
+                    "Request started",
+                    extra={
+                        "method": request.method,
+                        "path": request.path,
+                        "remote_addr": request.remote_addr,
+                        "request_id": request_id,
+                    },
+                )
 
             # Time the request
             start_time = time.time()
@@ -135,8 +158,8 @@ def log_request():
             finally:
                 duration = time.time() - start_time
 
-                # Log request completion with metrics
-                logger.info(
+                # Always log at DEBUG level
+                logger.debug(
                     "Request completed",
                     extra={
                         "method": request.method,
@@ -146,6 +169,20 @@ def log_request():
                         "request_id": request_id,
                     },
                 )
+
+                # Log slow requests (>500ms) or non-routine requests at INFO level
+                if duration > 0.5 or not is_routine_request or status_code >= 400:
+                    logger.info(
+                        "Request completed",
+                        extra={
+                            "method": request.method,
+                            "path": request.path,
+                            "status_code": status_code,
+                            "duration": duration,
+                            "request_id": request_id,
+                            "slow": duration > 0.5,
+                        },
+                    )
 
         return wrapped
 
