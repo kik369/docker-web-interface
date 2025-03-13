@@ -72,9 +72,43 @@ class SocketErrorFilter(logging.Filter):
 
     def filter(self, record):
         # Check if the log message contains socket shutdown error
-        if hasattr(record, "msg") and isinstance(record.msg, str):
-            if "socket shutdown error: [Errno 9] Bad file descriptor" in record.msg:
-                return False
+        if hasattr(record, "msg"):
+            msg = str(record.msg) if not isinstance(record.msg, str) else record.msg
+
+            # Common socket errors to suppress
+            socket_errors = [
+                "socket shutdown error",
+                "Bad file descriptor",
+                "client disconnected",
+                "transport closed",
+                "connection already closed",
+                "Connection reset by peer",
+                "Broken pipe",
+                "Socket is closed",
+                "not open for writing",
+                "Socket closed",
+            ]
+
+            for error in socket_errors:
+                if error in msg:
+                    return False
+
+            # Also filter based on logger name
+            if hasattr(record, "name") and record.name in [
+                "engineio.server",
+                "socketio.server",
+            ]:
+                # Filter common socketio/engineio messages that aren't errors
+                common_messages = [
+                    "Sending packet",
+                    "Received packet",
+                    "Socket connected",
+                    "Socket disconnected",
+                ]
+                for message in common_messages:
+                    if message in msg:
+                        return False
+
         return True
 
 
@@ -232,6 +266,9 @@ def setup_logging():
     root_logger.addHandler(console_handler)
     root_logger.addHandler(file_handler)
 
+    # Add socket error filter directly to root logger
+    root_logger.addFilter(socket_error_filter)
+
     # Configure specific loggers
     loggers = ["docker_service", "docker_monitor"]
     for logger_name in loggers:
@@ -246,12 +283,25 @@ def setup_logging():
         logger.propagate = False  # Prevent duplicate logs
         logger.setLevel(logging.INFO)
 
-    # Set engineio.server logger to WARNING level to reduce WebSocket logs
+    # Set engineio.server logger to ERROR level to reduce WebSocket logs
     engineio_logger = logging.getLogger("engineio.server")
     for h in engineio_logger.handlers[:]:
         engineio_logger.removeHandler(h)
     engineio_logger.addHandler(console_handler)
     engineio_logger.addHandler(file_handler)
     engineio_logger.addFilter(RequestIdFilter())
+    # Add socket error filter to engineio.server logger
+    engineio_logger.addFilter(socket_error_filter)
     engineio_logger.propagate = False
-    engineio_logger.setLevel(logging.WARNING)
+    engineio_logger.setLevel(logging.ERROR)
+
+    # Also configure socketio.server logger
+    socketio_logger = logging.getLogger("socketio.server")
+    for h in socketio_logger.handlers[:]:
+        socketio_logger.removeHandler(h)
+    socketio_logger.addHandler(console_handler)
+    socketio_logger.addHandler(file_handler)
+    socketio_logger.addFilter(RequestIdFilter())
+    socketio_logger.addFilter(socket_error_filter)
+    socketio_logger.propagate = False
+    socketio_logger.setLevel(logging.ERROR)

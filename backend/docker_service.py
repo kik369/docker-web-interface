@@ -99,8 +99,15 @@ class DockerService:
 
     def _format_ports(self, container_info: dict) -> str:
         """Format port mappings from container info."""
+        if not container_info:
+            return ""
+
         ports = []
         port_bindings = container_info.get("HostConfig", {}).get("PortBindings", {})
+
+        # Ensure port_bindings is a dictionary
+        if not port_bindings or not isinstance(port_bindings, dict):
+            return ""
 
         for container_port, host_bindings in port_bindings.items():
             if host_bindings:
@@ -285,8 +292,77 @@ class DockerService:
         """
         if self.socketio:
             try:
+                # For deleted containers, we don't need to fetch details
+                if state == "deleted":
+                    # Just emit a minimal state change with the ID and state
+                    container_data = {
+                        "container_id": container_id,
+                        "name": "unknown",
+                        "image": "unknown",
+                        "status": "removed",
+                        "state": "deleted",
+                        "ports": "",
+                        "compose_project": "",
+                        "compose_service": "",
+                        "created": datetime.now(timezone.utc).isoformat(),
+                    }
+                    try:
+                        self.socketio.emit("container_state_changed", container_data)
+                        logger.debug(
+                            f"Emitted deleted state for container {container_id}",
+                            extra={
+                                "event": "container_deleted",
+                                "container_id": container_id,
+                            },
+                        )
+                    except Exception as e:
+                        logger.debug(
+                            f"Failed to emit container deleted state due to socket error: {str(e)}",
+                            extra={
+                                "event": "socket_error",
+                                "container_id": container_id,
+                            },
+                        )
+                    return
+
                 # Get the container's current information
-                container = self.client.containers.get(container_id)
+                try:
+                    container = self.client.containers.get(container_id)
+                except docker.errors.NotFound:
+                    # Container not found, likely already deleted
+                    logger.debug(
+                        f"Container {container_id} not found when emitting state change, likely already deleted",
+                        extra={
+                            "event": "container_not_found",
+                            "container_id": container_id,
+                            "state": state,
+                        },
+                    )
+                    # Emit a minimal state change with the ID and state
+                    container_data = {
+                        "container_id": container_id,
+                        "name": "unknown",
+                        "image": "unknown",
+                        "status": "removed",
+                        "state": state,
+                        "ports": "",
+                        "compose_project": "",
+                        "compose_service": "",
+                        "created": datetime.now(timezone.utc).isoformat(),
+                    }
+                    try:
+                        self.socketio.emit("container_state_changed", container_data)
+                    except Exception as e:
+                        logger.debug(
+                            f"Failed to emit container state change due to socket error: {str(e)}",
+                            extra={
+                                "event": "socket_error",
+                                "container_id": container_id,
+                            },
+                        )
+                    return
+
+                # Container exists, get its attributes
                 container_info = container.attrs
 
                 # Check if container_info is None or missing required attributes
@@ -301,83 +377,112 @@ class DockerService:
                         container_data = {
                             "container_id": container_id,
                             "name": container.name,
-                            "image": container.image,
+                            "image": container.image.tags[0]
+                            if hasattr(container.image, "tags") and container.image.tags
+                            else "unknown",
                             "status": container.status,
                             "state": state,
                             "ports": "",
-                            "compose_project": "Test Project",
-                            "compose_service": "Test Service",
+                            "compose_project": "",
+                            "compose_service": "",
+                            "created": datetime.now(timezone.utc).isoformat(),
                         }
-
-                        # Emit the event
-                        self.socketio.emit("container_state_changed", container_data)
+                        try:
+                            self.socketio.emit(
+                                "container_state_changed", container_data
+                            )
+                        except Exception as e:
+                            logger.debug(
+                                f"Failed to emit container state change due to socket error: {str(e)}",
+                                extra={
+                                    "event": "socket_error",
+                                    "container_id": container_id,
+                                },
+                            )
                         return
-                    else:
-                        logger.debug(
-                            f"Invalid container info for {container_id} when emitting state change",
-                            extra={"container_id": container_id, "state": state},
-                        )
-                        return
+                    return
 
-                # Get config and labels with safe fallbacks
-                config = container_info.get("Config", {}) or {}
-                labels = config.get("Labels", {}) or {}
+                # Extract container information with safe fallbacks
+                name = (
+                    container_info.get("Name", "").lstrip("/")
+                    if container_info.get("Name")
+                    else container.name
+                    if hasattr(container, "name")
+                    else "unknown"
+                )
 
-                # Extract compose information
+                # Safely get Config and Image
+                config = container_info.get("Config", {})
+                image = "unknown"
+                if config and isinstance(config, dict):
+                    image = config.get("Image", "unknown")
+
+                # If image is still unknown, try to get it from the container object
+                if image == "unknown" and hasattr(container, "image"):
+                    if hasattr(container.image, "tags") and container.image.tags:
+                        image = container.image.tags[0]
+
+                # Safely get State and Status
+                state_info = container_info.get("State", {})
+                status = "unknown"
+                if state_info and isinstance(state_info, dict):
+                    status = state_info.get("Status", "unknown")
+
+                # Extract port information safely
+                ports = self._format_ports(container_info)
+
+                # Extract compose information safely
+                labels = {}
+                if config and isinstance(config, dict):
+                    labels = config.get("Labels", {})
+                    if not isinstance(labels, dict):
+                        labels = {}
+
                 compose_project, compose_service = self._extract_compose_info(labels)
 
-                # Handle both string and object image representations (for test compatibility)
-                image_name = container.image
-                if hasattr(container.image, "tags") and container.image.tags:
-                    image_name = container.image.tags[0]
-                elif hasattr(container.image, "id"):
-                    image_name = container.image.id
+                # Format created time safely
+                created_str = container_info.get("Created", "")
+                created = None
+                if created_str:
+                    try:
+                        created = datetime.fromisoformat(
+                            created_str.replace("Z", "+00:00")
+                        )
+                    except (ValueError, TypeError):
+                        try:
+                            created = datetime.strptime(
+                                created_str, "%Y-%m-%dT%H:%M:%S.%fZ"
+                            )
+                        except (ValueError, TypeError):
+                            created = datetime.now(timezone.utc)
 
-                # Create a detailed container state update
+                # Create container data object
                 container_data = {
                     "container_id": container_id,
-                    "name": container.name,
-                    "image": image_name,
-                    "status": container.status,
+                    "name": name,
+                    "image": image,
+                    "status": status,
                     "state": state,
-                    "ports": self._format_ports(container_info),
+                    "ports": ports,
                     "compose_project": compose_project,
                     "compose_service": compose_service,
+                    "created": created.isoformat()
+                    if created
+                    else datetime.now(timezone.utc).isoformat(),
                 }
 
-                # Only log significant state changes at INFO level
-                significant_states = ["created", "running", "stopped", "deleted"]
-                if state in significant_states:
-                    logger.info(
-                        f"Container {container.name} ({container_id[:12]}) state: {state}",
-                        extra={
-                            "event": "container_state_change",
-                            "container_id": container_id,
-                            "container_name": container.name,
-                            "state": state,
-                        },
-                    )
-                else:
-                    # Log routine state changes at DEBUG level
+                # Emit the container state change event
+                try:
+                    self.socketio.emit("container_state_changed", container_data)
+                except Exception as e:
                     logger.debug(
-                        f"Container {container.name} ({container_id[:12]}) state: {state}",
+                        f"Failed to emit container state change due to socket error: {str(e)}",
                         extra={
-                            "event": "container_state_change",
+                            "event": "socket_error",
                             "container_id": container_id,
-                            "container_name": container.name,
-                            "state": state,
                         },
                     )
 
-                # Emit the event to all connected clients
-                self.socketio.emit("container_state_changed", container_data)
-
-            except docker.errors.NotFound:
-                # Container might have been deleted
-                logger.debug(
-                    f"Container {container_id} not found when emitting state change",
-                    extra={"container_id": container_id, "state": state},
-                )
             except Exception as e:
                 # Log at DEBUG level for common errors, ERROR for unexpected ones
                 if (
@@ -386,20 +491,20 @@ class DockerService:
                     or "AttributeError" in str(e)
                 ):
                     logger.debug(
-                        f"Error emitting container state: {str(e)}",
+                        f"Error emitting container state for {container_id}: {str(e)}",
                         extra={
+                            "event": "container_state_change_error",
                             "container_id": container_id,
-                            "state": state,
                             "error": str(e),
                             "error_type": type(e).__name__,
                         },
                     )
                 else:
                     logger.error(
-                        f"Error emitting container state: {str(e)}",
+                        f"Error emitting container state for {container_id}: {str(e)}",
                         extra={
+                            "event": "container_state_change_error",
                             "container_id": container_id,
-                            "state": state,
                             "error": str(e),
                         },
                     )

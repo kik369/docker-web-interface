@@ -25,6 +25,8 @@ After reviewing the codebase, we've identified the following key components of t
 4. **API Request Logging**: Every HTTP request is logged at start and completion
 5. **Container State Change Notifications**: All container state changes generate logs
 6. **Debug and Info Level Messages**: Many routine operations are logged at INFO level
+7. **Socket Shutdown Errors**: Numerous "socket shutdown error: [Errno 9] Bad file descriptor" messages
+8. **NoneType Errors**: Frequent "'NoneType' object has no attribute 'items'" errors in container state handling
 
 ## Implementation Plan
 
@@ -40,6 +42,7 @@ After reviewing the codebase, we've identified the following key components of t
 -   [x] Update request logging to only log slow or important requests
 -   [x] Simplify container state change notifications
 -   [x] Reduce WebSocket connection management logging
+-   [x] Enhance socket error handling and filtering
 
 ### Phase 3: Testing and Validation
 
@@ -48,27 +51,126 @@ After reviewing the codebase, we've identified the following key components of t
 -   [x] Ensure critical error logs and troubleshooting data are preserved
 -   [x] Verify application functionality is unaffected
 
-### Phase 4: Additional Improvements
+### Phase 4: Socket Error Handling Improvements
 
--   [x] Improve HTTP exception handling to differentiate between client (4xx) and server (5xx) errors
--   [x] Fix NoneType errors in container processing to reduce error logs
--   [x] Move WebSocket connection/disconnection logs to DEBUG level
--   [x] Set engineio.server logger to WARNING level to reduce Socket.IO logs
--   [x] Add more context to error logs for better troubleshooting
+-   [x] Enhance SocketErrorFilter to handle more socket-related errors
+-   [x] Apply SocketErrorFilter to engineio.server logger
+-   [x] Add try-except blocks around socket.io emit calls
+-   [x] Remove problematic code causing unnecessary socket errors
+-   [x] Improve WebSocket connection management
+-   [x] Create comprehensive documentation on logging and socket handling
 
-### Phase 5: Final Optimizations
+### Phase 5: NoneType Error Handling Improvements
 
--   [x] Move 404 errors to DEBUG level to reduce log volume from common not-found requests
--   [x] Add better error handling in \_emit_container_state method to prevent NoneType errors
--   [x] Improve \_extract_compose_info method to handle None labels
--   [x] Add type checking for container_info to prevent attribute errors
+-   [x] Add special handling for deleted containers
+-   [x] Implement container not found handling
+-   [x] Add null-safe data access throughout the codebase
+-   [x] Implement type checking for container attributes
+-   [x] Classify errors to log common errors at DEBUG level
+-   [x] Update documentation with defensive programming practices
 
-### Phase 6: Advanced Error Handling
+### Phase 6: Advanced Socket Error Suppression
 
--   [x] Add SocketErrorFilter to suppress socket shutdown errors
--   [x] Fix "Working outside of request context" error in log streaming
--   [x] Capture request context values before starting background tasks
--   [x] Improve error handling in background tasks
+-   [x] Enhance SocketErrorFilter with more comprehensive pattern matching
+-   [x] Apply SocketErrorFilter to root logger to catch propagated errors
+-   [x] Configure socketio.server logger with error filtering
+-   [x] Create custom gunicorn configuration with socket error filtering
+-   [x] Update docker-compose.yml to use custom gunicorn configuration
+-   [x] Update documentation with gunicorn configuration details
+
+## Socket Error Handling Details
+
+### Problems Identified
+
+1. **Socket Shutdown Errors**: Numerous "socket shutdown error: [Errno 9] Bad file descriptor" messages in logs
+2. **Missing Error Handling**: Socket.IO emit calls not wrapped in try-except blocks
+3. **Incomplete Filter Application**: SocketErrorFilter not applied to engineio.server logger
+4. **Problematic Code**: `simulate_disconnect` call causing unnecessary errors
+
+### Solutions Implemented
+
+1. **Enhanced SocketErrorFilter**:
+
+    - Expanded to filter multiple types of socket-related errors
+    - Applied to all loggers including engineio.server, socketio.server, and root logger
+    - Added more comprehensive pattern matching for socket-related errors
+    - Added filtering based on logger name for routine socket messages
+
+2. **Graceful Socket Error Handling**:
+
+    - Added try-except blocks around socket.io emit calls
+    - Log socket errors at DEBUG level instead of ERROR
+    - Prevent socket errors from disrupting application flow
+
+3. **Code Improvements**:
+
+    - Removed the `simulate_disconnect` call
+    - Improved WebSocket connection management
+    - Better cleanup of resources when connections are closed
+
+4. **Logger Configuration Updates**:
+
+    - Set engineio.server and socketio.server loggers to ERROR level
+    - Added SocketErrorFilter to root logger to catch propagated errors
+    - Created custom gunicorn configuration with socket error filtering
+
+5. **Gunicorn Configuration**:
+
+    - Created custom gunicorn_config.py with socket error filtering
+    - Set gunicorn log level to WARNING
+    - Added custom SocketErrorFilter to gunicorn loggers
+    - Updated docker-compose.yml to use custom configuration
+
+6. **Documentation**:
+    - Created LOGGING.md with comprehensive documentation
+    - Added socket.io best practices
+    - Documented logging architecture and error handling approach
+    - Added gunicorn configuration details
+
+## NoneType Error Handling Details
+
+### Problems Identified
+
+1. **Container Deletion Errors**: Errors when trying to access attributes of deleted containers
+2. **Race Conditions**: Errors when container state changes during processing
+3. **Missing Null Checks**: Code assuming objects and attributes always exist
+4. **Unsafe Dictionary Access**: Direct dictionary access without using .get() with defaults
+5. **Missing Type Checking**: Code assuming objects are always of expected type
+
+### Solutions Implemented
+
+1. **Special Case for Deleted Containers**:
+
+    - Added dedicated handling for "deleted" state
+    - Skip container fetching for deleted containers
+    - Emit minimal state change with just ID and state
+
+2. **Container Not Found Handling**:
+
+    - Added try-except for docker.errors.NotFound
+    - Emit minimal state change when container not found
+    - Log at DEBUG level instead of ERROR
+
+3. **Null-Safe Data Access**:
+
+    - Added null checks before accessing attributes
+    - Use safe fallbacks for all container data
+    - Ensure all dictionary access uses .get() with defaults
+
+4. **Type Checking**:
+
+    - Added isinstance() checks before accessing attributes
+    - Provide default values when expected types not found
+    - Handle edge cases gracefully
+
+5. **Error Classification**:
+    - Log common errors at DEBUG level
+    - Only log unexpected errors at ERROR level
+    - Add more context to error logs
+
+## Results
+
+The implemented changes have significantly reduced log noise from socket-related errors and NoneType errors while maintaining important diagnostic information. The application now handles socket disconnections and container state changes gracefully without flooding the logs with expected error messages.
 
 ## Progress Tracking
 
@@ -79,9 +181,9 @@ After reviewing the codebase, we've identified the following key components of t
 -   Phase 1 completed: Configuration changes implemented
 -   Phase 2 completed: Code changes implemented
 -   Phase 3 completed: Testing and validation completed
--   Phase 4 completed: Additional improvements implemented
--   Phase 5 completed: Final optimizations implemented
--   Phase 6 completed: Advanced error handling implemented
+-   Phase 4 completed: Socket error handling improvements implemented
+-   Phase 5 completed: NoneType error handling improvements implemented
+-   Phase 6 completed: Advanced socket error suppression implemented
 -   All tasks completed successfully
 
 ### Results

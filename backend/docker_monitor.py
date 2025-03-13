@@ -575,11 +575,6 @@ class FlaskApp:
                     room=request.sid,
                 )
 
-                # Simulate abrupt disconnect by calling emit which raises an exception
-                self.socketio.emit(
-                    "simulate_disconnect", {"message": "Simulating disconnect"}
-                )
-
                 # Get initial container states - this will be the only batch update
                 # After this, all updates will be push-based through Docker events
                 containers, error = self.docker_service.get_all_containers()
@@ -610,19 +605,30 @@ class FlaskApp:
                             "sid": request.sid,
                         },
                     )
-                    self.socketio.emit(
-                        "initial_state",
-                        {"containers": container_states},
-                        room=request.sid,  # Use room consistently
-                    )
-                    logger.debug(
-                        "Sent initial container states",
-                        extra={
-                            "event": "initial_state_sent",
-                            "container_count": len(container_states),
-                            "sid": request.sid,
-                        },
-                    )
+
+                    # Wrap socket.io emit in try-except to handle potential socket errors
+                    try:
+                        self.socketio.emit(
+                            "initial_state",
+                            {"containers": container_states},
+                            room=request.sid,  # Use room consistently
+                        )
+                        logger.debug(
+                            "Sent initial container states",
+                            extra={
+                                "event": "initial_state_sent",
+                                "container_count": len(container_states),
+                                "sid": request.sid,
+                            },
+                        )
+                    except Exception as e:
+                        logger.debug(
+                            f"Failed to send initial state due to socket error: {str(e)}",
+                            extra={
+                                "event": "socket_error",
+                                "sid": request.sid,
+                            },
+                        )
                 else:
                     error_msg = error or "Failed to get initial container states"
                     logger.error(
@@ -633,11 +639,20 @@ class FlaskApp:
                             "sid": request.sid,
                         },
                     )
-                    self.socketio.emit(
-                        "error",
-                        {"message": error_msg},
-                        room=request.sid,
-                    )
+                    try:
+                        self.socketio.emit(
+                            "error",
+                            {"message": error_msg},
+                            room=request.sid,
+                        )
+                    except Exception as e:
+                        logger.debug(
+                            f"Failed to send error message due to socket error: {str(e)}",
+                            extra={
+                                "event": "socket_error",
+                                "sid": request.sid,
+                            },
+                        )
 
                 return True  # Explicitly accept the connection
 
@@ -716,11 +731,20 @@ class FlaskApp:
                             "sid": request.sid,
                         },
                     )
-                    self.socketio.emit(
-                        "error",
-                        {"error": "Input must be a dictionary"},
-                        room=request.sid,
-                    )
+                    try:
+                        self.socketio.emit(
+                            "error",
+                            {"error": "Input must be a dictionary"},
+                            room=request.sid,
+                        )
+                    except Exception as e:
+                        logger.debug(
+                            f"Failed to send error message due to socket error: {str(e)}",
+                            extra={
+                                "event": "socket_error",
+                                "sid": request.sid,
+                            },
+                        )
                     return
 
                 container_id = data.get("container_id")
@@ -734,11 +758,20 @@ class FlaskApp:
                             "sid": request.sid,
                         },
                     )
-                    self.socketio.emit(
-                        "error",
-                        {"error": "Container ID is required"},
-                        room=request.sid,
-                    )
+                    try:
+                        self.socketio.emit(
+                            "error",
+                            {"error": "Container ID is required"},
+                            room=request.sid,
+                        )
+                    except Exception as e:
+                        logger.debug(
+                            f"Failed to send error message due to socket error: {str(e)}",
+                            extra={
+                                "event": "socket_error",
+                                "sid": request.sid,
+                            },
+                        )
                     return
 
                 logger.info(
@@ -784,11 +817,21 @@ class FlaskApp:
                             return
 
                         if initial_logs:
-                            self.socketio.emit(
-                                "log_update",
-                                {"container_id": container_id, "log": initial_logs},
-                                room=sid,
-                            )
+                            try:
+                                self.socketio.emit(
+                                    "log_update",
+                                    {"container_id": container_id, "log": initial_logs},
+                                    room=sid,
+                                )
+                            except Exception as e:
+                                logger.debug(
+                                    f"Failed to send initial logs due to socket error: {str(e)}",
+                                    extra={
+                                        "event": "socket_error",
+                                        "sid": sid,
+                                    },
+                                )
+                                return
 
                         last_log_time = None
                         if initial_logs:
@@ -831,12 +874,23 @@ class FlaskApp:
                                     )
                                     break
                                 # Send the log line to the client without logging each line
-                                self.socketio.emit(
-                                    "log_update",
-                                    {"container_id": container_id, "log": log_line},
-                                    room=sid,
-                                )
-                                log_count += 1
+                                try:
+                                    self.socketio.emit(
+                                        "log_update",
+                                        {"container_id": container_id, "log": log_line},
+                                        room=sid,
+                                    )
+                                    log_count += 1
+                                except Exception as e:
+                                    logger.debug(
+                                        f"Failed to send log update due to socket error: {str(e)}",
+                                        extra={
+                                            "event": "socket_error",
+                                            "sid": sid,
+                                        },
+                                    )
+                                    # Break the loop if we can't send to this client anymore
+                                    break
 
                                 # Optionally log a summary every 1000 lines
                                 if log_count % 1000 == 0:
@@ -870,11 +924,20 @@ class FlaskApp:
                                     "sid": sid,
                                 },
                             )
-                            self.socketio.emit(
-                                "error",
-                                {"error": "Failed to get container logs"},
-                                room=sid,
-                            )
+                            try:
+                                self.socketio.emit(
+                                    "error",
+                                    {"error": "Failed to get container logs"},
+                                    room=sid,
+                                )
+                            except Exception as e:
+                                logger.debug(
+                                    f"Failed to send error message due to socket error: {str(e)}",
+                                    extra={
+                                        "event": "socket_error",
+                                        "sid": sid,
+                                    },
+                                )
 
                         # Clean up stream key when done
                         if stream_key in self.active_streams:
@@ -966,11 +1029,20 @@ class FlaskApp:
                 if stream_key in self.active_streams:
                     self.active_streams[stream_key] = True  # True means stop
 
-                self.socketio.emit(
-                    "log_stream_stopped",
-                    {"container_id": container_id, "message": "Log stream stopped"},
-                    room=request.sid,
-                )
+                try:
+                    self.socketio.emit(
+                        "log_stream_stopped",
+                        {"container_id": container_id, "message": "Log stream stopped"},
+                        room=request.sid,
+                    )
+                except Exception as e:
+                    logger.debug(
+                        f"Failed to send log stream stopped message due to socket error: {str(e)}",
+                        extra={
+                            "event": "socket_error",
+                            "sid": request.sid,
+                        },
+                    )
 
             except Exception as e:
                 logger.error(
