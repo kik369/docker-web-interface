@@ -3,8 +3,8 @@ repos:
     hooks:
       - id: pytest
         name: Run Pytest with Coverage
-        entry: python -m pytest
+        entry: bash -c 'cd backend && python -m pytest'
         language: system
         types: [python]
-        args: ["--cov=backend", "--cov-report=term"]
+        args: ["--cov", "--cov-report=term"]
         pass_filenames: false
