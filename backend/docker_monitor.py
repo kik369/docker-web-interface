@@ -489,14 +489,41 @@ class FlaskApp:
         def handle_error(error: Exception) -> Response:
             """Handle exceptions."""
             if isinstance(error, HTTPException):
-                logger.error(
-                    "HTTP exception occurred",
-                    extra={
-                        "event": "http_error",
-                        "error": error.description,
-                        "code": error.code,
-                    },
-                )
+                # Log 5xx errors as ERROR, 4xx errors as WARNING, but 404s as DEBUG
+                if error.code >= 500:
+                    logger.error(
+                        f"Server error occurred: {error.description}",
+                        extra={
+                            "event": "http_error",
+                            "error": error.description,
+                            "code": error.code,
+                            "path": request.path if request else "unknown",
+                            "method": request.method if request else "unknown",
+                        },
+                    )
+                elif error.code == 404:
+                    # Log 404 errors at DEBUG level since they're very common
+                    logger.debug(
+                        f"Not found error: {error.description}",
+                        extra={
+                            "event": "http_not_found",
+                            "error": error.description,
+                            "code": error.code,
+                            "path": request.path if request else "unknown",
+                            "method": request.method if request else "unknown",
+                        },
+                    )
+                else:
+                    logger.warning(
+                        f"Client error occurred: {error.description}",
+                        extra={
+                            "event": "http_error",
+                            "error": error.description,
+                            "code": error.code,
+                            "path": request.path if request else "unknown",
+                            "method": request.method if request else "unknown",
+                        },
+                    )
                 return self.error_response(error.description, status_code=error.code)
 
             logger.error(
@@ -518,7 +545,8 @@ class FlaskApp:
                 # Generate a unique request ID for WebSocket connections
                 request_id = request.headers.get("X-Request-ID") or set_request_id()
 
-                logger.info(
+                # Log at DEBUG level for routine connections
+                logger.debug(
                     "WebSocket client connected",
                     extra={
                         "event": "websocket_connect",
@@ -527,6 +555,18 @@ class FlaskApp:
                         "request_id": request_id,
                     },
                 )
+
+                # Only log at INFO level for non-routine connections (e.g., admin users)
+                if request.args.get("admin") == "true":
+                    logger.info(
+                        "Admin WebSocket client connected",
+                        extra={
+                            "event": "admin_websocket_connect",
+                            "client": request.remote_addr,
+                            "sid": request.sid,
+                            "request_id": request_id,
+                        },
+                    )
 
                 # Send connection acknowledgment
                 self.socketio.emit(
@@ -615,7 +655,8 @@ class FlaskApp:
         @self.socketio.on("disconnect")
         def handle_disconnect(reason):
             try:
-                logger.info(
+                # Log at DEBUG level for routine disconnections
+                logger.debug(
                     "Client disconnected from WebSocket",
                     extra={
                         "event": "websocket_disconnect",
@@ -624,6 +665,18 @@ class FlaskApp:
                         "reason": reason,
                     },
                 )
+
+                # Only log at INFO level for admin disconnections
+                if hasattr(request, "args") and request.args.get("admin") == "true":
+                    logger.info(
+                        "Admin client disconnected from WebSocket",
+                        extra={
+                            "event": "admin_websocket_disconnect",
+                            "client": request.remote_addr,
+                            "sid": request.sid,
+                            "reason": reason,
+                        },
+                    )
             except Exception:
                 logger.exception(  # Improved logging for disconnect errors
                     "Error in WebSocket disconnect handler",

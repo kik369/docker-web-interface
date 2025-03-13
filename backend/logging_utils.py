@@ -217,7 +217,7 @@ def setup_logging():
     root_logger.addHandler(file_handler)
 
     # Configure specific loggers
-    loggers = ["docker_service", "docker_monitor", "engineio.server"]
+    loggers = ["docker_service", "docker_monitor"]
     for logger_name in loggers:
         logger = logging.getLogger(logger_name)
         # Remove any existing handlers
@@ -229,3 +229,13 @@ def setup_logging():
         logger.addFilter(RequestIdFilter())
         logger.propagate = False  # Prevent duplicate logs
         logger.setLevel(logging.INFO)
+
+    # Set engineio.server logger to WARNING level to reduce WebSocket logs
+    engineio_logger = logging.getLogger("engineio.server")
+    for h in engineio_logger.handlers[:]:
+        engineio_logger.removeHandler(h)
+    engineio_logger.addHandler(console_handler)
+    engineio_logger.addHandler(file_handler)
+    engineio_logger.addFilter(RequestIdFilter())
+    engineio_logger.propagate = False
+    engineio_logger.setLevel(logging.WARNING)

@@ -48,6 +48,21 @@ After reviewing the codebase, we've identified the following key components of t
 -   [x] Ensure critical error logs and troubleshooting data are preserved
 -   [x] Verify application functionality is unaffected
 
+### Phase 4: Additional Improvements
+
+-   [x] Improve HTTP exception handling to differentiate between client (4xx) and server (5xx) errors
+-   [x] Fix NoneType errors in container processing to reduce error logs
+-   [x] Move WebSocket connection/disconnection logs to DEBUG level
+-   [x] Set engineio.server logger to WARNING level to reduce Socket.IO logs
+-   [x] Add more context to error logs for better troubleshooting
+
+### Phase 5: Final Optimizations
+
+-   [x] Move 404 errors to DEBUG level to reduce log volume from common not-found requests
+-   [x] Add better error handling in \_emit_container_state method to prevent NoneType errors
+-   [x] Improve \_extract_compose_info method to handle None labels
+-   [x] Add type checking for container_info to prevent attribute errors
+
 ## Progress Tracking
 
 ### Current Status
@@ -57,6 +72,8 @@ After reviewing the codebase, we've identified the following key components of t
 -   Phase 1 completed: Configuration changes implemented
 -   Phase 2 completed: Code changes implemented
 -   Phase 3 completed: Testing and validation completed
+-   Phase 4 completed: Additional improvements implemented
+-   Phase 5 completed: Final optimizations implemented
 -   All tasks completed successfully
 
 ### Results
@@ -125,8 +142,38 @@ Updated environment variables in docker-compose.yml:
     - Added more structured logging with extra context
 
 5. **WebSocket Connection Management**:
+
     - Reduced verbosity of connection logging
     - Moved routine connection events to DEBUG level
+
+6. **HTTP Exception Handling**:
+
+    - Differentiated between client (4xx) and server (5xx) errors
+    - Added more context to error logs for better troubleshooting
+    - Improved error messages with request path and method information
+
+7. **Container Processing Error Handling**:
+
+    - Added better error handling for NoneType errors
+    - Moved common errors to DEBUG level
+    - Added more context to error logs for better troubleshooting
+
+8. **Socket.IO Logging**:
+
+    - Set engineio.server logger to WARNING level
+    - Eliminated routine WebSocket packet logs
+
+9. **404 Error Handling**:
+
+    - Moved 404 errors to DEBUG level
+    - Added more context to not-found errors
+    - Reduced log volume from common not-found requests
+
+10. **NoneType Error Prevention**:
+    - Added type checking for container_info
+    - Improved \_extract_compose_info method to handle None labels
+    - Added better error handling in \_emit_container_state method
+    - Moved common errors to DEBUG level
 
 ### Test Fixes
 
@@ -145,12 +192,20 @@ The most significant sources of log volume were:
 
 3. **API Request Logging**: Every HTTP request was being logged twice (start and end) with detailed information.
 
+4. **Socket.IO Communication**: All WebSocket packets were being logged at INFO level, creating high volume for active connections.
+
+5. **HTTP Exceptions**: All HTTP exceptions were being logged at ERROR level, regardless of severity.
+
+6. **Container Processing Errors**: Common errors during container processing were generating high volumes of ERROR logs.
+
 By addressing these key areas, we've seen a significant reduction in log volume while maintaining important diagnostic information. The application now primarily logs:
 
 -   Significant container state changes (created, running, stopped, deleted)
 -   Slow or important API requests
 -   Errors and warnings
 -   Summary information instead of per-line details
+-   Server errors (5xx) at ERROR level and client errors (4xx) at WARNING level
+-   Common errors like 404s and NoneType errors at DEBUG level
 
 This approach provides a better signal-to-noise ratio in the logs, making it easier to identify and troubleshoot issues.
 
