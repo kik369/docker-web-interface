@@ -1,6 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ReactDOM from 'react-dom';
-import { SearchBar } from './SearchBar';
 import { IconBaseProps } from 'react-icons';
 import { HiTrash, HiExternalLink, HiOutlineTemplate } from 'react-icons/hi';
 import { useImages } from '../hooks/useImages';

@@ -33,23 +33,6 @@ let activeSubscriptions = 0;
 let isInitializing = false;
 let globalHandlers: Set<UseWebSocketProps> = new Set();
 
-// Debounce function to prevent too many re-renders
-const useDebounce = <T>(value: T, delay: number): T => {
-    const [debouncedValue, setDebouncedValue] = useState<T>(value);
-
-    useEffect(() => {
-        const handler = setTimeout(() => {
-            setDebouncedValue(value);
-        }, delay);
-
-        return () => {
-            clearTimeout(handler);
-        };
-    }, [value, delay]);
-
-    return debouncedValue;
-};
-
 const initializeSocket = () => {
     if (globalSocket || isInitializing) return;
 
