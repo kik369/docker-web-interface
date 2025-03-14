@@ -62,7 +62,7 @@ export const ShortcutsModal: React.FC<ShortcutsModalProps> = ({ isOpen, onClose 
                             {shortcuts.map((shortcut, index) => (
                                 <tr key={index} className={index === 0 ? "" : "border-t border-gray-700"}>
                                     <td className="py-2 w-1/3">
-                                        <span className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white">
+                                        <span className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-sm text-white font-mono">
                                             {shortcut.keys}
                                         </span>
                                     </td>

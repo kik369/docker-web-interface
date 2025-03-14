@@ -10,14 +10,6 @@ from typing import Any, Dict, Optional
 
 from flask import g, request
 
-try:
-    # For Docker environment
-    from config import Config
-    from logging_utils import get_request_id
-except ImportError:
-    # For local development
-    pass
-
 # Context variables to store request and operation information
 request_id_var: ContextVar[str] = ContextVar("request_id", default="")
 user_context_var: ContextVar[Dict[str, Any]] = ContextVar("user_context", default={})
@@ -327,12 +319,11 @@ class SocketErrorFilter(logging.Filter):
 def get_request_id() -> str:
     """Get the current request ID or generate a new one."""
     try:
-        return g.request_id  # Try Flask g first
-    except (RuntimeError, AttributeError):
-        try:
-            return request_id_var.get()  # Fall back to context var
-        except LookupError:
-            return str(uuid.uuid4())  # Generate new as last resort
+        return request_id_var.get()
+    except LookupError:
+        new_id = str(uuid.uuid4())
+        request_id_var.set(new_id)
+        return new_id
 
 
 def set_request_id(request_id: Optional[str] = None) -> str:
