@@ -29,6 +29,10 @@ services:
                       - 'requirements.txt'
                 - action: rebuild
                   path: ./backend/requirements.txt
+        restart: unless-stopped
+        dns:
+            - 8.8.8.8
+            - 8.8.4.4
 
     frontend:
         build:
@@ -60,3 +64,4 @@ services:
                   path: ./frontend/package.json
         depends_on:
             - backend
+        restart: unless-stopped
