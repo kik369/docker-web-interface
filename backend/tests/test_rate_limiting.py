@@ -18,17 +18,40 @@ class TestRateLimiting(unittest.TestCase):
         self.mock_docker_service = MagicMock()
         mock_docker_service.return_value = self.mock_docker_service
 
-        # Set up the mock return values properly
-        self.mock_docker_service.get_all_containers.return_value = ([], None)
+        # Set up the mock return values with properly formatted data
+        mock_container = {
+            "id": "test_container_id",
+            "name": "test_container",
+            "image": "test_image:latest",
+            "status": "running",
+            "state": "running",
+            "created": "2023-01-01T00:00:00",
+            "ports": "8080->80/tcp",
+            "compose_project": "test_project",
+            "compose_service": "test_service",
+        }
+        mock_image = {
+            "id": "sha256:test_image_id",
+            "tags": ["test:latest"],
+            "size": 10.0,
+            "created": "2023-01-01T00:00:00",
+            "repo_digests": ["test@sha256:digest"],
+            "parent_id": "sha256:parent_id",
+            "labels": {"maintainer": "test"},
+        }
+
+        self.mock_docker_service.get_all_containers.return_value = (
+            [mock_container],
+            None,
+        )
         self.mock_docker_service.get_container_logs.return_value = ("Test logs", None)
         self.mock_docker_service.start_container.return_value = (True, None)
         self.mock_docker_service.stop_container.return_value = (True, None)
         self.mock_docker_service.restart_container.return_value = (True, None)
         self.mock_docker_service.delete_container.return_value = (True, None)
-        self.mock_docker_service.get_all_images.return_value = ([], None)
-
-        # Add this important mock for test_rate_limit_different_endpoints
-        self.mock_docker_service.format_image_data = MagicMock(return_value=[])
+        self.mock_docker_service.get_all_images.return_value = ([mock_image], None)
+        self.mock_docker_service.format_container_data = lambda containers: containers
+        self.mock_docker_service.format_image_data = lambda images: images
 
         self.app_instance.docker_service = self.mock_docker_service
 

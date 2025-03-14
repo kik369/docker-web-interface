@@ -1,5 +1,4 @@
 import logging
-import sqlite3
 import sys
 from datetime import datetime, timedelta, timezone
 from functools import wraps
@@ -36,18 +35,6 @@ from werkzeug.exceptions import HTTPException
 # Configure logging
 setup_logging()
 logger = logging.getLogger(__name__)
-
-
-def error_response(message, status_code=400):
-    """Return an error response."""
-    response = jsonify({"status": "error", "error": message})
-    response.status_code = status_code
-    return response
-
-
-def success_response(data):
-    """Return a success response."""
-    return jsonify({"status": "success", "data": data})
 
 
 class FlaskApp:
@@ -105,50 +92,15 @@ class FlaskApp:
         # Track active log streams
         self.active_streams = {}
 
-        # Initialize SQLite database
-        self.init_db()
-
-    def init_db(self):
-        """Initialize the SQLite database."""
-        self.db_connection = sqlite3.connect(
-            "resource_usage.db", check_same_thread=False
-        )
-        self.db_cursor = self.db_connection.cursor()
-        self.db_cursor.execute("""
-            CREATE TABLE IF NOT EXISTS cpu_stats (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                container_id TEXT,
-                cpu_percent REAL,
-                timestamp TEXT
-            )
-        """)
-        self.db_connection.commit()
-
-    # Add class method versions of the global functions for testing
     def error_response(self, message, status_code=400):
-        """Return an error response (class method version)."""
-        return error_response(message, status_code)
+        """Return an error response."""
+        response = jsonify({"status": "error", "error": message})
+        response.status_code = status_code
+        return response
 
     def success_response(self, data):
-        """Return a success response (class method version)."""
-        return success_response(data)
-
-    def format_container_data(self, containers):
-        """Format container data for API response."""
-        return [
-            {
-                "id": container.id,
-                "name": container.name,
-                "image": container.image,
-                "status": container.status,
-                "state": container.state,
-                "created": container.created.isoformat() if container.created else None,
-                "ports": container.ports,
-                "compose_project": container.compose_project,
-                "compose_service": container.compose_service,
-            }
-            for container in containers
-        ]
+        """Return a success response."""
+        return jsonify({"status": "success", "data": data})
 
     def setup_routes(self):
         """Set up the Flask routes."""
@@ -165,17 +117,17 @@ class FlaskApp:
                 {"status": "Docker Web Interface API is running"}
             )
 
-        @self.app.route("/api/containers", endpoint="get_containers")
+        @self.app.route("/api/containers", endpoint="list_containers")
+        @self.rate_limit
         @log_request()
-        def get_containers():
-            """Get all containers."""
-            if self.is_rate_limited():
-                return self.error_response("Rate limit exceeded", 429)
-
+        def list_containers() -> Response:
+            """List all containers."""
             containers, error = self.docker_service.get_all_containers()
             if error:
-                return self.error_response(f"Error getting containers: {error}")
-            return self.success_response(self.format_container_data(containers))
+                return self.error_response(error)
+            return self.success_response(
+                self.docker_service.format_container_data(containers)
+            )
 
         @self.app.route(
             "/api/containers/<container_id>/logs", endpoint="get_container_logs"
@@ -183,33 +135,10 @@ class FlaskApp:
         @self.rate_limit
         @log_request()
         def get_container_logs(container_id: str) -> Response:
-            logger.info(
-                "Received request to fetch container logs",
-                extra={
-                    "event": "fetch_container_logs",
-                    "container_id": container_id,
-                },
-            )
+            """Get logs for a specific container."""
             logs, error = self.docker_service.get_container_logs(container_id)
-
             if error:
-                logger.error(
-                    "Error fetching container logs",
-                    extra={
-                        "event": "fetch_container_logs_error",
-                        "container_id": container_id,
-                        "error": error,
-                    },
-                )
                 return self.error_response(error)
-
-            logger.info(
-                "Successfully fetched container logs",
-                extra={
-                    "event": "fetch_container_logs_success",
-                    "container_id": container_id,
-                },
-            )
             return self.success_response({"logs": logs})
 
         @self.app.route(

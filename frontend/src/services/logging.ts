@@ -110,29 +110,10 @@ class LoggingService {
             this.sendToBackend(event);
         }
     }
-
-    // Performance monitoring
-    public logPerformance(label: string, duration: number): void {
-        const event = this.formatLogEvent(LogLevel.INFO, `Performance: ${label}`, {
-            duration,
-            metric: 'performance',
-            label
-        });
-        this.sendToBackend(event);
-    }
 }
 
 // Create and export singleton instance
 export const logger = LoggingService.getInstance();
-
-// Performance monitoring utility
-export const measurePerformance = (label: string) => {
-    const start = performance.now();
-    return () => {
-        const duration = performance.now() - start;
-        logger.logPerformance(label, duration);
-    };
-};
 
 // Error boundary helper
 export const logError = (error: Error, errorInfo: React.ErrorInfo) => {

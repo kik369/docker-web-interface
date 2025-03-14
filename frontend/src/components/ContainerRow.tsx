@@ -4,12 +4,11 @@ import ReactDOM from 'react-dom';
 import { IconBaseProps } from 'react-icons';
 import { HiDocument, HiPlay, HiStop, HiRefresh, HiCog, HiTrash } from 'react-icons/hi';
 import { HiOutlineInformationCircle, HiOutlineDesktopComputer, HiOutlineServer } from 'react-icons/hi';
-import { HiOutlineTemplate, HiOutlineStatusOnline, HiOutlineChartBar } from 'react-icons/hi';
+import { HiOutlineTemplate, HiOutlineStatusOnline } from 'react-icons/hi';
 import { ContainerRowProps } from '../types/docker';
 import { logger } from '../services/logging';
 import { config } from '../config';
 import { useWebSocket } from '../hooks/useWebSocket';
-import { ContainerCpuStats } from './ContainerCpuStats';
 
 // Create wrapper components for icons
 const DocumentIcon: React.FC<IconBaseProps> = (props): React.JSX.Element => (
@@ -292,7 +291,6 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
             return false;
         }
     });
-    const [showCpuStats, setShowCpuStats] = useState<boolean>(false);
     const [isLoadingLogs, setIsLoadingLogs] = React.useState(false);
     const [isStreamActive, setIsStreamActive] = React.useState(false);
     const showLogsRef = useRef(showLogs);
@@ -493,54 +491,6 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                             Show Logs
                         </button>
                         <button
-                            onClick={() => setShowCpuStats(!showCpuStats)}
-                            className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white hover:bg-gray-600 transition-colors"
-                            disabled={container.state !== 'running'}
-                            title={container.state === 'running' ? "Show CPU usage" : "Container must be running to show CPU usage"}
-                        >
-                            <HiOutlineChartBar className="w-4 h-4 mr-1 text-blue-400" />
-                            {showCpuStats ? 'Hide CPU' : 'Show CPU'}
-                        </button>
-                        {isContainerRunning ? (
-                            <button
-                                onClick={() => handleAction('stop')}
-                                className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white hover:bg-gray-600 transition-colors"
-                                disabled={actionInProgress !== null}
-                                title={`Stop container (docker stop ${container.name})`}
-                            >
-                                <StopIcon className={`w-4 h-4 mr-1 text-red-400 ${actionInProgress === 'stop' ? 'animate-pulse' : ''}`} />
-                                Stop
-                            </button>
-                        ) : (
-                            <button
-                                onClick={() => handleAction('start')}
-                                className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white hover:bg-gray-600 transition-colors"
-                                disabled={actionInProgress !== null}
-                                title={`Start container (docker start ${container.name})`}
-                            >
-                                <PlayIcon className={`w-4 h-4 mr-1 text-green-400 ${actionInProgress === 'start' ? 'animate-pulse' : ''}`} />
-                                Start
-                            </button>
-                        )}
-                        <button
-                            onClick={() => handleAction('restart')}
-                            className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white hover:bg-gray-600 transition-colors"
-                            disabled={actionInProgress !== null}
-                            title={`Restart container (docker restart ${container.name})`}
-                        >
-                            <RefreshIcon className={`w-4 h-4 mr-1 text-blue-400 ${actionInProgress === 'restart' ? 'animate-pulse' : ''}`} />
-                            Restart
-                        </button>
-                        <button
-                            onClick={() => handleAction('rebuild')}
-                            className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white hover:bg-gray-600 transition-colors"
-                            disabled={actionInProgress !== null}
-                            title={`Rebuild container (docker pull ${container.image} && docker run ...)`}
-                        >
-                            <CogIcon className={`w-4 h-4 mr-1 text-purple-400 ${actionInProgress === 'rebuild' ? 'animate-pulse' : ''}`} />
-                            Rebuild
-                        </button>
-                        <button
                             onClick={() => handleAction('delete')}
                             className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white hover:bg-gray-600 transition-colors"
                             disabled={actionInProgress !== null}
@@ -583,13 +533,6 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                     containerId={container.id}
                     onClose={handleCloseLogs}
                     isStreamActive={isStreamActive}
-                />
-            )}
-
-            {showCpuStats && (
-                <ContainerCpuStats
-                    containerId={container.id}
-                    isVisible={showCpuStats}
                 />
             )}
         </div>

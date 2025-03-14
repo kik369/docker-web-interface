@@ -1,5 +1,4 @@
 import logging
-import sqlite3
 import threading
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -51,26 +50,9 @@ class DockerService:
             self._stop_event = threading.Event()
             self.request_counts = {}
             self.current_rate_limit = 100  # or whatever limit is appropriate
-            self.init_db()
         except Exception as e:
             logger.error(f"Failed to initialize Docker client: {e}")
             raise
-
-    def init_db(self):
-        """Initialize the SQLite database."""
-        self.db_connection = sqlite3.connect(
-            "resource_usage.db", check_same_thread=False
-        )
-        self.db_cursor = self.db_connection.cursor()
-        self.db_cursor.execute("""
-            CREATE TABLE IF NOT EXISTS cpu_stats (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                container_id TEXT,
-                cpu_percent REAL,
-                timestamp TEXT
-            )
-        """)
-        self.db_connection.commit()
 
     def get_current_minute(self):
         # Use datetime.now() for a naive local timestamp to match test keys
@@ -908,55 +890,3 @@ class DockerService:
             self._stop_event.set()
             self._event_thread.join(timeout=5)
             logger.info("Stopped Docker events subscription thread")
-
-    def get_container_cpu_stats(
-        self, container_id: str
-    ) -> Tuple[Optional[dict], Optional[str]]:
-        """Get CPU stats for a specific container."""
-        try:
-            container = self.client.containers.get(container_id)
-
-            # Container must be running to get stats
-            if container.attrs.get("State", {}).get("Status") != "running":
-                return {"cpu_percent": 0, "status": "not running"}, None
-
-            # Get stats with stream=False to get a single stats object
-            stats = container.stats(stream=False)
-
-            # Calculate CPU percentage
-            cpu_delta = stats.get("cpu_stats", {}).get("cpu_usage", {}).get(
-                "total_usage", 0
-            ) - stats.get("precpu_stats", {}).get("cpu_usage", {}).get("total_usage", 0)
-            system_delta = stats.get("cpu_stats", {}).get(
-                "system_cpu_usage", 0
-            ) - stats.get("precpu_stats", {}).get("system_cpu_usage", 0)
-            num_cpus = stats.get("cpu_stats", {}).get("online_cpus", 1)
-
-            # Avoid division by zero
-            cpu_percent = 0.0
-            if system_delta > 0:
-                cpu_percent = (cpu_delta / system_delta) * num_cpus * 100.0
-
-            # Store CPU stats in SQLite database
-            self.db_cursor.execute(
-                "INSERT INTO cpu_stats (container_id, cpu_percent, timestamp) VALUES (?, ?, ?)",
-                (
-                    container_id,
-                    round(cpu_percent, 2),
-                    datetime.now(timezone.utc).isoformat(),
-                ),
-            )
-            self.db_connection.commit()
-
-            return {
-                "cpu_percent": round(cpu_percent, 2),
-                "timestamp": datetime.now(timezone.utc).isoformat(),
-            }, None
-        except docker.errors.NotFound:
-            error_msg = f"Container {container_id} not found"
-            logger.error(error_msg)
-            return None, error_msg
-        except Exception as e:
-            error_msg = f"Failed to get container stats: {str(e)}"
-            logger.error(error_msg)
-            return None, error_msg

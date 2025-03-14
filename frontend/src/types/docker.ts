@@ -65,8 +65,3 @@ export interface ImageListProps {
     isLoading: boolean;
     error: string | null;
 }
-
-export interface CpuStats {
-    cpu_percent: number;
-    timestamp: string;
-}

@@ -350,16 +350,21 @@ class TestDockerMonitor:
             compose_service="test_service",
         )
 
-        # Create a FlaskApp instance to test its method directly
-        app_instance = FlaskApp()
-        formatted_data = app_instance.format_container_data([container])
+        # Use the docker_service instance to format the container data
+        formatted_data = flask_app.docker_service.format_container_data([container])
 
+        # Verify the formatted data
         assert len(formatted_data) == 1
-        assert formatted_data[0]["id"] == "test_container_id"
-        assert formatted_data[0]["name"] == "test_container"
-        assert formatted_data[0]["image"] == "test_image:latest"
-        assert formatted_data[0]["compose_project"] == "test_project"
-        assert formatted_data[0]["compose_service"] == "test_service"
+        container_data = formatted_data[0]
+        assert container_data["id"] == "test_container_id"
+        assert container_data["name"] == "test_container"
+        assert container_data["image"] == "test_image:latest"
+        assert container_data["status"] == "running"
+        assert container_data["state"] == "running"
+        assert container_data["created"] == datetime(2023, 1, 1).isoformat()
+        assert container_data["ports"] == "8080->80/tcp"
+        assert container_data["compose_project"] == "test_project"
+        assert container_data["compose_service"] == "test_service"
 
     def test_error_response(self, flask_app):
         """Test the error response helper function."""

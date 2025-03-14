@@ -208,138 +208,30 @@ class RequestIdFilter(logging.Filter):
         return True
 
 
-class ContextFilter(logging.Filter):
-    """Logging filter that adds context information to log records."""
-
-    def filter(self, record):
-        # Add request ID
-        record.request_id = request_id_var.get()
-
-        # Add timestamp and level if not present
-        if not hasattr(record, "timestamp"):
-            record.timestamp = datetime.now(timezone.utc).isoformat()
-        if not hasattr(record, "level"):
-            record.level = record.levelname
-
-        # Add context information as extra fields
-        if not hasattr(record, "extra"):
-            record.extra = {}
-
-        # Add user context
-        user_context = LogContext.get_user_context()
-        if user_context:
-            record.extra["user_context"] = user_context
-
-        # Add operation context
-        operation_context = LogContext.get_operation_context()
-        if operation_context:
-            record.extra["operation_context"] = operation_context
-
-        # Add performance metrics
-        performance_metrics = LogContext.get_performance_metrics()
-        if performance_metrics:
-            record.extra["performance_metrics"] = performance_metrics
-
-        # Add system context
-        system_context = LogContext.get_system_context()
-        if system_context:
-            record.extra["system_context"] = system_context
-
-        return True
-
-
 class SocketErrorFilter(logging.Filter):
-    """Logging filter that suppresses socket shutdown errors."""
+    """Filter out common socket shutdown errors that occur during normal operation."""
 
     def filter(self, record):
         # Check if the log message contains socket shutdown error
-        if hasattr(record, "msg"):
-            msg = str(record.msg) if not isinstance(record.msg, str) else record.msg
-
-            # Common socket errors to suppress
-            socket_errors = [
-                "socket shutdown error",
-                "Bad file descriptor",
-                "client disconnected",
-                "transport closed",
-                "connection already closed",
-                "Connection reset by peer",
-                "Broken pipe",
-                "Socket is closed",
-                "not open for writing",
-                "Socket closed",
-                "Client is gone",
-                "Invalid session",
-                "Unexpected packet",
-            ]
-
-            # Check for socket errors in both the message and any exception info
-            if hasattr(record, "exc_info") and record.exc_info:
-                exc_str = str(record.exc_info[1])
-                for error in socket_errors:
-                    if error.lower() in exc_str.lower():
-                        return False
-
-            # Check the message itself
-            msg_lower = msg.lower()
-            for error in socket_errors:
-                if error.lower() in msg_lower:
-                    return False
-
-            # Filter based on logger name and specific conditions
-            if hasattr(record, "name"):
-                if record.name in [
-                    "engineio.server",
-                    "socketio.server",
-                    "gunicorn.error",
-                ]:
-                    # Filter common socketio/engineio messages that aren't errors
-                    common_messages = [
-                        "Sending packet",
-                        "Received packet",
-                        "Socket connected",
-                        "Socket disconnected",
-                        "Client disconnected",
-                        "Transport closed",
-                    ]
-                    for message in common_messages:
-                        if message.lower() in msg_lower:
-                            return False
-
-                    # Filter socket.io specific error messages
-                    if "error" in msg_lower and any(
-                        err in msg_lower
-                        for err in ["socket", "transport", "connection"]
-                    ):
-                        return False
-
+        message = record.getMessage().lower()
+        if "socket shutdown" in message:
+            return False
         return True
 
 
 def get_request_id() -> str:
-    """Get the current request ID or generate a new one."""
+    """Get the current request ID."""
     try:
         return request_id_var.get()
     except LookupError:
-        new_id = str(uuid.uuid4())
-        request_id_var.set(new_id)
-        return new_id
+        return ""
 
 
 def set_request_id(request_id: Optional[str] = None) -> str:
     """Set the request ID for the current context."""
     if request_id is None:
         request_id = str(uuid.uuid4())
-
-    # Set in context var
     request_id_var.set(request_id)
-
-    # Try to set in Flask g if in request context
-    try:
-        g.request_id = request_id
-    except RuntimeError:
-        pass  # Not in a request context
-
     return request_id
 
 
@@ -556,10 +448,10 @@ def setup_logging(
     console_handler.addFilter(socket_error_filter)
     file_handler.addFilter(socket_error_filter)
 
-    # Add context filter to both handlers
-    context_filter = ContextFilter()
-    console_handler.addFilter(context_filter)
-    file_handler.addFilter(context_filter)
+    # Add RequestIdFilter to both handlers
+    request_id_filter = RequestIdFilter()
+    console_handler.addFilter(request_id_filter)
+    file_handler.addFilter(request_id_filter)
 
     # Configure root logger
     root_logger = logging.getLogger()
