@@ -329,51 +329,6 @@ class FlaskApp:
             )
             return self.success_response(response_data)
 
-        @self.app.route("/api/images/<image_id>/history", endpoint="get_image_history")
-        @self.rate_limit
-        @log_request()
-        def get_image_history(image_id: str) -> Response:
-            """Get the history of a specific Docker image."""
-            logger.info(
-                "Received request to fetch image history",
-                extra={
-                    "event": "fetch_image_history",
-                    "image_id": image_id,
-                },
-            )
-            history, error = self.docker_service.get_image_history(image_id)
-
-            if error:
-                logger.error(
-                    "Error fetching image history",
-                    extra={
-                        "event": "fetch_image_history_error",
-                        "image_id": image_id,
-                        "error": error,
-                    },
-                )
-                return self.error_response(error)
-
-            if history is None:
-                logger.error(
-                    "No history data returned",
-                    extra={
-                        "event": "fetch_image_history_error",
-                        "image_id": image_id,
-                        "error": "Failed to fetch image history",
-                    },
-                )
-                return self.error_response("Failed to fetch image history")
-
-            logger.info(
-                "Successfully fetched image history",
-                extra={
-                    "event": "fetch_image_history_success",
-                    "image_id": image_id,
-                },
-            )
-            return self.success_response({"history": history})
-
         @self.app.route(
             "/api/images/<image_id>", methods=["DELETE"], endpoint="delete_image"
         )

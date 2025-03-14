@@ -743,41 +743,6 @@ class DockerService:
             logger.error(error_msg)
             return False, error_msg
 
-    def get_image_history(
-        self, image_id: str
-    ) -> Tuple[Optional[List[dict]], Optional[str]]:
-        """Get the history of an image showing its layers."""
-        try:
-            logger.info(f"Fetching history for image: {image_id}")
-            image = self.client.images.get(image_id)
-            history = image.history()
-
-            # Process and format the history data
-            formatted_history = []
-            for layer in history:
-                formatted_layer = {
-                    "created": datetime.fromtimestamp(
-                        layer.get("Created", 0), timezone.utc
-                    ),
-                    "created_by": layer.get("CreatedBy", ""),
-                    "size": round(
-                        layer.get("Size", 0) / (1024 * 1024), 2
-                    ),  # Convert to MB
-                    "comment": layer.get("Comment", ""),
-                }
-                formatted_history.append(formatted_layer)
-
-            logger.info(f"Successfully fetched history for image: {image_id}")
-            return formatted_history, None
-        except docker.errors.ImageNotFound:
-            error_msg = f"Image {image_id} not found"
-            logger.error(error_msg)
-            return None, error_msg
-        except Exception as e:
-            error_msg = f"Failed to get image history: {str(e)}"
-            logger.error(error_msg)
-            return None, error_msg
-
     def format_image_data(self, images: List[Image]) -> List[dict]:
         """Format image data for API response."""
         return [

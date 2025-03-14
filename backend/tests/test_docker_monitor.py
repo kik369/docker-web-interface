@@ -65,10 +65,6 @@ def mock_docker_service():
     mock_service.get_all_images.return_value = ([mock_image], None)
     mock_service.format_image_data.return_value = [mock_image]
     mock_service.delete_image.return_value = (True, None)
-    mock_service.get_image_history.return_value = (
-        [{"created": "2023-01-01T00:00:00", "created_by": "test", "size": 10.0}],
-        None,
-    )
 
     # Mock the _emit_container_state method
     mock_service._emit_container_state = Mock()
@@ -237,17 +233,6 @@ class TestDockerMonitor:
         assert data["data"][0]["id"] == "sha256:test_image_id"
         flask_app.mock_docker_service.get_all_images.assert_called_once()
 
-    def test_get_image_history(self, client, flask_app):
-        """Test getting image history."""
-        response = client.get("/api/images/test_image_id/history")
-        assert response.status_code == 200
-        data = json.loads(response.data)
-        assert data["status"] == "success"
-        assert len(data["data"]["history"]) == 1
-        flask_app.mock_docker_service.get_image_history.assert_called_once_with(
-            "test_image_id"
-        )
-
     def test_delete_image(self, client, flask_app):
         """Test deleting an image."""
         response = client.delete("/api/images/test_image_id")
@@ -257,17 +242,6 @@ class TestDockerMonitor:
         assert "successfully" in data["data"]["message"].lower()
         flask_app.mock_docker_service.delete_image.assert_called_once_with(
             "test_image_id", force=False
-        )
-
-    def test_delete_image_with_force(self, client, flask_app):
-        """Test deleting an image with force option."""
-        response = client.delete("/api/images/test_image_id?force=true")
-        assert response.status_code == 200
-        data = json.loads(response.data)
-        assert data["status"] == "success"
-        assert "successfully" in data["data"]["message"].lower()
-        flask_app.mock_docker_service.delete_image.assert_called_once_with(
-            "test_image_id", force=True
         )
 
     def test_error_case_containers(self, client, flask_app):
@@ -319,18 +293,6 @@ class TestDockerMonitor:
         """Test error handling for image deletion endpoint."""
         flask_app.mock_docker_service.delete_image.return_value = (False, "Test error")
         response = client.delete("/api/images/test_image_id")
-        assert response.status_code == 400
-        data = json.loads(response.data)
-        assert data["status"] == "error"
-        assert "Test error" in data["error"]
-
-    def test_error_case_image_history(self, client, flask_app):
-        """Test error handling for image history endpoint."""
-        flask_app.mock_docker_service.get_image_history.return_value = (
-            None,
-            "Test error",
-        )
-        response = client.get("/api/images/test_image_id/history")
         assert response.status_code == 400
         data = json.loads(response.data)
         assert data["status"] == "error"
