@@ -27,6 +27,7 @@ const ErrorMessage = ({ message }: { message: string }) => (
 
 // Key for persisting expanded state in local storage
 const COMPOSE_GROUPS_STORAGE_KEY = 'dockerWebInterface_expandedComposeGroups';
+const EXPANDED_ROWS_STORAGE_KEY = 'dockerWebInterface_expandedRows';
 
 export const ContainerList = ({
     containers: initialContainers,
@@ -36,7 +37,15 @@ export const ContainerList = ({
 }: ContainerListProps) => {
     const { theme } = useTheme();
     const [localContainers, setLocalContainers] = useState<Container[]>(initialContainers);
-    const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+    const [expandedRows, setExpandedRows] = useState<Set<string>>(() => {
+        try {
+            const saved = localStorage.getItem(EXPANDED_ROWS_STORAGE_KEY);
+            return saved ? new Set(JSON.parse(saved)) : new Set();
+        } catch (err) {
+            console.error('Failed to load expanded rows from localStorage:', err);
+            return new Set();
+        }
+    });
     const [actionStates, setActionStates] = useState<Record<string, string | null>>({});
 
     // Store which Docker Compose groups are expanded
@@ -64,6 +73,15 @@ export const ContainerList = ({
             console.error('Failed to save expanded groups to localStorage:', err);
         }
     }, [expandedGroups]);
+
+    // Save expanded rows to localStorage whenever they change
+    useEffect(() => {
+        try {
+            localStorage.setItem(EXPANDED_ROWS_STORAGE_KEY, JSON.stringify(Array.from(expandedRows)));
+        } catch (err) {
+            console.error('Failed to save expanded rows to localStorage:', err);
+        }
+    }, [expandedRows]);
 
     // WebSocket setup for real-time updates
     useWebSocket({

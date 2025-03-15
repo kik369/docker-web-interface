@@ -33,17 +33,23 @@ let activeSubscriptions = 0;
 let isInitializing = false;
 let globalHandlers: Set<UseWebSocketProps> = new Set();
 
+// Moved outside the initializeSocket function to ensure they persist
+const logBuffers = new Map<string, string>();
+const pendingFlushes = new Set<string>();
+
 const initializeSocket = () => {
     if (globalSocket || isInitializing) return;
 
     isInitializing = true;
+    logger.info('Initializing WebSocket connection...');
+
     globalSocket = io(config.API_URL, {
         transports: ['websocket'],
         reconnection: true,
         reconnectionAttempts: Infinity,
         reconnectionDelay: 1000,
         reconnectionDelayMax: 5000,
-        timeout: 60000,  // Match server timeout
+        timeout: 60000,
         forceNew: false,
         autoConnect: true,
     });
@@ -88,21 +94,17 @@ const initializeSocket = () => {
 
     // Handle initial state
     globalSocket.on('initial_state', (data: { containers: ContainerState[] }) => {
-        logger.info('Received initial container states:', data);
+        logger.info(`Received initial container states: ${data.containers.length}`);
         globalHandlers.forEach(handler => handler.onInitialState?.(data.containers));
     });
 
-    // Add these variables before the globalSocket.on('log_update', ...) line
-    const logBuffers = new Map<string, string>();
-    const pendingFlushes = new Set<string>();
-
     // Handle log updates with improved buffering for more responsive streaming
     globalSocket.on('log_update', (data: { container_id: string; log: string }) => {
-        // Log the received update for debugging
+        // Enhanced logging to debug real-time updates
         logger.debug('Received log update:', {
             containerId: data.container_id,
             logLength: data.log.length,
-            logPreview: data.log.length > 50 ? data.log.substring(0, 50) + '...' : data.log
+            logSample: data.log.substring(0, 50) + (data.log.length > 50 ? '...' : '')
         });
 
         // Group log updates by container ID to minimize re-renders
@@ -115,14 +117,15 @@ const initializeSocket = () => {
         if (!pendingFlushes.has(containerId)) {
             pendingFlushes.add(containerId);
 
-            // Flush buffer after a very short delay - using a shorter delay for more responsive updates
+            // Use a shorter delay for more responsive updates
             setTimeout(() => {
                 const bufferToFlush = logBuffers.get(containerId) || '';
-                logBuffers.set(containerId, '');
-                pendingFlushes.delete(containerId);
+                if (bufferToFlush.length > 0) {
+                    // Clear the buffer right away before processing
+                    logBuffers.set(containerId, '');
+                    pendingFlushes.delete(containerId);
 
-                // Only notify handlers if there's something to flush
-                if (bufferToFlush) {
+                    // Log more details to help debug streaming issues
                     logger.debug('Flushing log buffer:', {
                         containerId,
                         bufferLength: bufferToFlush.length,
@@ -139,13 +142,15 @@ const initializeSocket = () => {
                             }
                         }
                     });
+                } else {
+                    // Buffer was empty, just clear the pending status
+                    pendingFlushes.delete(containerId);
                 }
-            }, 5); // Reduced from 10ms to 5ms for even more responsive updates
+            }, 5); // Ultra-responsive 5ms delay
         }
     });
 
     globalSocket.connect();
-    logger.info('Initializing WebSocket connection...');
 };
 
 export const useWebSocket = ({
@@ -155,19 +160,30 @@ export const useWebSocket = ({
     onError,
     enabled = true
 }: UseWebSocketProps) => {
+    // Create a handler ref to keep it stable between renders
     const handlers = useRef<UseWebSocketProps>({
         onLogUpdate,
         onContainerStateChange,
         onInitialState,
         onError
     });
+
     const [isConnected, setIsConnected] = useState(false);
+
+    // Update handlers when props change
+    useEffect(() => {
+        handlers.current = {
+            onLogUpdate,
+            onContainerStateChange,
+            onInitialState,
+            onError
+        };
+    }, [onLogUpdate, onContainerStateChange, onInitialState, onError]);
 
     useEffect(() => {
         if (!enabled) return;
 
-        // Update handlers ref
-        handlers.current = { onLogUpdate, onContainerStateChange, onInitialState, onError };
+        // Add the current handlers to the global set
         globalHandlers.add(handlers.current);
         activeSubscriptions++;
 
@@ -200,12 +216,24 @@ export const useWebSocket = ({
                 isInitializing = false;
             }
         };
-    }, [enabled, onLogUpdate, onContainerStateChange, onInitialState, onError]);
+    }, [enabled]);
 
     const startLogStream = useCallback((containerId: string) => {
         if (globalSocket && enabled) {
+            // Clear any existing buffer for this container
+            logBuffers.set(containerId, '');
+            if (pendingFlushes.has(containerId)) {
+                pendingFlushes.delete(containerId);
+            }
+
+            // Start the stream
             globalSocket.emit('start_log_stream', { container_id: containerId });
             logger.info('Started log stream for container', { containerId });
+        } else {
+            logger.warn('Cannot start log stream - socket not ready', {
+                socketExists: !!globalSocket,
+                enabled
+            });
         }
     }, [enabled]);
 
@@ -213,6 +241,12 @@ export const useWebSocket = ({
         if (globalSocket && enabled) {
             globalSocket.emit('stop_log_stream', { container_id: containerId });
             logger.info('Stopped log stream for container', { containerId });
+
+            // Clear any buffered logs for this container
+            logBuffers.set(containerId, '');
+            if (pendingFlushes.has(containerId)) {
+                pendingFlushes.delete(containerId);
+            }
         }
     }, [enabled]);
 

@@ -2,14 +2,14 @@
 import React, { useRef, useEffect, useCallback, useState, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import { IconBaseProps } from 'react-icons';
-import { HiDocument, HiPlay, HiStop, HiRefresh, HiCog, HiTrash } from 'react-icons/hi';
+import { HiDocument, HiPlay, HiStop, HiRefresh, HiCog, HiTrash, HiOutlineTemplate, HiOutlineStatusOnline } from 'react-icons/hi';
 import { HiOutlineInformationCircle, HiOutlineDesktopComputer, HiOutlineServer } from 'react-icons/hi';
-import { HiOutlineTemplate, HiOutlineStatusOnline } from 'react-icons/hi';
 import { ContainerRowProps } from '../types/docker';
 import { logger } from '../services/logging';
 import { config } from '../config';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useTheme } from '../context/ThemeContext';
+import LogContainer from './LogContainer';
 
 // Create wrapper components for icons
 const DocumentIcon: React.FC<IconBaseProps> = (props): React.JSX.Element => (
@@ -92,7 +92,7 @@ const PortDisplay: React.FC<{ portsString: string }> = ({ portsString }) => {
                 const [port, protocol] = containerPort ? containerPort.split('/') : [hostPort, ''];
 
                 return (
-                    <div key={index} className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-200'} rounded px-2 py-1 text-xs font-mono ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
+                    <div key={index} className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'} rounded px-2 py-1 text-xs font-mono ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
                         {containerPort ? (
                             <>
                                 <span className="flex items-center mr-1" title="Host Port (your computer)">
@@ -211,117 +211,6 @@ const Tooltip: React.FC<TooltipProps> = ({ children, text }) => {
     );
 };
 
-// Extract Log Container to its own memoized component to prevent unnecessary re-renders
-const LogContainer = React.memo(({
-    logs,
-    isLoading,
-    containerId,
-    onClose,
-    isStreamActive
-}: {
-    logs: string;
-    isLoading: boolean;
-    containerId: string;
-    onClose: () => void;
-    isStreamActive: boolean;
-}) => {
-    const logContainerRef = useRef<HTMLPreElement>(null);
-    const [lastUpdateTime, setLastUpdateTime] = useState<Date>(new Date());
-    const { theme } = useTheme();
-    const [autoScroll, setAutoScroll] = useState(true);
-    const prevLogsLengthRef = useRef<number>(0);
-
-    // Detect when logs change to update the last update time
-    useEffect(() => {
-        if (logs && logs.length !== prevLogsLengthRef.current) {
-            setLastUpdateTime(new Date());
-            prevLogsLengthRef.current = logs.length;
-        }
-    }, [logs]);
-
-    // Scroll to bottom when logs update, but only if autoScroll is enabled
-    useEffect(() => {
-        if (logContainerRef.current && logs && autoScroll) {
-            const scrollContainer = logContainerRef.current;
-            // Use requestAnimationFrame to ensure the scroll happens after the DOM update
-            requestAnimationFrame(() => {
-                scrollContainer.scrollTop = scrollContainer.scrollHeight;
-            });
-        }
-    }, [logs, autoScroll]);
-
-    // Handle manual scroll to detect when user scrolls up (to disable auto-scroll)
-    const handleScroll = useCallback(() => {
-        if (!logContainerRef.current) return;
-
-        const { scrollTop, scrollHeight, clientHeight } = logContainerRef.current;
-        const isScrolledToBottom = scrollHeight - scrollTop - clientHeight < 50; // Within 50px of bottom
-
-        if (isScrolledToBottom !== autoScroll) {
-            setAutoScroll(isScrolledToBottom);
-            if (isScrolledToBottom) {
-                // If user scrolled back to bottom, immediately scroll to the very bottom
-                requestAnimationFrame(() => {
-                    if (logContainerRef.current) {
-                        logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
-                    }
-                });
-            }
-        }
-    }, [autoScroll]);
-
-    // Create formatted time for display
-    const formattedTime = useMemo(() => {
-        return `${lastUpdateTime.getHours().toString().padStart(2, '0')}:${lastUpdateTime.getMinutes().toString().padStart(2, '0')}:${lastUpdateTime.getSeconds().toString().padStart(2, '0')}`;
-    }, [lastUpdateTime]);
-
-    return (
-        <div className={`${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-100'} p-4 rounded-lg mt-2`}>
-            <div className="flex justify-between items-center mb-2">
-                <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>Container Logs</h3>
-                <div className="flex items-center">
-                    <span className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} mr-3`}>
-                        Last update: {formattedTime}
-                    </span>
-                    {!autoScroll && (
-                        <button
-                            onClick={() => setAutoScroll(true)}
-                            className={`text-xs ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded px-2 py-1 mr-2 ${theme === 'dark' ? 'text-white' : 'text-gray-800'} flex items-center`}
-                            title="Scroll to bottom and follow new logs"
-                        >
-                            <span className="inline-block w-2 h-2 bg-green-400 rounded-full mr-2"></span>
-                            Follow Logs
-                        </button>
-                    )}
-                    <button
-                        onClick={onClose}
-                        className={`text-xs ${theme === 'dark' ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-700'}`}
-                    >
-                        Close
-                    </button>
-                </div>
-            </div>
-            {isLoading ? (
-                <div className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Loading logs...</div>
-            ) : (
-                <pre
-                    ref={logContainerRef}
-                    onScroll={handleScroll}
-                    className={`${theme === 'dark' ? 'bg-black text-gray-300' : 'bg-gray-700 text-gray-200'} p-3 rounded text-xs font-mono overflow-auto max-h-96 relative`}
-                >
-                    {logs || 'No logs available'}
-                    {logs && isStreamActive && (
-                        <div className={`text-xs text-green-500 mt-2 flex items-center ${autoScroll ? 'sticky bottom-0 bg-opacity-75 bg-black p-1 rounded' : ''}`}>
-                            <span className="inline-block w-2 h-2 bg-green-400 rounded-full mr-2 animate-soft-pulse"></span>
-                            Log streaming active
-                        </div>
-                    )}
-                </pre>
-            )}
-        </div>
-    );
-});
-
 export const ContainerRow: React.FC<ContainerRowProps> = ({
     container,
     isExpanded,
@@ -329,8 +218,9 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
     onAction,
     actionInProgress
 }) => {
-    const [logs, setLogs] = React.useState<string>('');
-    const [showLogs, setShowLogs] = React.useState<boolean>(() => {
+    // State for log streaming
+    const [logs, setLogs] = useState('');
+    const [showLogs, setShowLogs] = useState(() => {
         try {
             // Initialize from localStorage on component mount
             const saved = localStorage.getItem(`${LOGS_STORAGE_KEY_PREFIX}${container.id}`);
@@ -340,15 +230,22 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
             return false;
         }
     });
-    const [isLoadingLogs, setIsLoadingLogs] = React.useState(false);
-    const [isStreamActive, setIsStreamActive] = React.useState(false);
+    const [isLoadingLogs, setIsLoadingLogs] = useState(false);
+    const [isStreamActive, setIsStreamActive] = useState(false);
+
+    // Create stable refs to track state across renders
     const showLogsRef = useRef(showLogs);
     const streamActiveRef = useRef(false);
     const { theme } = useTheme();
 
+    // Update refs when state changes
     useEffect(() => {
         showLogsRef.current = showLogs;
     }, [showLogs]);
+
+    useEffect(() => {
+        streamActiveRef.current = isStreamActive;
+    }, [isStreamActive]);
 
     // Save log view state to localStorage whenever it changes
     useEffect(() => {
@@ -358,6 +255,14 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
             logger.error('Failed to save log view state to localStorage:', err instanceof Error ? err : new Error(String(err)));
         }
     }, [showLogs, container.id]);
+
+    // Ensure UI state is consistent with showLogs state
+    useEffect(() => {
+        // If logs should be shown but the container isn't expanded, expand it
+        if (showLogs && !isExpanded) {
+            onToggleExpand();
+        }
+    }, [showLogs, isExpanded, onToggleExpand]);
 
     const { startLogStream, stopLogStream } = useWebSocket({
         onLogUpdate: (containerId, log) => {
@@ -431,11 +336,22 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
         };
     }, [showLogs, container.id, startLogStream, stopLogStream]);
 
+    // Cleanup when component unmounts
+    useEffect(() => {
+        return () => {
+            if (streamActiveRef.current) {
+                stopLogStream(container.id);
+                logger.info('Log stream stopped due to component unmount', { containerId: container.id });
+            }
+        };
+    }, [container.id, stopLogStream]);
+
     const handleCloseLogs = useCallback(() => {
         stopLogStream(container.id);
         setShowLogs(false);
         streamActiveRef.current = false;
         setIsStreamActive(false);
+        logger.info('Logs closed by user', { containerId: container.id });
     }, [container.id, stopLogStream]);
 
     const handleViewLogs = useCallback(async (isRestoring: boolean = false) => {
@@ -451,13 +367,16 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
         try {
             logger.info('Fetching container logs', { containerId: container.id });
             setIsLoadingLogs(true);
+
             if (!isExpanded) {
                 onToggleExpand();
             }
+
             if (!isRestoring) {
                 setShowLogs(true);
             }
 
+            // Fetch initial logs via API
             const response = await fetch(`${config.API_URL}/api/containers/${container.id}/logs`);
             const data = await response.json();
 
@@ -466,29 +385,31 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
             }
 
             // Set the initial logs
-            setLogs(data.data.logs);
+            setLogs(data.data.logs || '');
 
-            // Explicitly start the log stream
+            // Start real-time streaming
             streamActiveRef.current = true;
             startLogStream(container.id);
             setIsStreamActive(true);
 
-            logger.info('Successfully fetched container logs and started streaming', {
+            logger.info('Successfully fetched initial logs and started streaming', {
                 containerId: container.id,
-                initialLogsLength: data.data.logs.length
+                initialLogsLength: data.data.logs ? data.data.logs.length : 0
             });
+
         } catch (err) {
-            logger.error('Failed to fetch container logs', err instanceof Error ? err : undefined, {
+            logger.error('Failed to fetch container logs', err instanceof Error ? err : new Error(String(err)), {
                 containerId: container.id
             });
             console.error('Failed to fetch logs:', err);
             if (isRestoring) {
                 setShowLogs(false);
             }
+            setIsStreamActive(false);
         } finally {
             setIsLoadingLogs(false);
         }
-    }, [container.id, isExpanded, onToggleExpand, setLogs, setShowLogs, showLogs, startLogStream, stopLogStream]);
+    }, [container.id, isExpanded, onToggleExpand, startLogStream, stopLogStream, showLogs]);
 
     const handleAction = async (action: string) => {
         try {
@@ -527,9 +448,27 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
     // Determine if the container is actually running based on both state and status
     const isContainerRunning = container.state === 'running';
 
+    // Render the logs section if logs are being shown
+    const renderLogs = () => {
+        if (!showLogs) return null;
+
+        return (
+            <LogContainer
+                logs={logs}
+                isLoading={isLoadingLogs}
+                containerId={container.id}
+                onClose={handleCloseLogs}
+                isStreamActive={isStreamActive}
+            />
+        );
+    };
+
     return (
-        <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-lg overflow-hidden`}>
-            <div className="p-4">
+        <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-lg overflow-hidden mb-4`}>
+            <div
+                className={`p-4 cursor-pointer`}
+                onClick={onToggleExpand}
+            >
                 <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
                         <Tooltip text={container.status || getStatusDescription(container.state, actionInProgress)}>
@@ -558,7 +497,7 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                                         <Tooltip text={<>
                                             Docker Compose Service Name
                                         </>}>
-                                            <span className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-200'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} font-mono`}>
+                                            <span className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} font-mono`}>
                                                 {container.compose_service}
                                             </span>
                                         </Tooltip>
@@ -567,17 +506,65 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                         </div>
                     </div>
                     <div className="flex items-center space-x-2">
+                        {isContainerRunning ? (
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleAction('stop');
+                                }}
+                                className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} transition-colors`}
+                                disabled={!!actionInProgress}
+                                title="Stop container"
+                            >
+                                <StopIcon className="w-4 h-4 mr-1 text-red-500" />
+                                Stop
+                            </button>
+                        ) : (
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleAction('start');
+                                }}
+                                className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} transition-colors`}
+                                disabled={!!actionInProgress}
+                                title="Start container"
+                            >
+                                <PlayIcon className="w-4 h-4 mr-1 text-green-500" />
+                                Start
+                            </button>
+                        )}
+
                         <button
-                            onClick={() => handleViewLogs()}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleAction('restart');
+                            }}
+                            className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} transition-colors`}
+                            disabled={!!actionInProgress}
+                            title="Restart container"
+                        >
+                            <RefreshIcon className="w-4 h-4 mr-1 text-blue-500" />
+                            Restart
+                        </button>
+
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleViewLogs();
+                            }}
                             className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} transition-colors`}
                             disabled={isLoadingLogs}
-                            title={`Show logs (docker logs ${container.name})`}
+                            title={`${showLogs ? 'Hide' : 'Show'} logs (docker logs ${container.name})`}
                         >
                             <DocumentIcon className="w-4 h-4 mr-1 text-blue-400" />
-                            Show Logs
+                            {showLogs ? 'Hide Logs' : 'Show Logs'}
                         </button>
+
                         <button
-                            onClick={() => handleAction('delete')}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                handleAction('delete');
+                            }}
                             className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} transition-colors`}
                             disabled={actionInProgress !== null}
                             title={`Delete container (docker rm -f ${container.name})`}
@@ -590,13 +577,13 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                 <div className="mt-2 space-y-1">
                     <div className="grid grid-cols-[80px_auto] gap-y-1">
                         <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Image:</p>
-                        <p><span className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-200'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} font-mono`}>
+                        <p><span className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} font-mono`}>
                             <HiOutlineTemplate className="mr-1 text-purple-400" />
                             {container.image}
                         </span></p>
 
                         <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Status:</p>
-                        <p><span className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-200'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} font-mono`}>
+                        <p><span className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} font-mono`}>
                             <HiOutlineStatusOnline className="mr-1 text-blue-400" />
                             {getStatusText()}
                         </span></p>
@@ -612,14 +599,11 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                     </div>
                 </div>
             </div>
-            {showLogs && (
-                <LogContainer
-                    logs={logs}
-                    isLoading={isLoadingLogs}
-                    containerId={container.id}
-                    onClose={handleCloseLogs}
-                    isStreamActive={isStreamActive}
-                />
+            {isExpanded && (
+                <div className={`px-4 py-3 ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-50'}`}>
+                    {/* Render logs if they're being shown */}
+                    {showLogs && renderLogs()}
+                </div>
             )}
         </div>
     );

@@ -126,7 +126,71 @@ This document should be consulted before making any changes to the codebase and 
 
 ## Recently Completed Work
 
-### Real-time Container Log Streaming Implementation (Pending User Confirmation)
+### UI State Persistence Fixes (Completed 2023-08-08)
+
+-   [x] Fixed issue with "Show Logs" button state not being correctly preserved on page refresh
+-   [x] Improved container expansion state persistence across page refreshes
+-   [x] Added proper state synchronization between UI elements and localStorage
+-   [x] Ensured consistent behavior in both light and dark themes
+-   [x] Fixed Docker Compose group expansion state persistence
+
+**Implementation Summary:**
+
+The state persistence functionality has been fixed to ensure a consistent user experience across page refreshes. The changes include:
+
+**UI Improvements:**
+
+-   Added proper synchronization between the `showLogs` state and the UI to ensure the "Show Logs" button always displays the correct label
+-   Implemented expanded rows persistence using localStorage to remember which containers were expanded
+-   Added cleanup effects to properly handle component unmounting and prevent memory leaks
+-   Ensured logs are properly scrolled to the bottom on initial render
+-   Fixed Docker Compose group expansion state to correctly remember which groups were expanded
+
+These changes enhance the user experience by maintaining UI state across page refreshes, eliminating the frustration of having to reopen logs or re-expand containers after refreshing the page.
+
+### Dark Mode Tag Styling Improvements (Completed 2023-08-07)
+
+-   [x] Added subtle background color to tags in dark mode for better visibility
+-   [x] Updated image, status, service, and port tags with consistent styling
+-   [x] Improved visual distinction between tags and surrounding UI elements
+-   [x] Ensured consistent styling between light and dark modes
+
+**Implementation Summary:**
+
+The dark mode UI has been refined to improve the visibility of tags and labels. The changes include:
+
+**UI Improvements:**
+
+-   Added a subtle background color (`bg-gray-700`) to tags in dark mode to make them stand out from the container background
+-   Applied consistent styling to all tags (image, status, service, and port tags)
+-   Maintained the same level of subtlety as in light mode, but with appropriate dark mode colors
+-   Improved visual hierarchy by making important information more distinct
+
+These changes enhance the user experience in dark mode by making information more readable and maintaining visual consistency with the light mode design.
+
+### Log Streaming UI Improvements (Completed 2023-08-06)
+
+-   [x] Removed unnecessary "Last Updated" timestamp from log display
+-   [x] Moved "Log Streaming Active" indicator next to the close button
+-   [x] Improved light mode colors for better consistency with the rest of the UI
+-   [x] Simplified the log container UI for a cleaner appearance
+-   [x] Ensured consistent styling between light and dark modes
+
+**Implementation Summary:**
+
+The log streaming UI has been refined to provide a cleaner, more consistent user experience. The changes include:
+
+**UI Improvements:**
+
+-   Removed the redundant "Last Updated" timestamp since logs are streaming in real-time
+-   Relocated the "Log Streaming Active" indicator to the header row for better visibility
+-   Aligned all header elements (title, streaming indicator, and close button) in a single row
+-   Improved light mode colors to match the styling of other UI elements
+-   Simplified the log display by removing unnecessary elements
+
+These changes make the log streaming interface more intuitive and visually consistent with the rest of the application, while maintaining the core real-time streaming functionality.
+
+### Real-time Container Log Streaming Implementation (Completed 2023-08-05)
 
 -   [x] Enhanced container log streaming to provide real-time updates in the UI
 -   [x] Added auto-scroll functionality with the ability to pause scrolling when manually scrolling up
@@ -136,6 +200,7 @@ This document should be consulted before making any changes to the codebase and 
 -   [x] Added connection status tracking to the WebSocket hook
 -   [x] Ensured logs continue streaming as long as the log panel is open
 -   [x] Fixed issue where logs were only showing as static snapshots
+-   [x] Added timestamp display showing when logs were last updated
 
 **Implementation Summary:**
 
@@ -143,34 +208,29 @@ The real-time container log streaming feature has been completely overhauled to 
 
 **Frontend Changes:**
 
--   Enhanced the `useWebSocket` hook with detailed logging of log updates and improved error handling
--   Updated the `ContainerRow` component to properly maintain log streaming state
--   Added debugging logs to track log updates throughout the system
--   Implemented auto-reconnection for log streams after errors
--   Optimized the log buffer flushing mechanism for more responsive updates (reduced delay from 10ms to 5ms)
+-   Enhanced the `useWebSocket` hook with improved buffer management and error handling
+-   Created a dedicated `LogContainer` component for better separation of concerns
+-   Implemented proper ref management to track state across renders
+-   Added auto-scroll functionality that follows new logs as they arrive
+-   Added a "Follow Logs" button that appears when auto-scrolling is paused
+-   Added timestamp display showing when logs were last updated
+-   Optimized the log buffer flushing mechanism (reduced delay from 10ms to 5ms)
+-   Improved error recovery with automatic reconnection
 
-**Backend Changes:**
+**Backend Integration:**
 
--   Improved the `stream_container_logs` method in `docker_service.py` to ensure proper streaming configuration
--   Enhanced error handling and logging in the log streaming pipeline
--   Added checks for existing streams to prevent duplicate streams
+-   Ensured proper handling of WebSocket events for log updates
 -   Improved timestamp extraction to avoid duplicate logs
--   Added detailed logging throughout the streaming process for better debugging
+-   Added better cleanup when streams are stopped
 
 **Key Improvements:**
 
--   Auto-scroll functionality that follows new logs as they arrive
--   Ability to pause auto-scrolling when manually scrolling up
--   "Follow Logs" button that appears when auto-scrolling is paused
--   Optimized log buffering system to balance responsiveness with performance
+-   Real-time log updates that appear immediately as they're generated
+-   Auto-scroll functionality that follows new logs
 -   Visual indicators showing when log streaming is active
--   Improved error recovery with automatic reconnection
--   Better handling of log updates to ensure they're displayed immediately
--   Fixed the core issue where logs were only showing as static snapshots
-
-**Has this feature been successfully implemented and can it be moved to the "Recently Completed Work" section?**
-
-**Note:** This implementation is awaiting user confirmation before being considered fully completed.
+-   Better user experience with the ability to pause auto-scrolling
+-   More responsive updates with optimized buffer management
+-   Improved error handling and recovery
 
 ### Theme Toggle Switch Implementation (Completed 2023-08-02)
 
