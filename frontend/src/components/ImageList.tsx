@@ -269,13 +269,13 @@ const ImageRow: React.FC<{
                             <div className="flex items-center space-x-2">
                                 <Tooltip text="Docker Image">
                                     <CopyableText text={displayName}>
-                                        <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{displayName}</h3>
+                                        <h3 className={`text-lg font-semibold font-mono ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{displayName}</h3>
                                     </CopyableText>
                                 </Tooltip>
 
                                 {image.tags.length > 1 && (
                                     <Tooltip text="Additional Tags">
-                                        <span className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-200'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} font-mono`}>
+                                        <span className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} font-mono`}>
                                             +{image.tags.length - 1}
                                         </span>
                                     </Tooltip>
@@ -311,26 +311,32 @@ const ImageRow: React.FC<{
                     <div className="grid grid-cols-[80px_auto] gap-y-1">
                         <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>ID:</p>
                         <p><CopyableText text={image.id}>
-                            <span className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-200'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} font-mono`}>
-                                <TemplateIcon className="mr-1 text-purple-400" />
-                                {shortId}
-                            </span>
+                            <Tooltip text={`${image.id} (click to copy full ID)`}>
+                                <span className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} font-mono`}>
+                                    <TemplateIcon className="mr-1 text-purple-400" />
+                                    {shortId}
+                                </span>
+                            </Tooltip>
                         </CopyableText></p>
 
                         <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Size:</p>
-                        <Tooltip text={exactSizeInBytes}>
-                            <p><span className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-200'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} font-mono`}>
-                                <ScaleIcon className="mr-1 text-blue-400" />
-                                {formattedSize}
-                            </span></p>
+                        <Tooltip text={`${exactSizeInBytes} (click to copy raw bytes)`}>
+                            <p><CopyableText text={Math.round(image.size * 1024 * 1024).toString()}>
+                                <span className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} font-mono`}>
+                                    <ScaleIcon className="mr-1 text-blue-400" />
+                                    {formattedSize}
+                                </span>
+                            </CopyableText></p>
                         </Tooltip>
 
                         <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Created:</p>
-                        <Tooltip text={fullDateTime}>
-                            <p><span className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-200'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} font-mono`}>
-                                <ClockIcon className="mr-1 text-green-400" />
-                                {relativeTime}
-                            </span></p>
+                        <Tooltip text={`${fullDateTime} (click to copy ISO format)`}>
+                            <p><CopyableText text={new Date(createdTimestamp).toISOString()}>
+                                <span className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} font-mono`}>
+                                    <ClockIcon className="mr-1 text-green-400" />
+                                    {relativeTime}
+                                </span>
+                            </CopyableText></p>
                         </Tooltip>
 
                         {image.tags.length > 1 && (
@@ -339,7 +345,7 @@ const ImageRow: React.FC<{
                                 <div className="flex flex-wrap gap-2">
                                     {image.tags.slice(1).map((tag, index) => (
                                         <CopyableText key={index} text={tag}>
-                                            <span className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-200'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} font-mono`}>
+                                            <span className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} font-mono`}>
                                                 {tag}
                                             </span>
                                         </CopyableText>
