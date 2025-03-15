@@ -1,6 +1,9 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { useTheme } from '../context/ThemeContext';
 
+// Add import for X icon and Play icon
+import { HiX } from 'react-icons/hi';
+
 interface LogContainerProps {
     logs: string;
     isLoading: boolean;
@@ -8,6 +11,18 @@ interface LogContainerProps {
     onClose: () => void;
     isStreamActive: boolean;
 }
+
+// Custom Lightning Bolt icon component
+const LightningBoltIcon: React.FC<{ className?: string }> = ({ className }) => (
+    <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="currentColor"
+        className={className}
+    >
+        <path d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+    </svg>
+);
 
 // Extract Log Container to its own memoized component
 const LogContainer: React.FC<LogContainerProps> = React.memo(({
@@ -76,28 +91,34 @@ const LogContainer: React.FC<LogContainerProps> = React.memo(({
         <div className={`${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-100'} p-4 rounded-lg mt-2`}>
             <div className="flex justify-between items-center mb-2">
                 <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>Container Logs</h3>
-                <div className="flex items-center">
-                    {isStreamActive && (
-                        <div className="flex items-center mr-3 text-xs text-green-500">
-                            <span className="inline-block w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse"></span>
-                            Log streaming active
-                        </div>
-                    )}
+                <div className="flex items-center space-x-2">
+                    {/* Follow button first (conditionally rendered) */}
                     {!autoScroll && (
                         <button
                             onClick={() => setAutoScroll(true)}
-                            className={`text-xs ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded px-2 py-1 mr-2 ${theme === 'dark' ? 'text-white' : 'text-gray-800'} flex items-center`}
+                            className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} transition-colors`}
                             title="Scroll to bottom and follow new logs"
                         >
-                            <span className="inline-block w-2 h-2 bg-green-400 rounded-full mr-2"></span>
-                            Follow Logs
+                            <LightningBoltIcon className="w-3.5 h-3.5 mr-1.5 text-yellow-300/70" />
+                            Follow
                         </button>
                     )}
+
+                    {/* Live indicator in the middle (conditionally rendered) */}
+                    {isStreamActive && (
+                        <span className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
+                            <span className="inline-block w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse"></span>
+                            Live
+                        </span>
+                    )}
+
+                    {/* Close button always last */}
                     <button
                         onClick={onClose}
-                        className={`text-xs ${theme === 'dark' ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-700'}`}
+                        className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} transition-colors`}
+                        title="Close logs"
                     >
-                        Close
+                        <HiX className="w-4 h-4" />
                     </button>
                 </div>
             </div>
