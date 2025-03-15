@@ -6,14 +6,6 @@ from typing import Generator, List, Optional, Tuple
 
 import docker
 
-try:
-    # For Docker environment
-    from config import Config
-    from logging_utils import get_request_id
-except ImportError:
-    # For local development
-    pass
-
 logger = logging.getLogger(__name__)
 
 

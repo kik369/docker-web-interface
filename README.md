@@ -60,9 +60,8 @@ graph TD
 
 ### Prerequisites
 
--   Docker and Docker Compose installed on your system.
--   Node.js (version 18+) for frontend development.
--   Python (version 3.11) for backend development.
+-   Docker and Docker Compose installed on your system
+-   Git for cloning the repository
 
 ### Quick Start
 
@@ -87,30 +86,41 @@ graph TD
 3. **Build and Run with Docker Compose:**
 
     ```bash
-    docker compose up
+    docker compose up --build
     ```
 
-### Local Development Setup
+    This will:
 
-For quicker prototyping and debugging, you can run the components locally outside of Docker from the root directory.
+    - Build the frontend and backend containers
+    - Start the application stack
+    - Make the interface available at http://localhost:3002
 
-1. **Start the Frontend:**
+4. **Access the Application:**
 
-    Run the following command from the root directory:
+    Open your browser and navigate to:
 
-    ```bash
-    PORT=3002 npm --prefix frontend start
-    ```
+    - Web Interface: http://localhost:3002
+    - API Endpoints: http://localhost:5000/api
 
-2. **Start the Backend:**
+> 💡 **Tip:** Use `docker compose up -d` to run in detached mode, and `docker compose logs -f` to view logs.
 
-    Run the following command from the root directory:
+### Development and Testing
 
-    ```bash
-    gunicorn -b 0.0.0.0:5000 -k eventlet --timeout 120 --workers 1 --reload backend.docker_monitor:app
-    ```
+The project includes a comprehensive test suite for the backend services. To run tests:
 
-> 💡 **Tip:** Running the application locally allows for faster feedback and easier debugging. Ensure that all dependencies are installed in your local environment.
+```bash
+# Inside the backend container
+docker compose exec backend pytest -v
+
+# With coverage report
+docker compose exec backend pytest --cov=backend --cov-report=term
+```
+
+To run pre-commit hooks (requires running inside the container):
+
+```bash
+docker compose exec backend pre-commit run --all-files
+```
 
 ## Testing
 
