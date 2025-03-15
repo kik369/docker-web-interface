@@ -274,14 +274,6 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
         }
     }, [showLogs, container.id]);
 
-    // Ensure UI state is consistent with showLogs state
-    useEffect(() => {
-        // If logs should be shown but the container isn't expanded, expand it
-        if (showLogs && !isExpanded) {
-            onToggleExpand();
-        }
-    }, [showLogs, isExpanded, onToggleExpand]);
-
     const { startLogStream, stopLogStream } = useWebSocket({
         onLogUpdate: (containerId, log) => {
             if (containerId === container.id && showLogsRef.current) {
@@ -393,10 +385,6 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
             logger.info('Fetching container logs', { containerId: container.id });
             setIsLoadingLogs(true);
 
-            if (!isExpanded) {
-                onToggleExpand();
-            }
-
             if (!isRestoring) {
                 setShowLogs(true);
             }
@@ -434,7 +422,7 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
         } finally {
             setIsLoadingLogs(false);
         }
-    }, [container.id, isExpanded, onToggleExpand, startLogStream, stopLogStream, showLogs]);
+    }, [container.id, startLogStream, stopLogStream, showLogs]);
 
     const handleAction = async (action: string) => {
         try {
@@ -475,8 +463,6 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
 
     // Render the logs section if logs are being shown
     const renderLogs = () => {
-        if (!showLogs) return null;
-
         return (
             <LogContainer
                 logs={logs}
@@ -489,14 +475,19 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
     };
 
     return (
-        <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-lg overflow-hidden mb-4 transition-all duration-300 ${highlightActive ? `${theme === 'dark' ? 'ring-2 ring-blue-500 ring-opacity-75' : 'ring-2 ring-blue-400 ring-opacity-75'} scale-[1.01]` : ''
-            }`}>
+        <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-lg overflow-hidden mb-3 transition-all duration-300 border border-opacity-10 ${theme === 'dark' ? 'border-gray-600' : 'border-gray-300'} shadow-custom ${highlightActive ? `${theme === 'dark' ? 'ring-2 ring-blue-500 ring-opacity-75' : 'ring-2 ring-blue-400 ring-opacity-75'} scale-[1.01]` : ''
+            }`}
+            style={{
+                boxShadow: theme === 'dark'
+                    ? '0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 2px 5px 0 rgba(0, 0, 0, 0.2), 0 1px 1px 0 rgba(0, 0, 0, 0.1)'
+                    : '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 2px 5px 0 rgba(0, 0, 0, 0.08), 0 1px 1px 0 rgba(0, 0, 0, 0.05)'
+            }}
+        >
             <div
-                className={`p-4 cursor-pointer`}
-                onClick={onToggleExpand}
+                className={`p-3`}
             >
                 <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
+                    <div className="flex items-center space-x-3">
                         <Tooltip text={container.status || getStatusDescription(container.state, actionInProgress)}>
                             <div className={`w-3 h-3 rounded-full ${getStatusColor(container.state, actionInProgress)}`} />
                         </Tooltip>
@@ -515,7 +506,7 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                                             Set in docker-compose.yml with container_name: property
                                         </>
                                 }>
-                                    <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{container.name}</h3>
+                                    <h3 className={`text-lg font-semibold font-mono ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{container.name}</h3>
                                 </Tooltip>
 
                                 {container.compose_project && container.compose_project !== 'Standalone Containers' &&
@@ -625,10 +616,9 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                     </div>
                 </div>
             </div>
-            {isExpanded && (
+            {showLogs && (
                 <div className={`px-4 py-3 ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-50'}`}>
-                    {/* Render logs if they're being shown */}
-                    {showLogs && renderLogs()}
+                    {renderLogs()}
                 </div>
             )}
         </div>

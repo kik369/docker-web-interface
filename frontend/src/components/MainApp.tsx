@@ -10,6 +10,7 @@ import { logger } from '../services/logging';
 import { useContainerContext, useContainerOperations } from '../context/ContainerContext';
 import CommandPalette from './CommandPalette';
 import { HiOutlineCommandLine } from 'react-icons/hi2';
+import { HiOutlineCube, HiOutlineTemplate } from 'react-icons/hi';
 import ThemeToggle from './ThemeToggle';
 import { useTheme } from '../context/ThemeContext';
 import '../App.css';
@@ -34,6 +35,8 @@ const CommandPalettePortal: React.FC<{
         description?: string;
         category?: string;
         action: () => void;
+        icon?: string;
+        status?: 'running' | 'stopped' | 'none';
     }>;
 }> = ({ isOpen, onClose, onSearch, commands }) => {
     return ReactDOM.createPortal(
@@ -128,6 +131,8 @@ function MainApp() {
             name: `Container: ${container.name}`,
             description: `${container.image} (${container.status})`,
             category: 'Containers',
+            icon: 'container',
+            status: container.state === 'running' ? 'running' : 'stopped',
             action: () => {
                 setActiveTab('containers');
                 localStorage.setItem('app-active-tab', 'containers');
@@ -149,6 +154,7 @@ function MainApp() {
             name: `Image: ${image.tags[0] || image.id.substring(7, 19)}`,
             description: `${image.tags.length > 1 ? `${image.tags.length} tags` : ''}`,
             category: 'Images',
+            icon: 'image',
             action: () => {
                 setActiveTab('images');
                 localStorage.setItem('app-active-tab', 'images');
@@ -170,6 +176,7 @@ function MainApp() {
             name: 'Switch to Containers tab',
             shortcut: 'Ctrl + Shift + C',
             category: 'Navigation',
+            icon: 'container',
             action: () => {
                 setActiveTab('containers');
                 localStorage.setItem('app-active-tab', 'containers');
@@ -180,6 +187,7 @@ function MainApp() {
             name: 'Switch to Images tab',
             shortcut: 'Ctrl + Shift + I',
             category: 'Navigation',
+            icon: 'image',
             action: () => {
                 setActiveTab('images');
                 localStorage.setItem('app-active-tab', 'images');
@@ -190,34 +198,44 @@ function MainApp() {
             name: 'Toggle dark/light mode',
             shortcut: 'Ctrl + D',
             category: 'Appearance',
+            icon: 'toggle',
             action: toggleTheme
         },
         {
-            id: 'refresh',
-            name: 'Refresh current view',
-            shortcut: 'Ctrl + R',
+            id: 'close-all-logs',
+            name: 'Close All Logs',
+            shortcut: 'Ctrl + Shift + L',
             category: 'Actions',
+            icon: 'logs',
             action: () => {
-                if (activeTab === 'containers') {
-                    setLoading(true);
-                    // The WebSocket will handle the refresh through the initial_state event
-                } else {
-                    refreshImages();
+                // Close all logs by clearing localStorage entries that start with the logs prefix
+                const LOGS_STORAGE_KEY_PREFIX = 'dockerWebInterface_logsViewed_';
+
+                // Get all keys from localStorage
+                const keys = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && key.startsWith(LOGS_STORAGE_KEY_PREFIX)) {
+                        keys.push(key);
+                    }
                 }
-            }
-        },
-        {
-            id: 'clear-search',
-            name: 'Clear search',
-            category: 'Actions',
-            action: () => {
-                setSearchTerm('');
+
+                // Set all log view states to false
+                keys.forEach(key => {
+                    localStorage.setItem(key, 'false');
+                });
+
+                // Force a re-render of the container list to apply changes
+                setLoading(true);
+                setTimeout(() => setLoading(false), 100);
+
+                logger.info('Closed all container logs');
             }
         },
         // Include container and image options
         ...containerOptions,
         ...imageOptions
-    ], [containerOptions, imageOptions, setActiveTab, toggleTheme, refreshImages, setLoading, activeTab]);
+    ], [containerOptions, imageOptions, setActiveTab, toggleTheme, setLoading]);
 
     // Add keyboard shortcuts
     useEffect(() => {
@@ -258,6 +276,33 @@ function MainApp() {
                 event.preventDefault();
                 toggleCommandPalette();
             }
+
+            // Ctrl+Shift+L for closing all logs
+            if (event.ctrlKey && event.shiftKey && event.key === 'L') {
+                event.preventDefault();
+                // Close all logs by clearing localStorage entries that start with the logs prefix
+                const LOGS_STORAGE_KEY_PREFIX = 'dockerWebInterface_logsViewed_';
+
+                // Get all keys from localStorage
+                const keys = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && key.startsWith(LOGS_STORAGE_KEY_PREFIX)) {
+                        keys.push(key);
+                    }
+                }
+
+                // Set all log view states to false
+                keys.forEach(key => {
+                    localStorage.setItem(key, 'false');
+                });
+
+                // Force a re-render of the container list to apply changes
+                setLoading(true);
+                setTimeout(() => setLoading(false), 100);
+
+                logger.info('Closed all container logs via keyboard shortcut');
+            }
         };
 
         document.addEventListener('keydown', handleKeyDown);
@@ -270,51 +315,57 @@ function MainApp() {
         <div className="flex flex-col h-screen">
             <Background />
             <ErrorBoundary>
-                <header className="relative z-10 py-4 px-6 flex items-center justify-between shadow-md dark:shadow-gray-800">
-                    <div className="flex items-center">
-                        <h1 className="text-2xl font-bold mr-8 dark:text-white">Docker Web Interface</h1>
-                        <div className="flex space-x-1">
-                            <button
-                                onClick={() => {
-                                    setActiveTab('containers');
-                                    localStorage.setItem('app-active-tab', 'containers');
-                                }}
-                                className={`px-4 py-2 rounded-md transition-colors ${activeTab === 'containers'
-                                    ? 'bg-blue-500 text-white'
-                                    : 'hover:bg-gray-200 dark:hover:bg-gray-700 dark:text-gray-300'
-                                    }`}
-                            >
-                                Containers
-                            </button>
-                            <button
-                                onClick={() => {
-                                    setActiveTab('images');
-                                    localStorage.setItem('app-active-tab', 'images');
-                                }}
-                                className={`px-4 py-2 rounded-md transition-colors ${activeTab === 'images'
-                                    ? 'bg-blue-500 text-white'
-                                    : 'hover:bg-gray-200 dark:hover:bg-gray-700 dark:text-gray-300'
-                                    }`}
-                            >
-                                Images
-                            </button>
-                        </div>
-                    </div>
-                    <div className="flex items-center space-x-4">
-                        <button
-                            onClick={toggleCommandPalette}
-                            className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 flex items-center"
-                            title="Command Palette (Ctrl+K)"
-                        >
-                            <HiOutlineCommandLine className="w-5 h-5" />
-                            <span className="ml-1 text-sm hidden sm:inline">Ctrl+K</span>
-                        </button>
-                        <ThemeToggle />
+                <header className="relative z-10 py-3">
+                    <div className="container mx-auto px-4 max-w-6xl border-b border-gray-200 dark:border-gray-800 pb-3">
+                        <nav className="flex items-center justify-between">
+                            <div className="flex items-center">
+                                <h1 className="text-2xl font-bold mr-8 dark:text-white font-mono">docker_web_interface</h1>
+                                <div className="flex space-x-2">
+                                    <button
+                                        onClick={() => {
+                                            setActiveTab('containers');
+                                            localStorage.setItem('app-active-tab', 'containers');
+                                        }}
+                                        className={`px-4 py-2 rounded-md transition-colors font-mono text-sm flex items-center ${activeTab === 'containers'
+                                            ? 'bg-gray-700 text-white dark:bg-gray-700 dark:text-white'
+                                            : 'bg-gray-200 text-gray-800 hover:bg-gray-300 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
+                                            }`}
+                                    >
+                                        <HiOutlineCube className="w-4 h-4 mr-2 text-blue-400" />
+                                        containers
+                                    </button>
+                                    <button
+                                        onClick={() => {
+                                            setActiveTab('images');
+                                            localStorage.setItem('app-active-tab', 'images');
+                                        }}
+                                        className={`px-4 py-2 rounded-md transition-colors font-mono text-sm flex items-center ${activeTab === 'images'
+                                            ? 'bg-gray-700 text-white dark:bg-gray-700 dark:text-white'
+                                            : 'bg-gray-200 text-gray-800 hover:bg-gray-300 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
+                                            }`}
+                                    >
+                                        <HiOutlineTemplate className="w-4 h-4 mr-2 text-purple-400" />
+                                        images
+                                    </button>
+                                </div>
+                            </div>
+                            <div className="flex items-center space-x-4">
+                                <button
+                                    onClick={toggleCommandPalette}
+                                    className={`px-4 py-2 rounded-md transition-colors font-mono text-sm flex items-center bg-gray-200 text-gray-800 hover:bg-gray-300 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700`}
+                                    title="Command Palette (Ctrl+K)"
+                                >
+                                    <HiOutlineCommandLine className="w-4 h-4 mr-2 text-blue-400" />
+                                    <span className="font-mono">ctrl+k</span>
+                                </button>
+                                <ThemeToggle />
+                            </div>
+                        </nav>
                     </div>
                 </header>
 
-                <main className="flex-1 overflow-hidden relative z-0">
-                    <div className="container mx-auto px-4 py-6 max-w-6xl h-full overflow-auto">
+                <main className="flex-1 overflow-auto relative z-0 pt-4">
+                    <div className="container mx-auto px-4 max-w-6xl pb-4">
                         {activeTab === 'containers' ? (
                             <ContainerList
                                 containers={containers}

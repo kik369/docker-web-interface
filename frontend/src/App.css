@@ -25,7 +25,7 @@
 .container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 1rem;
 }
 
 .loading-spinner {
@@ -62,11 +62,6 @@
 
 .status-loading {
   background-color: #f59e0b;
-}
-
-.container-list {
-    padding: 1.5rem;
-    border-radius: 0.5rem;
 }
 
 .compose-project-group {

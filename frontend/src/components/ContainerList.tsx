@@ -248,16 +248,24 @@ export const ContainerList = ({
     }
 
     return (
-        <div className="container-list">
+        <div className="w-full">
             {localContainers.length === 0 ? (
-                <div className={`text-center ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'} mt-8`}>
+                <div className={`text-center ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'} mt-4`}>
                     No containers found
                 </div>
             ) : (
-                <div className="space-y-6">
+                <div className="space-y-4">
                     {containerGroups.map(group => (
-                        <div key={group.projectName} className={`${theme === 'dark' ? 'bg-gray-900' : 'bg-white'} rounded-lg overflow-hidden shadow-lg`}>
-                            <div className={`flex items-center justify-between px-4 py-3 ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-100'}`}>
+                        <div
+                            key={group.projectName}
+                            className={`${theme === 'dark' ? 'bg-gray-900' : 'bg-white'} rounded-lg overflow-hidden border border-opacity-10 ${theme === 'dark' ? 'border-gray-600' : 'border-gray-300'}`}
+                            style={{
+                                boxShadow: theme === 'dark'
+                                    ? '0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 2px 5px 0 rgba(0, 0, 0, 0.2), 0 1px 1px 0 rgba(0, 0, 0, 0.1)'
+                                    : '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 2px 5px 0 rgba(0, 0, 0, 0.08), 0 1px 1px 0 rgba(0, 0, 0, 0.05)'
+                            }}
+                        >
+                            <div className={`flex items-center justify-between px-4 py-2 ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-100'}`}>
                                 <div
                                     className="flex items-center cursor-pointer"
                                     onClick={() => toggleGroup(group.projectName)}

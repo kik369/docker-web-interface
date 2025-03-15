@@ -241,8 +241,14 @@ const ImageRow: React.FC<{
     const fullDateTime = formatFullDateTime(createdTimestamp);
 
     return (
-        <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-lg overflow-hidden mb-4 transition-all duration-300 ${highlightActive ? `${theme === 'dark' ? 'ring-2 ring-blue-500 ring-opacity-75' : 'ring-2 ring-blue-400 ring-opacity-75'} scale-[1.01]` : ''
-            }`}>
+        <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-lg overflow-hidden mb-4 transition-all duration-300 border border-opacity-10 ${theme === 'dark' ? 'border-gray-600' : 'border-gray-300'} ${highlightActive ? `${theme === 'dark' ? 'ring-2 ring-blue-500 ring-opacity-75' : 'ring-2 ring-blue-400 ring-opacity-75'} scale-[1.01]` : ''
+            }`}
+            style={{
+                boxShadow: theme === 'dark'
+                    ? '0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 2px 5px 0 rgba(0, 0, 0, 0.2), 0 1px 1px 0 rgba(0, 0, 0, 0.1)'
+                    : '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 2px 5px 0 rgba(0, 0, 0, 0.08), 0 1px 1px 0 rgba(0, 0, 0, 0.05)'
+            }}
+        >
             <div className="p-4">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
@@ -398,37 +404,47 @@ export const ImageList: React.FC<ImageListProps> = ({ searchTerm = '', onSearchC
     };
 
     return (
-        <div className="container-list">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
-                <div className="flex items-center gap-4">
-                    <h2 className={`text-xl font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'} mb-2 sm:mb-0`}>Docker Images</h2>
-                    <div className="flex items-center gap-2">
-                        <div className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-800 border border-gray-600' : 'bg-gray-200 border border-gray-300'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} font-mono`}>
-                            <TemplateIcon className="w-4 h-4 mr-1 text-purple-400" />
-                            <span>{filteredImages.length}</span>
+        <div className="w-full">
+            <div className="space-y-4">
+                <div
+                    className={`${theme === 'dark' ? 'bg-gray-900' : 'bg-white'} rounded-lg overflow-hidden border border-opacity-10 ${theme === 'dark' ? 'border-gray-600' : 'border-gray-300'}`}
+                    style={{
+                        boxShadow: theme === 'dark'
+                            ? '0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 2px 5px 0 rgba(0, 0, 0, 0.2), 0 1px 1px 0 rgba(0, 0, 0, 0.1)'
+                            : '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 2px 5px 0 rgba(0, 0, 0, 0.08), 0 1px 1px 0 rgba(0, 0, 0, 0.05)'
+                    }}
+                >
+                    <div className={`flex items-center justify-between px-4 py-2 ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-100'}`}>
+                        <div className="flex items-center">
+                            <h2 className={`text-xl font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>Docker Images</h2>
+                            <div className="flex items-center ml-4 gap-2">
+                                <div className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 border border-gray-600' : 'bg-gray-200 border border-gray-300'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} font-mono`}>
+                                    <TemplateIcon className="w-4 h-4 mr-1 text-purple-400" />
+                                    <span>{filteredImages.length}</span>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                </div>
-                {/* Search bar has been moved to the navbar */}
-            </div>
 
-            <div className="space-y-4">
-                {filteredImages.length === 0 ? (
-                    <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-100'} p-6 rounded-lg text-center ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
-                        {searchTerm ? `No images found matching "${searchTerm}"` : "No images found"}
+                    <div className="p-3 space-y-3">
+                        {filteredImages.length === 0 ? (
+                            <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-100'} p-4 rounded-lg text-center ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
+                                {searchTerm ? `No images found matching "${searchTerm}"` : "No images found"}
+                            </div>
+                        ) : (
+                            filteredImages.map(image => (
+                                <ImageRow
+                                    key={image.id}
+                                    image={image}
+                                    onDelete={handleDeleteClick}
+                                    actionInProgress={actionInProgress}
+                                    isHighlighted={highlightedItem?.id === image.id}
+                                    highlightTimestamp={highlightedItem?.id === image.id ? highlightedItem.timestamp : undefined}
+                                />
+                            ))
+                        )}
                     </div>
-                ) : (
-                    filteredImages.map(image => (
-                        <ImageRow
-                            key={image.id}
-                            image={image}
-                            onDelete={handleDeleteClick}
-                            actionInProgress={actionInProgress}
-                            isHighlighted={highlightedItem?.id === image.id}
-                            highlightTimestamp={highlightedItem?.id === image.id ? highlightedItem.timestamp : undefined}
-                        />
-                    ))
-                )}
+                </div>
             </div>
 
             {/* Delete Confirmation Modal */}

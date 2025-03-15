@@ -11,28 +11,24 @@ const ThemeToggle: React.FC<ThemeToggleProps> = ({ className = '' }) => {
     const isDark = theme === 'dark';
 
     return (
-        <div className={`flex items-center ${className}`}>
-            <button
-                onClick={toggleTheme}
-                className="relative inline-flex h-8 w-14 items-center rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-lg"
-                style={{
-                    backgroundColor: isDark ? 'rgb(31 41 55 / var(--tw-bg-opacity, 1))' : '#d1d5db'
-                }}
-                aria-label={`Switch to ${isDark ? 'light' : 'dark'} mode`}
-                title={`Switch to ${isDark ? 'light' : 'dark'} mode`}
-            >
-                <span
-                    className={`flex items-center justify-center h-7 w-7 transform rounded-full bg-white shadow-md transition-transform duration-300 ease-in-out ${isDark ? 'translate-x-6' : 'translate-x-1'
-                        }`}
-                >
-                    {isDark ? (
-                        <HiSun className="h-5 w-5 text-blue-400" />
-                    ) : (
-                        <HiMoon className="h-5 w-5 text-gray-700" />
-                    )}
-                </span>
-            </button>
-        </div>
+        <button
+            onClick={toggleTheme}
+            className={`px-4 py-2 rounded-md transition-colors font-mono text-sm flex items-center bg-gray-200 text-gray-800 hover:bg-gray-300 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700`}
+            aria-label={`Switch to ${isDark ? 'light' : 'dark'} mode`}
+            title={`Switch to ${isDark ? 'light' : 'dark'} mode`}
+        >
+            {isDark ? (
+                <>
+                    <HiSun className="w-4 h-4 mr-2 text-yellow-400" />
+                    <span className="font-mono">light</span>
+                </>
+            ) : (
+                <>
+                    <HiMoon className="w-4 h-4 mr-2 text-blue-400" />
+                    <span className="font-mono">dark</span>
+                </>
+            )}
+        </button>
     );
 };
 
