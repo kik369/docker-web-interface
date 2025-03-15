@@ -566,7 +566,6 @@ class DockerService:
             time.sleep(0.5)
 
             # Get the updated container state and emit it
-            updated_container = self.client.containers.get(container_id)
             self._emit_container_state(container_id, "running")
 
             return True, None
@@ -592,7 +591,6 @@ class DockerService:
             time.sleep(0.5)
 
             # Get the updated container state and emit it
-            updated_container = self.client.containers.get(container_id)
             self._emit_container_state(container_id, "stopped")
 
             return True, None
@@ -618,7 +616,6 @@ class DockerService:
             time.sleep(0.5)
 
             # Get the updated container state and emit it
-            updated_container = self.client.containers.get(container_id)
             self._emit_container_state(container_id, "running")
 
             return True, None
