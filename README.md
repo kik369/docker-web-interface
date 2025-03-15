@@ -56,6 +56,17 @@ graph TD
 
 > ℹ️ **Note:** Real-time container metrics updates and resource usage tracking are planned features.
 
+### Detailed Architecture Documentation
+
+The project includes comprehensive documentation of various aspects of the architecture:
+
+-   **[DATA_FLOW.md](DATA_FLOW.md)**: Visual diagrams of data flows throughout the application using Mermaid charts
+-   **[WEBSOCKET.md](WEBSOCKET.md)**: Detailed explanation of the WebSocket implementation for real-time communication
+-   **[FRONTEND.md](FRONTEND.md)**: Frontend architecture, components, and state management
+-   **[BACKEND.md](BACKEND.md)**: Backend architecture, API endpoints, and Docker integration
+-   **[API_REFERENCE.md](API_REFERENCE.md)**: Complete API endpoint documentation with request/response formats
+-   **[FRONTEND_ARCHITECTURE.md](FRONTEND_ARCHITECTURE.md)**: Detailed frontend design patterns and implementation
+
 ## Installation and Setup
 
 ### Prerequisites
@@ -180,19 +191,6 @@ The pre-commit hook will run pytest with coverage for backend code automatically
 -   [ ] Expand test coverage for all backend modules
 -   [ ] Implement container log search functionality
 
-Completed tasks:
-
--   [x] Docker image management functionality
--   [x] Image management UI with tab navigation
--   [x] Image deletion with confirmation dialog
--   [x] Docker Hub/registry source links for images
--   [x] Request logging with request ID tracing
--   [x] Persistent tab selection
--   [x] CSS styling optimisation
--   [x] Docker Compose project grouping with bulk actions
--   [x] Improved port mapping display with visual indicators for host/container ports and protocol information
--   [x] Unit tests for Docker service module
-
 ## Developer Documentation
 
 -   **Backend:** Built with Flask and Gunicorn. Core modules include:
@@ -216,6 +214,22 @@ Completed tasks:
     -   `Ctrl + Shift + S` – Focus on search box
     -   `Ctrl + /` – Show keyboard shortcuts modal
     -   A help button (?) in the lower-right corner also opens the shortcuts modal
+
+-   **WebSocket Architecture**: The application uses a robust WebSocket implementation for real-time updates:
+
+    -   Backend implemented with Flask-SocketIO
+    -   Frontend uses a custom React hook with the Socket.IO client
+    -   Efficient log streaming with buffering system
+    -   Proper resource cleanup and connection management
+    -   See [WEBSOCKET.md](WEBSOCKET.md) for detailed documentation
+
+-   **Data Flow Diagrams**: Visual representations of key data flows using Mermaid diagrams:
+
+    -   Core data flow between system components
+    -   Container operations sequence
+    -   Log streaming process
+    -   Error handling flow
+    -   See [DATA_FLOW.md](DATA_FLOW.md) for all diagrams
 
 -   **Logging:** Implemented using Python's logging module with custom JSON formatting and request ID tracking, ensuring detailed monitoring and debugging.
 
