@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { IconBaseProps } from 'react-icons';
-import { HiTrash, HiExternalLink, HiOutlineTemplate } from 'react-icons/hi';
+import { HiTrash, HiExternalLink, HiOutlineTemplate, HiOutlineClock, HiOutlineScale } from 'react-icons/hi';
 import { useImages } from '../hooks/useImages';
 import { Image } from '../types/docker';
 
@@ -16,6 +16,14 @@ const ExternalLinkIcon: React.FC<IconBaseProps> = (props): React.JSX.Element => 
 
 const TemplateIcon: React.FC<IconBaseProps> = (props): React.JSX.Element => (
     <HiOutlineTemplate {...props} />
+);
+
+const ClockIcon: React.FC<IconBaseProps> = (props): React.JSX.Element => (
+    <HiOutlineClock {...props} />
+);
+
+const ScaleIcon: React.FC<IconBaseProps> = (props): React.JSX.Element => (
+    <HiOutlineScale {...props} />
 );
 
 // Tooltip component that uses ReactDOM.createPortal to avoid positioning issues
@@ -223,7 +231,7 @@ const ImageRow: React.FC<{
 
                                 {image.tags.length > 1 && (
                                     <Tooltip text="Additional Tags">
-                                        <span className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-sm text-white font-mono">
+                                        <span className="inline-flex items-center bg-gray-800 rounded px-2 py-1 text-xs text-white font-mono">
                                             +{image.tags.length - 1}
                                         </span>
                                     </Tooltip>
@@ -258,35 +266,33 @@ const ImageRow: React.FC<{
                 <div className="mt-2 space-y-1">
                     <div className="grid grid-cols-[80px_auto] gap-y-1">
                         <p className="text-sm text-gray-400">ID:</p>
-                        <p><span className="inline-flex items-center bg-gray-800 border border-gray-600 rounded px-2 py-1 text-sm text-white font-mono">
+                        <p><span className="inline-flex items-center bg-gray-800 rounded px-2 py-1 text-xs text-white font-mono">
                             <TemplateIcon className="mr-1 text-purple-400" />
                             {shortId}
                         </span></p>
 
                         <p className="text-sm text-gray-400">Size:</p>
-                        <p>
-                            <Tooltip text={exactSizeInBytes}>
-                                <span className="inline-flex items-center bg-gray-800 border border-gray-600 rounded px-2 py-1 text-sm text-white font-mono">
-                                    {formattedSize}
-                                </span>
-                            </Tooltip>
-                        </p>
+                        <Tooltip text={exactSizeInBytes}>
+                            <p><span className="inline-flex items-center bg-gray-800 rounded px-2 py-1 text-xs text-white font-mono">
+                                <ScaleIcon className="mr-1 text-blue-400" />
+                                {formattedSize}
+                            </span></p>
+                        </Tooltip>
 
                         <p className="text-sm text-gray-400">Created:</p>
-                        <p>
-                            <Tooltip text={fullDateTime}>
-                                <span className="inline-flex items-center bg-gray-800 border border-gray-600 rounded px-2 py-1 text-sm text-white font-mono">
-                                    {relativeTime}
-                                </span>
-                            </Tooltip>
-                        </p>
+                        <Tooltip text={fullDateTime}>
+                            <p><span className="inline-flex items-center bg-gray-800 rounded px-2 py-1 text-xs text-white font-mono">
+                                <ClockIcon className="mr-1 text-green-400" />
+                                {relativeTime}
+                            </span></p>
+                        </Tooltip>
 
                         {image.tags.length > 1 && (
                             <>
                                 <p className="text-sm text-gray-400">Tags:</p>
-                                <div className="flex flex-wrap gap-1">
-                                    {image.tags.slice(1).map(tag => (
-                                        <span key={tag} className="inline-flex items-center bg-gray-800 border border-gray-600 rounded px-2 py-1 text-sm text-white font-mono">
+                                <div className="flex flex-wrap gap-2">
+                                    {image.tags.slice(1).map((tag, index) => (
+                                        <span key={index} className="inline-flex items-center bg-gray-800 rounded px-2 py-1 text-xs text-white font-mono">
                                             {tag}
                                         </span>
                                     ))}

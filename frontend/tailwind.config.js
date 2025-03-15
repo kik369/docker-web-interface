@@ -5,7 +5,7 @@ module.exports = {
         extend: {
             fontFamily: {
                 sans: ['Inter', 'sans-serif'],
-                mono: ['Ubuntu Mono', 'monospace'],
+                mono: ['Fira Code', 'monospace'],
             },
         },
     },

@@ -48,7 +48,7 @@ const getStatusColor = (state: string | undefined, isActionLoading: string | nul
     // Map states to colors
     switch (stateLower) {
         case 'running':
-            return 'bg-green-400';
+            return 'bg-green-400 animate-soft-pulse';
         case 'paused':
             return 'bg-yellow-500';
         case 'exited':
@@ -89,7 +89,7 @@ const PortDisplay: React.FC<{ portsString: string }> = ({ portsString }) => {
                 const [port, protocol] = containerPort ? containerPort.split('/') : [hostPort, ''];
 
                 return (
-                    <div key={index} className="inline-flex items-center bg-gray-800 border border-gray-600 rounded px-2 py-1 text-xs">
+                    <div key={index} className="inline-flex items-center bg-gray-800 rounded px-2 py-1 text-xs font-mono">
                         {containerPort ? (
                             <>
                                 <span className="flex items-center mr-1" title="Host Port (your computer)">
@@ -472,7 +472,7 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                                         <Tooltip text={<>
                                             Docker Compose Service Name
                                         </>}>
-                                            <span className="inline-flex items-center bg-gray-800 border border-gray-600 rounded px-2 py-1 text-sm text-white font-mono">
+                                            <span className="inline-flex items-center bg-gray-800 rounded px-2 py-1 text-xs text-white font-mono">
                                                 {container.compose_service}
                                             </span>
                                         </Tooltip>
@@ -504,13 +504,13 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                 <div className="mt-2 space-y-1">
                     <div className="grid grid-cols-[80px_auto] gap-y-1">
                         <p className="text-sm text-gray-400">Image:</p>
-                        <p><span className="inline-flex items-center bg-gray-800 border border-gray-600 rounded px-2 py-1 text-sm text-white font-mono">
+                        <p><span className="inline-flex items-center bg-gray-800 rounded px-2 py-1 text-xs text-white font-mono">
                             <HiOutlineTemplate className="mr-1 text-purple-400" />
                             {container.image}
                         </span></p>
 
                         <p className="text-sm text-gray-400">Status:</p>
-                        <p><span className="inline-flex items-center bg-gray-800 border border-gray-600 rounded px-2 py-1 text-sm text-white font-mono">
+                        <p><span className="inline-flex items-center bg-gray-800 rounded px-2 py-1 text-xs text-white font-mono">
                             <HiOutlineStatusOnline className="mr-1 text-blue-400" />
                             {getStatusText()}
                         </span></p>
