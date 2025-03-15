@@ -263,7 +263,7 @@ const LogContainer = React.memo(({
                     {logs || 'No logs available'}
                     {logs && isStreamActive && (
                         <div className="text-xs text-green-500 mt-2 flex items-center">
-                            <span className="inline-block w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>
+                            <span className="inline-block w-2 h-2 bg-green-400 rounded-full mr-2 animate-soft-pulse"></span>
                             Log streaming active...
                         </div>
                     )}
