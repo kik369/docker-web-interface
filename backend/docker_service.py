@@ -1,5 +1,6 @@
 import logging
 import threading
+import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Generator, List, Optional, Tuple
@@ -555,9 +556,19 @@ class DockerService:
     def start_container(self, container_id: str) -> Tuple[bool, Optional[str]]:
         """Start a stopped container."""
         try:
+            # Emit transition state first
+            self._emit_container_state(container_id, "starting")
+
             container = self.client.containers.get(container_id)
             container.start()
+
+            # Wait a short time for the container to fully start
+            time.sleep(0.5)
+
+            # Get the updated container state and emit it
+            updated_container = self.client.containers.get(container_id)
             self._emit_container_state(container_id, "running")
+
             return True, None
         except docker.errors.NotFound:
             error_msg = f"Container {container_id} not found"
@@ -571,9 +582,19 @@ class DockerService:
     def stop_container(self, container_id: str) -> Tuple[bool, Optional[str]]:
         """Stop a running container."""
         try:
+            # Emit transition state first
+            self._emit_container_state(container_id, "stopping")
+
             container = self.client.containers.get(container_id)
             container.stop()
+
+            # Wait a short time for the container to fully stop
+            time.sleep(0.5)
+
+            # Get the updated container state and emit it
+            updated_container = self.client.containers.get(container_id)
             self._emit_container_state(container_id, "stopped")
+
             return True, None
         except docker.errors.NotFound:
             error_msg = f"Container {container_id} not found"
@@ -587,9 +608,19 @@ class DockerService:
     def restart_container(self, container_id: str) -> Tuple[bool, Optional[str]]:
         """Restart a container."""
         try:
+            # Emit transition state first
+            self._emit_container_state(container_id, "restarting")
+
             container = self.client.containers.get(container_id)
             container.restart()
+
+            # Wait a short time for the container to fully restart
+            time.sleep(0.5)
+
+            # Get the updated container state and emit it
+            updated_container = self.client.containers.get(container_id)
             self._emit_container_state(container_id, "running")
+
             return True, None
         except docker.errors.NotFound:
             error_msg = f"Container {container_id} not found"
@@ -845,6 +876,11 @@ class DockerService:
                             "running",
                             "stopped",
                             "deleted",
+                            "starting",
+                            "stopping",
+                            "restarting",
+                            "paused",
+                            "unpaused",
                         ]
                         if state in significant_states:
                             logger.info(
@@ -868,6 +904,8 @@ class DockerService:
                                 },
                             )
 
+                        # For all container events, emit the state change
+                        # This ensures the frontend is always updated with the latest state
                         self._emit_container_state(container_id, state)
 
         except Exception as e:
@@ -887,6 +925,9 @@ class DockerService:
             "die": "stopped",
             "destroy": "deleted",
             "restart": "running",
+            "starting": "starting",
+            "stopping": "stopping",
+            "restarting": "restarting",
         }
         return state_mapping.get(event_status, event_status)
 

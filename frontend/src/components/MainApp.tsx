@@ -331,7 +331,7 @@ function MainApp() {
                                             : 'bg-gray-200 text-gray-800 hover:bg-gray-300 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
                                             }`}
                                     >
-                                        <HiOutlineCube className="w-4 h-4 mr-2 text-blue-400" />
+                                        <HiOutlineCube className="w-4 h-4 mr-2 text-blue-300" />
                                         containers
                                     </button>
                                     <button
@@ -344,7 +344,7 @@ function MainApp() {
                                             : 'bg-gray-200 text-gray-800 hover:bg-gray-300 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
                                             }`}
                                     >
-                                        <HiOutlineTemplate className="w-4 h-4 mr-2 text-purple-400" />
+                                        <HiOutlineTemplate className="w-4 h-4 mr-2 text-purple-300" />
                                         images
                                     </button>
                                 </div>
@@ -355,7 +355,7 @@ function MainApp() {
                                     className={`px-4 py-2 rounded-md transition-colors font-mono text-sm flex items-center bg-gray-200 text-gray-800 hover:bg-gray-300 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700`}
                                     title="Command Palette (Ctrl+K)"
                                 >
-                                    <HiOutlineCommandLine className="w-4 h-4 mr-2 text-blue-400" />
+                                    <HiOutlineCommandLine className="w-4 h-4 mr-2 text-blue-300" />
                                     <span className="font-mono">ctrl+k</span>
                                 </button>
                                 <ThemeToggle />

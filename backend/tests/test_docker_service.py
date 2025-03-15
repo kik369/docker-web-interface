@@ -1,5 +1,5 @@
 from datetime import datetime
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, call, patch
 
 import docker
 import pytest
@@ -152,9 +152,12 @@ class TestDockerService:
         assert success is True
         assert error is None
 
-        # Verify WebSocket event was emitted
-        docker_service._emit_container_state.assert_called_once_with(
-            "test_container_id", "running"
+        # Verify WebSocket events were emitted (transition and final states)
+        docker_service._emit_container_state.assert_has_calls(
+            [
+                call("test_container_id", "starting"),
+                call("test_container_id", "running"),
+            ]
         )
 
     def test_stop_container(self, docker_service, mock_docker_client):
@@ -171,9 +174,12 @@ class TestDockerService:
         assert success is True
         assert error is None
 
-        # Verify WebSocket event was emitted
-        docker_service._emit_container_state.assert_called_once_with(
-            "test_container_id", "stopped"
+        # Verify WebSocket events were emitted (transition and final states)
+        docker_service._emit_container_state.assert_has_calls(
+            [
+                call("test_container_id", "stopping"),
+                call("test_container_id", "stopped"),
+            ]
         )
 
     def test_restart_container(self, docker_service, mock_docker_client):
@@ -190,9 +196,12 @@ class TestDockerService:
         assert success is True
         assert error is None
 
-        # Verify WebSocket event was emitted
-        docker_service._emit_container_state.assert_called_once_with(
-            "test_container_id", "running"
+        # Verify WebSocket events were emitted (transition and final states)
+        docker_service._emit_container_state.assert_has_calls(
+            [
+                call("test_container_id", "restarting"),
+                call("test_container_id", "running"),
+            ]
         )
 
     def test_delete_container(self, docker_service, mock_docker_client):

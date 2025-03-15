@@ -96,6 +96,11 @@ Currently, all planned features have been implemented. The project is in a stabl
     -   Adjust the margin or padding of container items to match the spacing used for image items
     -   Ensure uniform vertical spacing between items and their respective containers
     -   Verify responsiveness across different screen sizes
+-   [ ] Docker Container Status Display Overhaul
+    -   Fix incorrect container status display after state transitions
+    -   Ensure UI accurately reflects current container status without manual refresh
+    -   Implement proper transition states (starting, stopping, restarting)
+    -   Fix WebSocket event handling for container state changes
 
 ## Recently Completed Work
 

@@ -61,6 +61,10 @@ const getStatusColor = (state: string | undefined, isActionLoading: string | nul
             return 'bg-blue-500';
         case 'restarting':
             return 'bg-yellow-500 animate-pulse';
+        case 'starting':
+            return 'bg-yellow-500 animate-pulse';
+        case 'stopping':
+            return 'bg-orange-500 animate-pulse';
         default:
             return 'bg-gray-500';
     }
@@ -99,7 +103,7 @@ const PortDisplay: React.FC<{ portsString: string }> = ({ portsString }) => {
                                 <Tooltip text="Host Port (your computer)">
                                     <CopyableText text={hostPort}>
                                         <span className="flex items-center mr-1">
-                                            <HiOutlineDesktopComputer className="mr-1 text-blue-400" />
+                                            <HiOutlineDesktopComputer className="mr-1 text-blue-300" />
                                             {hostPort}
                                         </span>
                                     </CopyableText>
@@ -108,7 +112,7 @@ const PortDisplay: React.FC<{ portsString: string }> = ({ portsString }) => {
                                 <Tooltip text="Container Port (inside Docker)">
                                     <CopyableText text={port}>
                                         <span className="flex items-center">
-                                            <HiOutlineServer className="mr-1 text-green-400" />
+                                            <HiOutlineServer className="mr-1 text-green-300" />
                                             {port}
                                         </span>
                                     </CopyableText>
@@ -134,7 +138,7 @@ const PortDisplay: React.FC<{ portsString: string }> = ({ portsString }) => {
                             }>
                                 <div className="inline-flex items-center ml-1">
                                     <span className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{protocol}</span>
-                                    <HiOutlineInformationCircle className={`inline-block ml-1 ${theme === 'dark' ? 'text-gray-400 hover:text-blue-400' : 'text-gray-500 hover:text-blue-500'}`} />
+                                    <HiOutlineInformationCircle className={`inline-block ml-1 ${theme === 'dark' ? 'text-gray-400 hover:text-blue-300' : 'text-gray-500 hover:text-blue-400'}`} />
                                 </div>
                             </Tooltip>
                         )}
@@ -556,11 +560,11 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                                     e.stopPropagation();
                                     handleAction('stop');
                                 }}
-                                className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} transition-colors`}
+                                className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded-md px-3 py-1.5 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} transition-colors`}
                                 disabled={!!actionInProgress}
                                 title="Stop container"
                             >
-                                <StopIcon className="w-4 h-4 mr-1 text-red-500" />
+                                <StopIcon className="w-4 h-4 mr-1.5 text-red-400" />
                                 Stop
                             </button>
                         ) : (
@@ -569,11 +573,11 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                                     e.stopPropagation();
                                     handleAction('start');
                                 }}
-                                className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} transition-colors`}
+                                className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded-md px-3 py-1.5 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} transition-colors`}
                                 disabled={!!actionInProgress}
                                 title="Start container"
                             >
-                                <PlayIcon className="w-4 h-4 mr-1 text-green-500" />
+                                <PlayIcon className="w-4 h-4 mr-1.5 text-green-400" />
                                 Start
                             </button>
                         )}
@@ -583,11 +587,11 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                                 e.stopPropagation();
                                 handleAction('restart');
                             }}
-                            className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} transition-colors`}
+                            className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded-md px-3 py-1.5 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} transition-colors`}
                             disabled={!!actionInProgress}
                             title="Restart container"
                         >
-                            <RefreshIcon className="w-4 h-4 mr-1 text-blue-500" />
+                            <RefreshIcon className="w-4 h-4 mr-1.5 text-blue-400" />
                             Restart
                         </button>
 
@@ -596,11 +600,11 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                                 e.stopPropagation();
                                 handleViewLogs();
                             }}
-                            className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} transition-colors`}
+                            className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded-md px-3 py-1.5 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} transition-colors`}
                             disabled={isLoadingLogs}
                             title={`${showLogs ? 'Hide' : 'Show'} logs (docker logs ${container.name})`}
                         >
-                            <DocumentIcon className="w-4 h-4 mr-1 text-blue-400" />
+                            <DocumentIcon className="w-4 h-4 mr-1.5 text-blue-300" />
                             {showLogs ? 'Hide Logs' : 'Show Logs'}
                         </button>
 
@@ -609,11 +613,11 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                                 e.stopPropagation();
                                 handleAction('delete');
                             }}
-                            className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} transition-colors`}
+                            className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded-md px-3 py-1.5 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} transition-colors`}
                             disabled={actionInProgress !== null}
                             title={`Delete container (docker rm -f ${container.name})`}
                         >
-                            <TrashIcon className={`w-4 h-4 mr-1 text-red-500 ${actionInProgress === 'delete' ? 'animate-pulse' : ''}`} />
+                            <TrashIcon className={`w-4 h-4 mr-1.5 text-red-400 ${actionInProgress === 'delete' ? 'animate-pulse' : ''}`} />
                             Delete
                         </button>
                     </div>
@@ -623,14 +627,14 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                         <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Image:</p>
                         <p><CopyableText text={container.image}>
                             <span className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} font-mono`}>
-                                <HiOutlineTemplate className="mr-1 text-purple-400" />
+                                <HiOutlineTemplate className="mr-1 text-purple-300" />
                                 {container.image}
                             </span>
                         </CopyableText></p>
 
                         <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Status:</p>
                         <p><span className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} font-mono`}>
-                            <HiOutlineStatusOnline className="mr-1 text-blue-400" />
+                            <HiOutlineStatusOnline className="mr-1 text-blue-300" />
                             {getStatusText()}
                         </span></p>
 

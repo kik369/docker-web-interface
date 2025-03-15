@@ -289,20 +289,20 @@ const ImageRow: React.FC<{
                                 href={getDockerHubUrl(mainTag) || '#'}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} transition-colors`}
+                                className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded-md px-3 py-1.5 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} transition-colors`}
                                 title={`Open ${mainTag} in Docker Hub or registry`}
                             >
-                                <ExternalLinkIcon className="w-4 h-4 mr-1 text-blue-400" />
+                                <ExternalLinkIcon className="w-4 h-4 mr-1.5 text-blue-300" />
                                 Docker Hub
                             </a>
                         )}
                         <button
                             onClick={() => onDelete(image.id, displayName)}
-                            className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} transition-colors`}
+                            className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded-md px-3 py-1.5 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} transition-colors`}
                             disabled={isActionLoading}
                             title="Delete image"
                         >
-                            <TrashIcon className={`w-4 h-4 mr-1 text-red-500 ${isActionLoading ? 'animate-pulse' : ''}`} />
+                            <TrashIcon className={`w-4 h-4 mr-1.5 text-red-400 ${isActionLoading ? 'animate-pulse' : ''}`} />
                             Delete
                         </button>
                     </div>
@@ -313,7 +313,7 @@ const ImageRow: React.FC<{
                         <p><CopyableText text={image.id}>
                             <Tooltip text={`${image.id} (click to copy full ID)`}>
                                 <span className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} font-mono`}>
-                                    <TemplateIcon className="mr-1 text-purple-400" />
+                                    <TemplateIcon className="mr-1 text-purple-300" />
                                     {shortId}
                                 </span>
                             </Tooltip>
@@ -323,7 +323,7 @@ const ImageRow: React.FC<{
                         <Tooltip text={`${exactSizeInBytes} (click to copy raw bytes)`}>
                             <p><CopyableText text={Math.round(image.size * 1024 * 1024).toString()}>
                                 <span className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} font-mono`}>
-                                    <ScaleIcon className="mr-1 text-blue-400" />
+                                    <ScaleIcon className="mr-1 text-blue-300" />
                                     {formattedSize}
                                 </span>
                             </CopyableText></p>
@@ -333,7 +333,7 @@ const ImageRow: React.FC<{
                         <Tooltip text={`${fullDateTime} (click to copy ISO format)`}>
                             <p><CopyableText text={new Date(createdTimestamp).toISOString()}>
                                 <span className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} font-mono`}>
-                                    <ClockIcon className="mr-1 text-green-400" />
+                                    <ClockIcon className="mr-1 text-green-300" />
                                     {relativeTime}
                                 </span>
                             </CopyableText></p>
@@ -444,7 +444,7 @@ export const ImageList: React.FC<ImageListProps> = ({ searchTerm = '', onSearchC
                             <h2 className={`text-xl font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>Docker Images</h2>
                             <div className="flex items-center ml-4 gap-2">
                                 <div className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 border border-gray-600' : 'bg-gray-200 border border-gray-300'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} font-mono`}>
-                                    <TemplateIcon className="w-4 h-4 mr-1 text-purple-400" />
+                                    <TemplateIcon className="w-4 h-4 mr-1 text-purple-300" />
                                     <span>{filteredImages.length}</span>
                                 </div>
                             </div>
@@ -506,13 +506,13 @@ export const ImageList: React.FC<ImageListProps> = ({ searchTerm = '', onSearchC
                         <div className="flex justify-end space-x-4">
                             <button
                                 onClick={handleDeleteCancel}
-                                className={`px-4 py-2 ${theme === 'dark' ? 'bg-gray-700 text-white hover:bg-gray-600' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'} rounded transition-colors`}
+                                className={`px-4 py-2 rounded-md ${theme === 'dark' ? 'bg-gray-700 text-white hover:bg-gray-600' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'} transition-colors`}
                             >
                                 Cancel
                             </button>
                             <button
                                 onClick={handleDeleteConfirm}
-                                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
                                 disabled={actionInProgress === imageToDelete?.id}
                             >
                                 {actionInProgress === imageToDelete?.id ? 'Deleting...' : 'Delete'}

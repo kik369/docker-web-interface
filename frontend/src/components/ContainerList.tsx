@@ -88,27 +88,63 @@ export const ContainerList = ({
     // WebSocket setup for real-time updates
     useWebSocket({
         onContainerStateChange: (containerData) => {
+            // Log the state change for debugging
+            console.log(`Container state change: ${containerData.container_id} -> ${containerData.state}`);
+
             // Clear action state when we receive an update for this container
             if (actionStates[containerData.container_id]) {
                 setActionStates(prev => ({ ...prev, [containerData.container_id]: null }));
             }
 
             if (containerData.state === 'deleted') {
+                // Remove the container from the list
                 setLocalContainers(prevContainers =>
                     prevContainers.filter(container => container.id !== containerData.container_id)
                 );
             } else {
-                setLocalContainers(prevContainers =>
-                    prevContainers.map(container =>
-                        container.id === containerData.container_id
-                            ? {
-                                ...container,
+                // Update the container with the new state
+                setLocalContainers(prevContainers => {
+                    // Check if the container exists in our list
+                    const containerExists = prevContainers.some(
+                        container => container.id === containerData.container_id
+                    );
+
+                    if (containerExists) {
+                        // Update existing container
+                        return prevContainers.map(container =>
+                            container.id === containerData.container_id
+                                ? {
+                                    ...container,
+                                    state: containerData.state,
+                                    status: containerData.status || container.status,
+                                    // Update other fields that might have changed
+                                    name: containerData.name || container.name,
+                                    image: containerData.image || container.image,
+                                    ports: containerData.ports || container.ports,
+                                    compose_project: containerData.compose_project || container.compose_project,
+                                    compose_service: containerData.compose_service || container.compose_service
+                                }
+                                : container
+                        );
+                    } else {
+                        // This is a new container, add it to the list
+                        // Only add if it's not a transition state (starting, stopping, etc.)
+                        if (!['deleted', 'removing'].includes(containerData.state)) {
+                            return [...prevContainers, {
+                                id: containerData.container_id,
+                                name: containerData.name,
+                                image: containerData.image,
+                                status: containerData.status,
                                 state: containerData.state,
-                                status: containerData.status || container.status
-                            }
-                            : container
-                    )
-                );
+                                created: containerData.created,
+                                ports: containerData.ports,
+                                compose_project: containerData.compose_project,
+                                compose_service: containerData.compose_service
+                            }];
+                        }
+                        return prevContainers;
+                    }
+                });
             }
         },
         onError: (error) => {
@@ -279,7 +315,7 @@ export const ContainerList = ({
                                         {group.projectName}
                                         <div className="inline-flex items-center ml-2">
                                             <span className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-200'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
-                                                <HiOutlineTemplate className="w-4 h-4 mr-1 text-purple-400" />
+                                                <HiOutlineTemplate className="w-4 h-4 mr-1 text-purple-300" />
                                                 <span>{group.containers.length}</span>
                                             </span>
                                         </div>
@@ -299,10 +335,10 @@ export const ContainerList = ({
                                                     });
                                                 }
                                             }}
-                                            className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} transition-colors`}
+                                            className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded-md px-3 py-1.5 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} transition-colors`}
                                             title="Start all containers in this group"
                                         >
-                                            <HiPlay className="w-4 h-4 mr-1 text-green-400" />
+                                            <HiPlay className="w-4 h-4 mr-1.5 text-green-400" />
                                             Start All
                                         </button>
                                         <button
@@ -315,10 +351,10 @@ export const ContainerList = ({
                                                     });
                                                 }
                                             }}
-                                            className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} transition-colors`}
+                                            className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded-md px-3 py-1.5 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} transition-colors`}
                                             title="Stop all containers in this group"
                                         >
-                                            <HiStop className="w-4 h-4 mr-1 text-red-400" />
+                                            <HiStop className="w-4 h-4 mr-1.5 text-red-400" />
                                             Stop All
                                         </button>
                                         <button
@@ -329,10 +365,10 @@ export const ContainerList = ({
                                                     });
                                                 }
                                             }}
-                                            className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} transition-colors`}
+                                            className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded-md px-3 py-1.5 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} transition-colors`}
                                             title="Restart all containers in this group"
                                         >
-                                            <HiRefresh className="w-4 h-4 mr-1 text-blue-400" />
+                                            <HiRefresh className="w-4 h-4 mr-1.5 text-blue-400" />
                                             Restart All
                                         </button>
                                         <button
@@ -343,10 +379,10 @@ export const ContainerList = ({
                                                     });
                                                 }
                                             }}
-                                            className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} transition-colors`}
+                                            className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded-md px-3 py-1.5 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} transition-colors`}
                                             title="Rebuild all containers in this group"
                                         >
-                                            <HiCog className="w-4 h-4 mr-1 text-purple-400" />
+                                            <HiCog className="w-4 h-4 mr-1.5 text-purple-400" />
                                             Rebuild All
                                         </button>
                                         <button
@@ -357,10 +393,10 @@ export const ContainerList = ({
                                                     });
                                                 }
                                             }}
-                                            className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} transition-colors`}
+                                            className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded-md px-3 py-1.5 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} transition-colors`}
                                             title="Delete all containers in this group (WARNING: This action cannot be undone)"
                                         >
-                                            <HiTrash className="w-4 h-4 mr-1 text-red-500" />
+                                            <HiTrash className="w-4 h-4 mr-1.5 text-red-400" />
                                             Delete All
                                         </button>
                                     </div>
