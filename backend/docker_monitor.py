@@ -618,7 +618,7 @@ class FlaskApp:
                     try:
                         self.socketio.emit(
                             "error",
-                            {"error": "Input must be a dictionary"},
+                            {"error": "Malformed request"},
                             room=request.sid,
                         )
                     except Exception as e:
@@ -668,8 +668,23 @@ class FlaskApp:
                     },
                 )
 
-                # Create a unique key for this stream
+                # Check if there's already an active stream for this container/client
                 stream_key = f"{request.sid}_{container_id}"
+                if stream_key in self.active_streams:
+                    # If there's an existing stream, stop it first
+                    logger.info(
+                        "Stopping existing log stream before starting a new one",
+                        extra={
+                            "event": "log_stream_restart",
+                            "container_id": container_id,
+                            "sid": request.sid,
+                        },
+                    )
+                    self.active_streams[stream_key] = True  # Signal to stop
+                    # Give a short delay to allow the existing stream to clean up
+                    eventlet.sleep(0.1)
+
+                # Create a new stream key
                 self.active_streams[stream_key] = False  # False means don't stop
 
                 # Capture request context values before starting the background task
@@ -680,6 +695,7 @@ class FlaskApp:
                     """Background task to stream container logs to the client."""
                     # Use captured sid instead of request.sid to avoid "Working outside of request context" error
                     try:
+                        # Get initial logs to send to the client
                         initial_logs, error = self.docker_service.get_container_logs(
                             container_id, lines=100
                         )
@@ -693,15 +709,35 @@ class FlaskApp:
                                     "sid": sid,
                                 },
                             )
-                            self.socketio.emit(
-                                "error",
-                                {"error": f"Failed to get container logs: {error}"},
-                                room=sid,
-                            )
+                            try:
+                                self.socketio.emit(
+                                    "error",
+                                    {"error": f"Failed to get container logs: {error}"},
+                                    room=sid,
+                                )
+                            except Exception as e:
+                                logger.debug(
+                                    f"Failed to send error message due to socket error: {str(e)}",
+                                    extra={
+                                        "event": "socket_error",
+                                        "sid": sid,
+                                    },
+                                )
                             return
 
+                        # Send initial logs to the client
                         if initial_logs:
                             try:
+                                logger.debug(
+                                    "Sending initial logs to client",
+                                    extra={
+                                        "event": "log_stream_initial",
+                                        "container_id": container_id,
+                                        "log_length": len(initial_logs),
+                                        "lines": initial_logs.count("\n"),
+                                        "sid": sid,
+                                    },
+                                )
                                 self.socketio.emit(
                                     "log_update",
                                     {"container_id": container_id, "log": initial_logs},
@@ -717,6 +753,7 @@ class FlaskApp:
                                 )
                                 return
 
+                        # Extract timestamp from the last log line to avoid duplicate logs
                         last_log_time = None
                         if initial_logs:
                             try:
@@ -734,9 +771,39 @@ class FlaskApp:
                                                 timestamp_str, "%Y-%m-%dT%H:%M:%S"
                                             ).timestamp()
                                         )
+                                        logger.debug(
+                                            "Extracted timestamp from last log line",
+                                            extra={
+                                                "event": "log_stream_timestamp",
+                                                "container_id": container_id,
+                                                "timestamp": timestamp_str,
+                                                "unix_timestamp": last_log_time,
+                                                "sid": sid,
+                                            },
+                                        )
                             except Exception as e:
-                                logger.warning(f"Failed to parse log timestamp: {e}")
+                                logger.warning(
+                                    f"Failed to parse log timestamp: {e}",
+                                    extra={
+                                        "event": "log_stream_timestamp_error",
+                                        "container_id": container_id,
+                                        "error": str(e),
+                                        "sid": sid,
+                                    },
+                                )
 
+                        # Start real-time log streaming
+                        logger.info(
+                            "Starting real-time log stream",
+                            extra={
+                                "event": "log_stream_realtime_start",
+                                "container_id": container_id,
+                                "since_timestamp": last_log_time,
+                                "sid": sid,
+                            },
+                        )
+
+                        # Get log generator from Docker service
                         log_generator = self.docker_service.stream_container_logs(
                             container_id, since=last_log_time
                         )
@@ -744,6 +811,7 @@ class FlaskApp:
                         if log_generator:
                             log_count = 0
                             for log_line in log_generator:
+                                # Check if client disconnected or requested stop
                                 if sid not in self.socketio.server.manager.rooms.get(
                                     "/", {}
                                 ) or self.active_streams.get(stream_key, True):
@@ -757,7 +825,8 @@ class FlaskApp:
                                         },
                                     )
                                     break
-                                # Send the log line to the client without logging each line
+
+                                # Send the log line to the client
                                 try:
                                     self.socketio.emit(
                                         "log_update",
@@ -765,6 +834,18 @@ class FlaskApp:
                                         room=sid,
                                     )
                                     log_count += 1
+
+                                    # Log every 10 lines in debug mode for troubleshooting
+                                    if log_count % 10 == 0:
+                                        logger.debug(
+                                            f"Streamed {log_count} log lines for container",
+                                            extra={
+                                                "event": "log_stream_progress",
+                                                "container_id": container_id,
+                                                "lines_streamed": log_count,
+                                                "sid": sid,
+                                            },
+                                        )
                                 except Exception as e:
                                     logger.debug(
                                         f"Failed to send log update due to socket error: {str(e)}",
@@ -778,7 +859,7 @@ class FlaskApp:
 
                                 # Optionally log a summary every 1000 lines
                                 if log_count % 1000 == 0:
-                                    logger.debug(
+                                    logger.info(
                                         f"Streamed {log_count} log lines for container {container_id}",
                                         extra={
                                             "event": "log_stream_progress",
@@ -789,7 +870,7 @@ class FlaskApp:
                                     )
 
                             # Log summary at the end of streaming
-                            logger.debug(
+                            logger.info(
                                 f"Completed streaming {log_count} log lines for container {container_id}",
                                 extra={
                                     "event": "log_stream_complete",
@@ -838,16 +919,26 @@ class FlaskApp:
                             },
                             exc_info=True,
                         )
-                        self.socketio.emit(
-                            "error",
-                            {"error": f"Error streaming logs: {str(e)}"},
-                            room=sid,
-                        )
+                        try:
+                            self.socketio.emit(
+                                "error",
+                                {"error": f"Error streaming logs: {str(e)}"},
+                                room=sid,
+                            )
+                        except Exception as socket_err:
+                            logger.debug(
+                                f"Failed to send error message due to socket error: {str(socket_err)}",
+                                extra={
+                                    "event": "socket_error",
+                                    "sid": sid,
+                                },
+                            )
 
                         # Clean up stream key on error
                         if stream_key in self.active_streams:
                             del self.active_streams[stream_key]
 
+                # Start the background task to stream logs
                 eventlet.spawn(stream_logs_background)
                 return {"status": "stream_started"}
 

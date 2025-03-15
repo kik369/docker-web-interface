@@ -228,14 +228,47 @@ const LogContainer = React.memo(({
     const logContainerRef = useRef<HTMLPreElement>(null);
     const [lastUpdateTime, setLastUpdateTime] = useState<Date>(new Date());
     const { theme } = useTheme();
+    const [autoScroll, setAutoScroll] = useState(true);
+    const prevLogsLengthRef = useRef<number>(0);
 
-    // Scroll to bottom when logs update
+    // Detect when logs change to update the last update time
     useEffect(() => {
-        if (logContainerRef.current && logs) {
-            logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
-            setLastUpdateTime(new Date()); // Update time when logs change
+        if (logs && logs.length !== prevLogsLengthRef.current) {
+            setLastUpdateTime(new Date());
+            prevLogsLengthRef.current = logs.length;
         }
     }, [logs]);
+
+    // Scroll to bottom when logs update, but only if autoScroll is enabled
+    useEffect(() => {
+        if (logContainerRef.current && logs && autoScroll) {
+            const scrollContainer = logContainerRef.current;
+            // Use requestAnimationFrame to ensure the scroll happens after the DOM update
+            requestAnimationFrame(() => {
+                scrollContainer.scrollTop = scrollContainer.scrollHeight;
+            });
+        }
+    }, [logs, autoScroll]);
+
+    // Handle manual scroll to detect when user scrolls up (to disable auto-scroll)
+    const handleScroll = useCallback(() => {
+        if (!logContainerRef.current) return;
+
+        const { scrollTop, scrollHeight, clientHeight } = logContainerRef.current;
+        const isScrolledToBottom = scrollHeight - scrollTop - clientHeight < 50; // Within 50px of bottom
+
+        if (isScrolledToBottom !== autoScroll) {
+            setAutoScroll(isScrolledToBottom);
+            if (isScrolledToBottom) {
+                // If user scrolled back to bottom, immediately scroll to the very bottom
+                requestAnimationFrame(() => {
+                    if (logContainerRef.current) {
+                        logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+                    }
+                });
+            }
+        }
+    }, [autoScroll]);
 
     // Create formatted time for display
     const formattedTime = useMemo(() => {
@@ -250,6 +283,16 @@ const LogContainer = React.memo(({
                     <span className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} mr-3`}>
                         Last update: {formattedTime}
                     </span>
+                    {!autoScroll && (
+                        <button
+                            onClick={() => setAutoScroll(true)}
+                            className={`text-xs ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded px-2 py-1 mr-2 ${theme === 'dark' ? 'text-white' : 'text-gray-800'} flex items-center`}
+                            title="Scroll to bottom and follow new logs"
+                        >
+                            <span className="inline-block w-2 h-2 bg-green-400 rounded-full mr-2"></span>
+                            Follow Logs
+                        </button>
+                    )}
                     <button
                         onClick={onClose}
                         className={`text-xs ${theme === 'dark' ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-700'}`}
@@ -263,13 +306,14 @@ const LogContainer = React.memo(({
             ) : (
                 <pre
                     ref={logContainerRef}
-                    className={`${theme === 'dark' ? 'bg-black text-gray-300' : 'bg-gray-700 text-gray-200'} p-3 rounded text-xs font-mono overflow-auto max-h-96`}
+                    onScroll={handleScroll}
+                    className={`${theme === 'dark' ? 'bg-black text-gray-300' : 'bg-gray-700 text-gray-200'} p-3 rounded text-xs font-mono overflow-auto max-h-96 relative`}
                 >
                     {logs || 'No logs available'}
                     {logs && isStreamActive && (
-                        <div className="text-xs text-green-500 mt-2 flex items-center">
+                        <div className={`text-xs text-green-500 mt-2 flex items-center ${autoScroll ? 'sticky bottom-0 bg-opacity-75 bg-black p-1 rounded' : ''}`}>
                             <span className="inline-block w-2 h-2 bg-green-400 rounded-full mr-2 animate-soft-pulse"></span>
-                            Log streaming active...
+                            Log streaming active
                         </div>
                     )}
                 </pre>
@@ -300,7 +344,6 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
     const [isStreamActive, setIsStreamActive] = React.useState(false);
     const showLogsRef = useRef(showLogs);
     const streamActiveRef = useRef(false);
-    const logContainerRef = useRef<HTMLPreElement>(null);
     const { theme } = useTheme();
 
     useEffect(() => {
@@ -319,13 +362,25 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
     const { startLogStream, stopLogStream } = useWebSocket({
         onLogUpdate: (containerId, log) => {
             if (containerId === container.id && showLogsRef.current) {
-                setLogs(prevLogs => prevLogs + log);
+                // Log the update for debugging
+                logger.debug('Updating logs in ContainerRow:', {
+                    containerId,
+                    logLength: log.length,
+                    currentLogsLength: logs.length,
+                    lineCount: (log.match(/\n/g) || []).length + 1
+                });
+
+                // Update logs state with new content
+                setLogs(prevLogs => {
+                    const newLogs = prevLogs + log;
+                    return newLogs;
+                });
+
+                // Ensure streaming state is active
                 if (!isStreamActive) {
                     setIsStreamActive(true);
                     setIsLoadingLogs(false);
-                }
-                if (logContainerRef.current) {
-                    logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+                    logger.info('Log stream became active', { containerId });
                 }
             }
         },
@@ -333,9 +388,27 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
             logger.error('Error streaming logs:', new Error(error));
             console.error('Failed to stream logs:', error);
             setIsLoadingLogs(false);
+
+            // Try to restart the stream if it fails
+            if (showLogsRef.current && streamActiveRef.current) {
+                logger.info('Attempting to restart log stream after error', { containerId: container.id });
+                setTimeout(() => {
+                    if (showLogsRef.current) {
+                        startLogStream(container.id);
+                    }
+                }, 2000); // Wait 2 seconds before trying to reconnect
+            }
         },
         enabled: true // Always keep WebSocket connection enabled
     });
+
+    // Start log streaming immediately when component mounts if logs should be shown
+    useEffect(() => {
+        if (showLogs) {
+            handleViewLogs(true);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Start or stop log streaming based on showLogs state
     useEffect(() => {
@@ -392,11 +465,18 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                 throw new Error(data.error || 'Failed to fetch logs');
             }
 
+            // Set the initial logs
             setLogs(data.data.logs);
-            // The streaming will be started by the useEffect that watches showLogs
+
+            // Explicitly start the log stream
             streamActiveRef.current = true;
             startLogStream(container.id);
-            logger.info('Successfully fetched container logs', { containerId: container.id });
+            setIsStreamActive(true);
+
+            logger.info('Successfully fetched container logs and started streaming', {
+                containerId: container.id,
+                initialLogsLength: data.data.logs.length
+            });
         } catch (err) {
             logger.error('Failed to fetch container logs', err instanceof Error ? err : undefined, {
                 containerId: container.id

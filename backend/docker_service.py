@@ -244,19 +244,88 @@ class DockerService:
         """Stream logs for a specific container."""
         try:
             container = self.client.containers.get(container_id)
-            stream = container.logs(
-                stream=True, follow=True, timestamps=True, since=since
-            )
+
+            # Configure streaming options for real-time logs
+            kwargs = {
+                "stream": True,  # Enable streaming
+                "follow": True,  # Follow log output
+                "timestamps": True,  # Include timestamps
+            }
+
+            # Only use 'since' if provided, otherwise we'll get all logs
+            if since is not None:
+                kwargs["since"] = since
+                # When using 'since', set tail=0 to avoid duplicate logs
+                kwargs["tail"] = 0
+                logger.info(
+                    f"Starting log stream for container {container_id} from timestamp {since}",
+                    extra={
+                        "container_id": container_id,
+                        "since": since,
+                        "stream_options": str(kwargs),
+                    },
+                )
+            else:
+                # If no timestamp provided, just get recent logs
+                kwargs["tail"] = 100
+                logger.info(
+                    f"Starting log stream for container {container_id} with recent logs",
+                    extra={
+                        "container_id": container_id,
+                        "tail": 100,
+                        "stream_options": str(kwargs),
+                    },
+                )
+
+            # Get the log stream from Docker
+            stream = container.logs(**kwargs)
+
+            # Process and yield each log line
+            log_count = 0
             for chunk in stream:
+                log_count += 1
                 if isinstance(chunk, bytes):
-                    yield chunk.decode("utf-8")
+                    log_line = chunk.decode(
+                        "utf-8", errors="replace"
+                    )  # Handle encoding errors gracefully
+
+                    # Log every 10th line to avoid excessive logging
+                    if log_count % 10 == 0:
+                        logger.debug(
+                            f"Streaming log line {log_count} for container {container_id}",
+                            extra={
+                                "container_id": container_id,
+                                "log_line_length": len(log_line),
+                                "log_count": log_count,
+                            },
+                        )
+
+                    # Yield the log line to be sent to the client
+                    yield log_line
+
+            # Log when the stream ends (this should only happen if the container stops)
+            logger.info(
+                f"Log stream ended for container {container_id} after {log_count} lines",
+                extra={
+                    "container_id": container_id,
+                    "total_lines": log_count,
+                },
+            )
+
         except docker.errors.NotFound:
             error_msg = f"Container {container_id} not found"
             logger.error(error_msg)
             yield f"Error: {error_msg}"
         except Exception as e:
             error_msg = f"Failed to stream container logs: {str(e)}"
-            logger.error(error_msg)
+            logger.error(
+                error_msg,
+                extra={
+                    "container_id": container_id,
+                    "error": str(e),
+                },
+                exc_info=True,
+            )
             yield f"Error: {error_msg}"
 
     def _emit_container_state(self, container_id: str, state: str) -> None:

@@ -96,8 +96,15 @@ const initializeSocket = () => {
     const logBuffers = new Map<string, string>();
     const pendingFlushes = new Set<string>();
 
-    // Handle log updates
+    // Handle log updates with improved buffering for more responsive streaming
     globalSocket.on('log_update', (data: { container_id: string; log: string }) => {
+        // Log the received update for debugging
+        logger.debug('Received log update:', {
+            containerId: data.container_id,
+            logLength: data.log.length,
+            logPreview: data.log.length > 50 ? data.log.substring(0, 50) + '...' : data.log
+        });
+
         // Group log updates by container ID to minimize re-renders
         const containerId = data.container_id;
         const logBuffer = logBuffers.get(containerId) || '';
@@ -108,7 +115,7 @@ const initializeSocket = () => {
         if (!pendingFlushes.has(containerId)) {
             pendingFlushes.add(containerId);
 
-            // Flush buffer after a short delay
+            // Flush buffer after a very short delay - using a shorter delay for more responsive updates
             setTimeout(() => {
                 const bufferToFlush = logBuffers.get(containerId) || '';
                 logBuffers.set(containerId, '');
@@ -116,9 +123,24 @@ const initializeSocket = () => {
 
                 // Only notify handlers if there's something to flush
                 if (bufferToFlush) {
-                    globalHandlers.forEach(handler => handler.onLogUpdate?.(containerId, bufferToFlush));
+                    logger.debug('Flushing log buffer:', {
+                        containerId,
+                        bufferLength: bufferToFlush.length,
+                        lineCount: (bufferToFlush.match(/\n/g) || []).length + 1
+                    });
+
+                    // Notify all registered handlers about the log update
+                    globalHandlers.forEach(handler => {
+                        if (handler.onLogUpdate) {
+                            try {
+                                handler.onLogUpdate(containerId, bufferToFlush);
+                            } catch (error) {
+                                logger.error('Error in log update handler:', error instanceof Error ? error : new Error(String(error)));
+                            }
+                        }
+                    });
                 }
-            }, 20); // Reduced from 50ms to 20ms for more responsive updates
+            }, 5); // Reduced from 10ms to 5ms for even more responsive updates
         }
     });
 
@@ -139,6 +161,7 @@ export const useWebSocket = ({
         onInitialState,
         onError
     });
+    const [isConnected, setIsConnected] = useState(false);
 
     useEffect(() => {
         if (!enabled) return;
@@ -151,9 +174,24 @@ export const useWebSocket = ({
         // Initialize socket if needed
         initializeSocket();
 
+        // Update connection status when socket connects/disconnects
+        const handleConnect = () => setIsConnected(true);
+        const handleDisconnect = () => setIsConnected(false);
+
+        if (globalSocket) {
+            globalSocket.on('connect', handleConnect);
+            globalSocket.on('disconnect', handleDisconnect);
+            setIsConnected(globalSocket.connected);
+        }
+
         return () => {
             activeSubscriptions--;
             globalHandlers.delete(handlers.current);
+
+            if (globalSocket) {
+                globalSocket.off('connect', handleConnect);
+                globalSocket.off('disconnect', handleDisconnect);
+            }
 
             if (activeSubscriptions === 0 && globalSocket) {
                 logger.info('Cleaning up last WebSocket connection');
@@ -181,6 +219,6 @@ export const useWebSocket = ({
     return {
         startLogStream,
         stopLogStream,
-        isConnected: globalSocket?.connected || false,
+        isConnected,
     };
 };
