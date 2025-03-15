@@ -12,6 +12,7 @@ Docker Web Interface is a comprehensive system for monitoring and managing Docke
     -   Intuitive React-based UI with simplified styling.
     -   Enhanced port visualization with clear host-to-container mapping and protocol tooltips.
     -   Keyboard shortcuts for quick navigation and actions.
+    -   Dark and light mode support with system preference detection and persistent user preference.
 -   **RESTful API Backend**
     -   Flask-powered endpoints to manage containers and images.
 -   **Live Log Streaming**
@@ -26,6 +27,7 @@ Docker Web Interface is a comprehensive system for monitoring and managing Docke
     -   Comprehensive logging with unique request IDs for improved traceability.
 -   **State Persistence**
     -   Maintains active tab selections, group expansion states, and log view settings between sessions.
+    -   Remembers user's theme preference (dark/light mode) across sessions.
 -   **Unit Testing**
     -   Comprehensive test suite for backend services using pytest.
     -   Mocked Docker client for reliable, reproducible tests.

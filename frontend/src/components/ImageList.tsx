@@ -4,6 +4,7 @@ import { IconBaseProps } from 'react-icons';
 import { HiTrash, HiExternalLink, HiOutlineTemplate, HiOutlineClock, HiOutlineScale } from 'react-icons/hi';
 import { useImages } from '../hooks/useImages';
 import { Image } from '../types/docker';
+import { useTheme } from '../context/ThemeContext';
 
 // Create wrapper components for icons
 const TrashIcon: React.FC<IconBaseProps> = (props): React.JSX.Element => (
@@ -36,6 +37,7 @@ const Tooltip: React.FC<TooltipProps> = ({ children, text }) => {
     const [showTooltip, setShowTooltip] = useState(false);
     const [position, setPosition] = useState({ top: 0, left: 0 });
     const triggerRef = useRef<HTMLDivElement>(null);
+    const { theme } = useTheme();
 
     const updateTooltipPosition = () => {
         if (triggerRef.current) {
@@ -81,7 +83,7 @@ const Tooltip: React.FC<TooltipProps> = ({ children, text }) => {
 
             {showTooltip && document.body && ReactDOM.createPortal(
                 <div
-                    className="fixed bg-gray-800 text-white p-2 rounded shadow-lg z-[1000] text-xs whitespace-nowrap min-w-min"
+                    className={`fixed ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-500'} text-white p-2 rounded shadow-lg z-[1000] text-xs whitespace-nowrap min-w-min`}
                     style={{
                         top: `${position.top}px`,
                         left: `${position.left}px`,
@@ -91,7 +93,7 @@ const Tooltip: React.FC<TooltipProps> = ({ children, text }) => {
                     <div className="relative">
                         {text}
                         <div
-                            className="absolute w-0 h-0 border-l-8 border-r-8 border-t-8 border-transparent border-t-gray-800"
+                            className={`absolute w-0 h-0 border-l-8 border-r-8 border-t-8 border-transparent ${theme === 'dark' ? 'border-t-gray-800' : 'border-t-gray-500'}`}
                             style={{ bottom: '-8px', left: '50%', transform: 'translateX(-50%)' }}
                         />
                     </div>
@@ -179,6 +181,8 @@ const ImageRow: React.FC<{
     onDelete: (id: string, tag: string) => void;
     actionInProgress: string | null;
 }> = ({ image, onDelete, actionInProgress }) => {
+    const { theme } = useTheme();
+
     // Get Docker Hub URL from image tag
     const getDockerHubUrl = (tag: string): string | null => {
         // Example tag: nginx:latest or library/nginx:latest
@@ -219,19 +223,19 @@ const ImageRow: React.FC<{
     const fullDateTime = formatFullDateTime(createdTimestamp);
 
     return (
-        <div className="bg-gray-800 rounded-lg shadow-lg overflow-hidden">
+        <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-lg overflow-hidden`}>
             <div className="p-4">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
                         <div>
                             <div className="flex items-center space-x-2">
                                 <Tooltip text="Docker Image">
-                                    <h3 className="text-lg font-semibold text-white">{displayName}</h3>
+                                    <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{displayName}</h3>
                                 </Tooltip>
 
                                 {image.tags.length > 1 && (
                                     <Tooltip text="Additional Tags">
-                                        <span className="inline-flex items-center bg-gray-800 rounded px-2 py-1 text-xs text-white font-mono">
+                                        <span className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-200'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} font-mono`}>
                                             +{image.tags.length - 1}
                                         </span>
                                     </Tooltip>
@@ -245,7 +249,7 @@ const ImageRow: React.FC<{
                                 href={getDockerHubUrl(mainTag) || '#'}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white hover:bg-gray-600 transition-colors"
+                                className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} transition-colors`}
                                 title={`Open ${mainTag} in Docker Hub or registry`}
                             >
                                 <ExternalLinkIcon className="w-4 h-4 mr-1 text-blue-400" />
@@ -254,7 +258,7 @@ const ImageRow: React.FC<{
                         )}
                         <button
                             onClick={() => onDelete(image.id, displayName)}
-                            className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white hover:bg-gray-600 transition-colors"
+                            className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} transition-colors`}
                             disabled={isActionLoading}
                             title="Delete image"
                         >
@@ -265,23 +269,23 @@ const ImageRow: React.FC<{
                 </div>
                 <div className="mt-2 space-y-1">
                     <div className="grid grid-cols-[80px_auto] gap-y-1">
-                        <p className="text-sm text-gray-400">ID:</p>
-                        <p><span className="inline-flex items-center bg-gray-800 rounded px-2 py-1 text-xs text-white font-mono">
+                        <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>ID:</p>
+                        <p><span className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-200'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} font-mono`}>
                             <TemplateIcon className="mr-1 text-purple-400" />
                             {shortId}
                         </span></p>
 
-                        <p className="text-sm text-gray-400">Size:</p>
+                        <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Size:</p>
                         <Tooltip text={exactSizeInBytes}>
-                            <p><span className="inline-flex items-center bg-gray-800 rounded px-2 py-1 text-xs text-white font-mono">
+                            <p><span className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-200'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} font-mono`}>
                                 <ScaleIcon className="mr-1 text-blue-400" />
                                 {formattedSize}
                             </span></p>
                         </Tooltip>
 
-                        <p className="text-sm text-gray-400">Created:</p>
+                        <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Created:</p>
                         <Tooltip text={fullDateTime}>
-                            <p><span className="inline-flex items-center bg-gray-800 rounded px-2 py-1 text-xs text-white font-mono">
+                            <p><span className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-200'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} font-mono`}>
                                 <ClockIcon className="mr-1 text-green-400" />
                                 {relativeTime}
                             </span></p>
@@ -289,10 +293,10 @@ const ImageRow: React.FC<{
 
                         {image.tags.length > 1 && (
                             <>
-                                <p className="text-sm text-gray-400">Tags:</p>
+                                <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Tags:</p>
                                 <div className="flex flex-wrap gap-2">
                                     {image.tags.slice(1).map((tag, index) => (
-                                        <span key={index} className="inline-flex items-center bg-gray-800 rounded px-2 py-1 text-xs text-white font-mono">
+                                        <span key={index} className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-200'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} font-mono`}>
                                             {tag}
                                         </span>
                                     ))}
@@ -317,6 +321,7 @@ export const ImageList: React.FC<ImageListProps> = ({ searchTerm = '', onSearchC
     const [imageToDelete, setImageToDelete] = useState<{ id: string, tag: string } | null>(null);
     const [deleteError, setDeleteError] = useState<string | null>(null);
     const [isForceDelete, setIsForceDelete] = useState(false);
+    const { theme } = useTheme();
 
     // Use the hook for all image-related functionality
     const {
@@ -328,8 +333,8 @@ export const ImageList: React.FC<ImageListProps> = ({ searchTerm = '', onSearchC
     } = useImages();
 
     if (isLoading) {
-        return <div className="flex justify-center items-center p-8 text-white">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-white"></div>
+        return <div className={`flex justify-center items-center p-8 ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
             <span className="ml-2">Loading images...</span>
         </div>;
     }
@@ -376,9 +381,9 @@ export const ImageList: React.FC<ImageListProps> = ({ searchTerm = '', onSearchC
         <div className="container-list">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-6">
                 <div className="flex items-center gap-4">
-                    <h2 className="text-xl font-semibold text-white mb-2 sm:mb-0">Docker Images</h2>
+                    <h2 className={`text-xl font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'} mb-2 sm:mb-0`}>Docker Images</h2>
                     <div className="flex items-center gap-2">
-                        <div className="inline-flex items-center bg-gray-800 border border-gray-600 rounded px-2 py-1 text-xs text-white font-mono">
+                        <div className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-800 border border-gray-600' : 'bg-gray-200 border border-gray-300'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} font-mono`}>
                             <TemplateIcon className="w-4 h-4 mr-1 text-purple-400" />
                             <span>{filteredImages.length}</span>
                         </div>
@@ -389,7 +394,7 @@ export const ImageList: React.FC<ImageListProps> = ({ searchTerm = '', onSearchC
 
             <div className="space-y-4">
                 {filteredImages.length === 0 ? (
-                    <div className="bg-gray-800 p-6 rounded-lg text-center text-gray-400">
+                    <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-100'} p-6 rounded-lg text-center ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
                         {searchTerm ? `No images found matching "${searchTerm}"` : "No images found"}
                     </div>
                 ) : (
@@ -407,9 +412,9 @@ export const ImageList: React.FC<ImageListProps> = ({ searchTerm = '', onSearchC
             {/* Delete Confirmation Modal */}
             {showDeleteModal && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-gray-800 rounded-lg p-6 max-w-md w-full shadow-xl">
-                        <h3 className="text-xl font-semibold text-white mb-4">Delete Image</h3>
-                        <p className="text-gray-300 mb-4">
+                    <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-lg p-6 max-w-md w-full shadow-xl`}>
+                        <h3 className={`text-xl font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'} mb-4`}>Delete Image</h3>
+                        <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} mb-4`}>
                             Are you sure you want to delete the image <span className="font-semibold">{imageToDelete?.tag}</span>?
                             This action cannot be undone.
                         </p>
@@ -428,7 +433,7 @@ export const ImageList: React.FC<ImageListProps> = ({ searchTerm = '', onSearchC
                                 onChange={() => setIsForceDelete(!isForceDelete)}
                                 className="mr-2"
                             />
-                            <label htmlFor="force-delete" className="text-gray-300 text-sm">
+                            <label htmlFor="force-delete" className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} text-sm`}>
                                 Force delete (remove even if used by containers)
                             </label>
                         </div>
@@ -436,7 +441,7 @@ export const ImageList: React.FC<ImageListProps> = ({ searchTerm = '', onSearchC
                         <div className="flex justify-end space-x-4">
                             <button
                                 onClick={handleDeleteCancel}
-                                className="px-4 py-2 bg-gray-700 text-white rounded hover:bg-gray-600 transition-colors"
+                                className={`px-4 py-2 ${theme === 'dark' ? 'bg-gray-700 text-white hover:bg-gray-600' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'} rounded transition-colors`}
                             >
                                 Cancel
                             </button>

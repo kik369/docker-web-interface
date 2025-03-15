@@ -9,6 +9,7 @@ import { ContainerRowProps } from '../types/docker';
 import { logger } from '../services/logging';
 import { config } from '../config';
 import { useWebSocket } from '../hooks/useWebSocket';
+import { useTheme } from '../context/ThemeContext';
 
 // Create wrapper components for icons
 const DocumentIcon: React.FC<IconBaseProps> = (props): React.JSX.Element => (
@@ -76,6 +77,8 @@ const getStatusDescription = (state: string | undefined, actionInProgress: strin
 
 // Port mapping display component
 const PortDisplay: React.FC<{ portsString: string }> = ({ portsString }) => {
+    const { theme } = useTheme();
+
     if (!portsString) return null;
 
     const portMappings = portsString.split(', ');
@@ -89,14 +92,14 @@ const PortDisplay: React.FC<{ portsString: string }> = ({ portsString }) => {
                 const [port, protocol] = containerPort ? containerPort.split('/') : [hostPort, ''];
 
                 return (
-                    <div key={index} className="inline-flex items-center bg-gray-800 rounded px-2 py-1 text-xs font-mono">
+                    <div key={index} className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-200'} rounded px-2 py-1 text-xs font-mono ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
                         {containerPort ? (
                             <>
                                 <span className="flex items-center mr-1" title="Host Port (your computer)">
                                     <HiOutlineDesktopComputer className="mr-1 text-blue-400" />
                                     {hostPort}
                                 </span>
-                                <span className="text-gray-400 mx-1">→</span>
+                                <span className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} mx-1`}>→</span>
                                 <span className="flex items-center" title="Container Port (inside Docker)">
                                     <HiOutlineServer className="mr-1 text-green-400" />
                                     {port}
@@ -111,9 +114,9 @@ const PortDisplay: React.FC<{ portsString: string }> = ({ portsString }) => {
 
                         {protocol && (
                             <div className="relative inline-block ml-1 group">
-                                <span className="text-xs text-gray-400">{protocol}</span>
-                                <HiOutlineInformationCircle className="inline-block ml-1 text-gray-400 hover:text-blue-400 cursor-help" />
-                                <div className="absolute hidden group-hover:block bottom-full left-1/2 transform -translate-x-1/2 bg-gray-800 text-white p-2 rounded shadow-lg w-64 z-10 text-xs">
+                                <span className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{protocol}</span>
+                                <HiOutlineInformationCircle className={`inline-block ml-1 ${theme === 'dark' ? 'text-gray-400 hover:text-blue-400' : 'text-gray-500 hover:text-blue-500'} cursor-help`} />
+                                <div className={`absolute hidden group-hover:block bottom-full left-1/2 transform -translate-x-1/2 ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-500'} text-white p-2 rounded shadow-lg w-64 z-10 text-xs`}>
                                     {protocol.toLowerCase() === 'tcp' ? (
                                         <>TCP (Transmission Control Protocol): Reliable, connection-oriented protocol that ensures data delivery.</>
                                     ) : protocol.toLowerCase() === 'udp' ? (
@@ -141,6 +144,7 @@ const Tooltip: React.FC<TooltipProps> = ({ children, text }) => {
     const [showTooltip, setShowTooltip] = useState(false);
     const [position, setPosition] = useState({ top: 0, left: 0 });
     const triggerRef = useRef<HTMLDivElement>(null);
+    const { theme } = useTheme();
 
     const updateTooltipPosition = () => {
         if (triggerRef.current) {
@@ -186,7 +190,7 @@ const Tooltip: React.FC<TooltipProps> = ({ children, text }) => {
 
             {showTooltip && document.body && ReactDOM.createPortal(
                 <div
-                    className="fixed bg-gray-800 text-white p-2 rounded shadow-lg z-[1000] text-xs whitespace-nowrap min-w-min"
+                    className={`fixed ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-500'} text-white p-2 rounded shadow-lg z-[1000] text-xs whitespace-nowrap min-w-min`}
                     style={{
                         top: `${position.top}px`,
                         left: `${position.left}px`,
@@ -196,7 +200,7 @@ const Tooltip: React.FC<TooltipProps> = ({ children, text }) => {
                     <div className="relative">
                         {text}
                         <div
-                            className="absolute w-0 h-0 border-l-8 border-r-8 border-t-8 border-transparent border-t-gray-800"
+                            className={`absolute w-0 h-0 border-l-8 border-r-8 border-t-8 border-transparent ${theme === 'dark' ? 'border-t-gray-800' : 'border-t-gray-500'}`}
                             style={{ bottom: '-8px', left: '50%', transform: 'translateX(-50%)' }}
                         />
                     </div>
@@ -223,6 +227,7 @@ const LogContainer = React.memo(({
 }) => {
     const logContainerRef = useRef<HTMLPreElement>(null);
     const [lastUpdateTime, setLastUpdateTime] = useState<Date>(new Date());
+    const { theme } = useTheme();
 
     // Scroll to bottom when logs update
     useEffect(() => {
@@ -238,27 +243,27 @@ const LogContainer = React.memo(({
     }, [lastUpdateTime]);
 
     return (
-        <div className="bg-gray-900 p-4 rounded-lg mt-2">
+        <div className={`${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-100'} p-4 rounded-lg mt-2`}>
             <div className="flex justify-between items-center mb-2">
-                <h3 className="text-lg font-semibold text-white">Container Logs</h3>
+                <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>Container Logs</h3>
                 <div className="flex items-center">
-                    <span className="text-xs text-gray-400 mr-3">
+                    <span className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} mr-3`}>
                         Last update: {formattedTime}
                     </span>
                     <button
                         onClick={onClose}
-                        className="text-xs text-gray-400 hover:text-white"
+                        className={`text-xs ${theme === 'dark' ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-700'}`}
                     >
                         Close
                     </button>
                 </div>
             </div>
             {isLoading ? (
-                <div className="text-gray-400">Loading logs...</div>
+                <div className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Loading logs...</div>
             ) : (
                 <pre
                     ref={logContainerRef}
-                    className="bg-black p-3 rounded text-xs text-gray-300 font-mono overflow-auto max-h-96"
+                    className={`${theme === 'dark' ? 'bg-black text-gray-300' : 'bg-gray-700 text-gray-200'} p-3 rounded text-xs font-mono overflow-auto max-h-96`}
                 >
                     {logs || 'No logs available'}
                     {logs && isStreamActive && (
@@ -296,6 +301,7 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
     const showLogsRef = useRef(showLogs);
     const streamActiveRef = useRef(false);
     const logContainerRef = useRef<HTMLPreElement>(null);
+    const { theme } = useTheme();
 
     useEffect(() => {
         showLogsRef.current = showLogs;
@@ -442,7 +448,7 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
     const isContainerRunning = container.state === 'running';
 
     return (
-        <div className="bg-gray-800 rounded-lg shadow-lg overflow-hidden">
+        <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-lg overflow-hidden`}>
             <div className="p-4">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
@@ -464,7 +470,7 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                                             Set in docker-compose.yml with container_name: property
                                         </>
                                 }>
-                                    <h3 className="text-lg font-semibold text-white">{container.name}</h3>
+                                    <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{container.name}</h3>
                                 </Tooltip>
 
                                 {container.compose_project && container.compose_project !== 'Standalone Containers' &&
@@ -472,7 +478,7 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                                         <Tooltip text={<>
                                             Docker Compose Service Name
                                         </>}>
-                                            <span className="inline-flex items-center bg-gray-800 rounded px-2 py-1 text-xs text-white font-mono">
+                                            <span className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-200'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} font-mono`}>
                                                 {container.compose_service}
                                             </span>
                                         </Tooltip>
@@ -483,7 +489,7 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                     <div className="flex items-center space-x-2">
                         <button
                             onClick={() => handleViewLogs()}
-                            className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white hover:bg-gray-600 transition-colors"
+                            className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} transition-colors`}
                             disabled={isLoadingLogs}
                             title={`Show logs (docker logs ${container.name})`}
                         >
@@ -492,7 +498,7 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                         </button>
                         <button
                             onClick={() => handleAction('delete')}
-                            className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white hover:bg-gray-600 transition-colors"
+                            className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} transition-colors`}
                             disabled={actionInProgress !== null}
                             title={`Delete container (docker rm -f ${container.name})`}
                         >
@@ -503,22 +509,22 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                 </div>
                 <div className="mt-2 space-y-1">
                     <div className="grid grid-cols-[80px_auto] gap-y-1">
-                        <p className="text-sm text-gray-400">Image:</p>
-                        <p><span className="inline-flex items-center bg-gray-800 rounded px-2 py-1 text-xs text-white font-mono">
+                        <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Image:</p>
+                        <p><span className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-200'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} font-mono`}>
                             <HiOutlineTemplate className="mr-1 text-purple-400" />
                             {container.image}
                         </span></p>
 
-                        <p className="text-sm text-gray-400">Status:</p>
-                        <p><span className="inline-flex items-center bg-gray-800 rounded px-2 py-1 text-xs text-white font-mono">
+                        <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Status:</p>
+                        <p><span className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-200'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} font-mono`}>
                             <HiOutlineStatusOnline className="mr-1 text-blue-400" />
                             {getStatusText()}
                         </span></p>
 
                         {container.ports && (
                             <>
-                                <p className="text-sm text-gray-400">Ports:</p>
-                                <p><span className="text-gray-300 inline-flex">
+                                <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Ports:</p>
+                                <p><span className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} inline-flex`}>
                                     <PortDisplay portsString={container.ports} />
                                 </span></p>
                             </>

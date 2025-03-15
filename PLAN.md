@@ -92,7 +92,6 @@ This document should be consulted before making any changes to the codebase and 
 
 -   [ ] Improve error handling for Docker connection failures
 -   [ ] Create diagrams for container lifecycle management
--   [ ] Add dark mode support
 -   [ ] Expand test coverage for frontend components
 -   [ ] Optimize log streaming for high-volume containers
 
@@ -104,6 +103,15 @@ This document should be consulted before making any changes to the codebase and 
 -   [ ] Add multi-node support for Docker Swarm
 
 ## Recently Completed Work
+
+### Dark Mode Implementation (Completed 2023-07-30)
+
+-   [x] Configured Tailwind for dark mode support
+-   [x] Created ThemeContext for theme state management
+-   [x] Implemented theme toggle component in the header
+-   [x] Added keyboard shortcut (Ctrl+D) for toggling themes
+-   [x] Updated UI components to support both light and dark modes
+-   [x] Added theme preference persistence using localStorage
 
 ### Documentation Enhancement (Completed 2023-07-25)
 
@@ -118,3 +126,231 @@ This document should be consulted before making any changes to the codebase and 
 -   [x] Improved NoneType error handling
 -   [x] Implemented log buffering for better performance
 -   [x] Adjusted default log levels for production
+
+## Implementation Plans
+
+### Dark Mode Support Implementation
+
+#### Overview
+
+This plan outlines the implementation of a dark/light mode toggle feature for the Docker Web Interface using Tailwind CSS best practices. The feature will allow users to switch between light and dark themes with their preference being persisted across sessions.
+
+#### Implementation Phases
+
+##### Phase 1: Tailwind Configuration (Estimated: 1 day)
+
+-   [x] Configure Tailwind for dark mode support in `tailwind.config.js`:
+    -   [x] Enable the `darkMode: 'class'` option to use class-based dark mode
+    -   [x] Define color palette variables for both light and dark modes
+    -   [x] Create custom utility classes if needed for specific UI elements
+
+##### Phase 2: Theme Context Setup (Estimated: 1 day)
+
+-   [x] Create a ThemeContext to manage theme state:
+    -   [x] Implement a React context provider for theme state management
+    -   [x] Create hooks for accessing and updating theme preferences
+    -   [x] Add local storage integration to persist user preferences
+    -   [x] Implement system preference detection using `prefers-color-scheme` media query
+
+##### Phase 3: Toggle Component Development (Estimated: 1 day)
+
+-   [x] Design and implement the theme toggle component:
+    -   [x] Create a visually appealing toggle UI element
+    -   [x] Position the toggle in the application header/navbar
+    -   [x] Add appropriate icons for sun/moon to indicate modes
+    -   [x] Implement smooth transition animations between states
+
+##### Phase 4: Application-wide Theme Integration (Estimated: 2 days)
+
+-   [x] Apply dark mode classes throughout the application:
+    -   [x] Update base layouts and containers
+    -   [x] Modify component styling to respect dark mode:
+        -   [x] Container panels and cards
+        -   [x] Container and image list items
+        -   [x] Action buttons and controls
+    -   [x] Ensure all text maintains proper contrast in both modes
+    -   [x] Adapt charts, graphs, and visualizations for dark mode
+    -   [x] Test and adjust notification and alert styling
+
+##### Phase 5: Testing and Refinement (Estimated: 1 day)
+
+-   [x] Comprehensive testing across the application:
+    -   [x] Test on multiple browsers and screen sizes
+    -   [x] Verify all components render correctly in both modes
+    -   [x] Ensure preference persistence works as expected
+    -   [x] Validate system preference detection functions properly
+    -   [x] Check for any contrast issues or accessibility concerns
+
+#### Technical Details
+
+##### Tailwind Configuration Example
+
+```javascript
+// tailwind.config.js
+module.exports = {
+    darkMode: 'class',
+    theme: {
+        extend: {
+            colors: {
+                // Light mode colors
+                'light-primary': '#3490dc',
+                'light-secondary': '#ffed4a',
+                'light-background': '#f8fafc',
+                'light-surface': '#ffffff',
+                'light-text': '#1a202c',
+
+                // Dark mode colors
+                'dark-primary': '#90cdf4',
+                'dark-secondary': '#faf089',
+                'dark-background': '#1a202c',
+                'dark-surface': '#2d3748',
+                'dark-text': '#f7fafc',
+            },
+        },
+    },
+    // ...
+};
+```
+
+##### Theme Context Implementation Strategy
+
+```jsx
+// Simplified example of theme context
+import React, { createContext, useState, useEffect, useContext } from 'react';
+
+const ThemeContext = createContext();
+
+export const ThemeProvider = ({ children }) => {
+    // Check for saved theme or system preference
+    const getInitialTheme = () => {
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme) return savedTheme;
+
+        return window.matchMedia('(prefers-color-scheme: dark)').matches
+            ? 'dark'
+            : 'light';
+    };
+
+    const [theme, setTheme] = useState(getInitialTheme);
+
+    // Update document root class and localStorage when theme changes
+    useEffect(() => {
+        const root = window.document.documentElement;
+        root.classList.remove('light', 'dark');
+        root.classList.add(theme);
+        localStorage.setItem('theme', theme);
+    }, [theme]);
+
+    return (
+        <ThemeContext.Provider value={{ theme, setTheme }}>
+            {children}
+        </ThemeContext.Provider>
+    );
+};
+
+// Custom hook for using the theme
+export const useTheme = () => useContext(ThemeContext);
+```
+
+##### Theme Toggle Component Approach
+
+```jsx
+// Simplified toggle component example
+import { useTheme } from '../contexts/ThemeContext';
+
+const ThemeToggle = () => {
+    const { theme, setTheme } = useTheme();
+
+    const toggleTheme = () => {
+        setTheme(theme === 'light' ? 'dark' : 'light');
+    };
+
+    return (
+        <button
+            onClick={toggleTheme}
+            className='p-2 rounded-full bg-gray-200 dark:bg-gray-700 transition-colors duration-200'
+            aria-label={`Switch to ${
+                theme === 'light' ? 'dark' : 'light'
+            } mode`}
+        >
+            {theme === 'light' ? (
+                <MoonIcon className='h-5 w-5 text-gray-800' />
+            ) : (
+                <SunIcon className='h-5 w-5 text-yellow-300' />
+            )}
+        </button>
+    );
+};
+```
+
+#### Component Adaptation Guidelines
+
+-   Use Tailwind's dark mode variant in class names: `className="bg-white dark:bg-gray-800 text-black dark:text-white"`
+-   For custom components:
+    -   Ensure all text has sufficient contrast in both modes
+    -   Use color-neutral icons where possible, or provide alternative icons for dark mode
+    -   Container elements should use appropriate background colors: `bg-white dark:bg-gray-800`
+    -   Add subtle borders in dark mode where necessary for visual separation
+-   **Important**: Only change colors and shadows when switching themes. Do not modify:
+    -   Element sizes or dimensions
+    -   Typography sizes or weights
+    -   Layout spacing (padding, margin, etc.)
+    -   Flexbox or grid layouts
+    -   Component positioning
+
+#### Observations and Considerations
+
+-   Opt for a smooth transition between modes using CSS transitions
+-   Consider adding a "system preference" option in addition to explicit light/dark choices
+-   Charts and data visualizations need careful color selection to work in both modes
+-   Test with users who use dark mode regularly to ensure comfortable experience
+-   Some third-party components may need custom styling to integrate with dark mode
+-   **Never restart containers or services**:
+    -   Do not attempt to restart npm servers
+    -   Do not restart Docker containers or Docker Compose applications
+    -   The system has hot-reload enabled with watch functionality in Docker Compose
+    -   Only implement code changes and update documentation
+
+### Dark Mode Fixes Implementation
+
+#### Overview
+
+This plan outlines the fixes needed for the dark/light mode implementation, focusing on components that are not properly adapting to the light mode theme.
+
+#### Implementation Phases
+
+##### Phase 1: Component Analysis (Estimated: 0.5 day)
+
+-   [x] Identify all components that are not properly adapting to theme changes:
+    -   [x] Container panels and cards
+    -   [x] List items and rows
+    -   [x] Status indicators and badges
+    -   [x] Action buttons and controls
+
+##### Phase 2: Component Updates (Estimated: 1 day)
+
+-   [x] Update ContainerList component:
+    -   [x] Apply proper light mode styling to container panels
+    -   [x] Update container group headers
+    -   [x] Fix container row backgrounds and borders
+-   [x] Update ImageList component:
+    -   [x] Apply proper light mode styling to image panels
+    -   [x] Fix image row backgrounds and borders
+-   [x] Update action buttons and controls:
+    -   [x] Ensure proper styling for buttons in both themes
+    -   [x] Update status indicators and badges
+
+##### Phase 3: Testing and Verification (Estimated: 0.5 day)
+
+-   [x] Test theme switching across all components
+-   [x] Verify consistent appearance in both themes
+-   [x] Ensure no layout shifts or size changes when switching themes
+-   [x] Check for any remaining hard-coded colors
+
+#### Technical Approach
+
+-   Systematically review each component file
+-   Replace hard-coded color classes with theme-aware alternatives
+-   Use Tailwind's dark mode variant consistently
+-   Maintain the same layout, sizing, and spacing across themes
+-   Focus only on color and shadow changes

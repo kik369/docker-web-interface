@@ -10,6 +10,8 @@ import { useContainerContext, useContainerOperations } from '../context/Containe
 import { SearchBar } from './SearchBar';
 import { ShortcutsModal } from './ShortcutsModal';
 import { HiQuestionMarkCircle } from 'react-icons/hi';
+import ThemeToggle from './ThemeToggle';
+import { useTheme } from '../context/ThemeContext';
 import '../App.css';
 
 // No settings needed anymore
@@ -29,6 +31,7 @@ function MainApp() {
     const [searchTerm, setSearchTerm] = useState<string>('');
     const searchInputRef = useRef<HTMLInputElement>(null);
     const [showShortcutsModal, setShowShortcutsModal] = useState<boolean>(false);
+    const { theme, toggleTheme } = useTheme();
 
     // Set up WebSocket handlers
     useWebSocket({
@@ -115,19 +118,26 @@ function MainApp() {
                 event.preventDefault();
                 setShowShortcutsModal(true);
             }
+
+            // Ctrl+D for toggling dark/light mode
+            if (event.ctrlKey && event.key === 'd') {
+                event.preventDefault();
+                toggleTheme();
+            }
         };
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [refreshImages, activeTab, setLoading]);
+    }, [refreshImages, activeTab, setLoading, toggleTheme]);
 
     return (
-        <div className="min-h-screen text-white">
+        <div className={`min-h-screen ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
             <Background />
             <div className="container mx-auto px-4 py-8 relative z-10">
                 <div className="flex justify-between items-center mb-8">
                     <h1 className="text-3xl font-bold">Docker Web Interface</h1>
                     <div className="flex items-center space-x-4">
+                        <ThemeToggle />
                         {wsError && (
                             <span className="text-sm text-red-500">
                                 WebSocket Error: {wsError}
@@ -137,7 +147,7 @@ function MainApp() {
                 </div>
 
                 <div className="mb-6">
-                    <div className="border-b border-gray-700 flex justify-between items-center">
+                    <div className={`border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-300'} flex justify-between items-center`}>
                         <nav className="-mb-px flex space-x-8">
                             <button
                                 onClick={() => {
@@ -146,7 +156,7 @@ function MainApp() {
                                 }}
                                 className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'containers'
                                     ? 'border-blue-500 text-blue-500'
-                                    : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
+                                    : `border-transparent ${theme === 'dark' ? 'text-gray-400 hover:text-gray-300 hover:border-gray-300' : 'text-gray-600 hover:text-gray-700 hover:border-gray-500'}`
                                     }`}
                                 title="Switch to Containers (Ctrl+Shift+C)"
                             >
@@ -159,7 +169,7 @@ function MainApp() {
                                 }}
                                 className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'images'
                                     ? 'border-blue-500 text-blue-500'
-                                    : 'border-transparent text-gray-400 hover:text-gray-300 hover:border-gray-300'
+                                    : `border-transparent ${theme === 'dark' ? 'text-gray-400 hover:text-gray-300 hover:border-gray-300' : 'text-gray-600 hover:text-gray-700 hover:border-gray-500'}`
                                     }`}
                                 title="Switch to Images (Ctrl+Shift+I)"
                             >
@@ -197,7 +207,7 @@ function MainApp() {
             {/* Help Button */}
             <button
                 onClick={() => setShowShortcutsModal(true)}
-                className="fixed bottom-6 right-6 bg-gray-700 hover:bg-gray-600 text-blue-400 rounded-full p-2 shadow-lg transition-colors z-20"
+                className={`fixed bottom-6 right-6 ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} text-blue-400 rounded-full p-2 shadow-lg transition-colors z-20`}
                 title="Keyboard Shortcuts (Ctrl+/)"
             >
                 <HiQuestionMarkCircle className="w-8 h-8" />

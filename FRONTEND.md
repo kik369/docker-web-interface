@@ -75,6 +75,9 @@ const { startLogStream, stopLogStream } = useWebSocket({
 
 // Image management
 const { images, isLoading, error, deleteImage } = useImages();
+
+// Theme management
+const { theme, toggleTheme } = useTheme();
 ```
 
 ### State Persistence
@@ -99,6 +102,23 @@ const [expandedGroups, setExpandedGroups] = useState<Set<string>>(
 useEffect(() => {
     localStorage.setItem('expandedGroups', JSON.stringify([...expandedGroups]));
 }, [expandedGroups]);
+
+// Theme preference persistence
+const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'light' || savedTheme === 'dark') {
+        return savedTheme;
+    }
+    return window.matchMedia('(prefers-color-scheme: dark)').matches
+        ? 'dark'
+        : 'light';
+});
+
+useEffect(() => {
+    localStorage.setItem('theme', theme);
+    document.documentElement.classList.remove('light', 'dark');
+    document.documentElement.classList.add(theme);
+}, [theme]);
 ```
 
 ## API Communication
@@ -239,6 +259,7 @@ Tailwind CSS for styling components:
     - `Ctrl + Shift + I`: Switch to Images tab
     - `Ctrl + Shift + S`: Focus search box
     - `Ctrl + /`: Show shortcuts help
+    - `Ctrl + D`: Toggle dark/light mode
 
 2. **Search Functionality**:
 
@@ -250,9 +271,11 @@ Tailwind CSS for styling components:
     - Containers grouped by Docker Compose project
     - Expandable/collapsible groups
 
-4. **Visual Indicators**:
-    - Status colors for running/stopped containers
-    - Live indicators for active log streams
+4. **Theme Support**:
+    - Dark and light mode with smooth transitions
+    - System preference detection using `prefers-color-scheme` media query
+    - User preference persistence using localStorage
+    - Keyboard shortcut for quick theme toggling
 
 ## Error Handling
 

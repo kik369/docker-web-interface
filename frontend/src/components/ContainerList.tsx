@@ -4,6 +4,7 @@ import { useWebSocket } from '../hooks/useWebSocket';
 import { useContainers } from '../hooks/useContainers';
 import { ContainerRow } from './ContainerRow';
 import { HiChevronDown, HiChevronRight, HiPlay, HiStop, HiRefresh, HiCog, HiTrash, HiOutlineTemplate } from 'react-icons/hi';
+import { useTheme } from '../context/ThemeContext';
 
 type ContainerListProps = {
     containers: Container[];
@@ -33,6 +34,7 @@ export const ContainerList = ({
     error,
     searchTerm = ''
 }: ContainerListProps) => {
+    const { theme } = useTheme();
     const [localContainers, setLocalContainers] = useState<Container[]>(initialContainers);
     const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
     const [actionStates, setActionStates] = useState<Record<string, string | null>>({});
@@ -228,27 +230,27 @@ export const ContainerList = ({
     return (
         <div className="container-list">
             {localContainers.length === 0 ? (
-                <div className="text-center text-gray-500 mt-8">
+                <div className={`text-center ${theme === 'dark' ? 'text-gray-500' : 'text-gray-600'} mt-8`}>
                     No containers found
                 </div>
             ) : (
                 <div className="space-y-6">
                     {containerGroups.map(group => (
-                        <div key={group.projectName} className="bg-gray-900 rounded-lg overflow-hidden">
-                            <div className="flex items-center justify-between px-4 py-3 bg-gray-800">
+                        <div key={group.projectName} className={`${theme === 'dark' ? 'bg-gray-900' : 'bg-white'} rounded-lg overflow-hidden shadow-lg`}>
+                            <div className={`flex items-center justify-between px-4 py-3 ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-100'}`}>
                                 <div
                                     className="flex items-center cursor-pointer"
                                     onClick={() => toggleGroup(group.projectName)}
                                 >
                                     {expandedGroups.has(group.projectName) ? (
-                                        <HiChevronDown className="h-5 w-5 text-gray-400 mr-2" />
+                                        <HiChevronDown className={`h-5 w-5 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} mr-2`} />
                                     ) : (
-                                        <HiChevronRight className="h-5 w-5 text-gray-400 mr-2" />
+                                        <HiChevronRight className={`h-5 w-5 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} mr-2`} />
                                     )}
-                                    <h2 className="text-xl font-semibold text-white flex-grow">
+                                    <h2 className={`text-xl font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'} flex-grow`}>
                                         {group.projectName}
                                         <div className="inline-flex items-center ml-2">
-                                            <span className="inline-flex items-center bg-gray-800 rounded px-2 py-1 text-xs text-white">
+                                            <span className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-200'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
                                                 <HiOutlineTemplate className="w-4 h-4 mr-1 text-purple-400" />
                                                 <span>{group.containers.length}</span>
                                             </span>
@@ -269,7 +271,7 @@ export const ContainerList = ({
                                                     });
                                                 }
                                             }}
-                                            className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white hover:bg-gray-600 transition-colors"
+                                            className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} transition-colors`}
                                             title="Start all containers in this group"
                                         >
                                             <HiPlay className="w-4 h-4 mr-1 text-green-400" />
@@ -285,7 +287,7 @@ export const ContainerList = ({
                                                     });
                                                 }
                                             }}
-                                            className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white hover:bg-gray-600 transition-colors"
+                                            className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} transition-colors`}
                                             title="Stop all containers in this group"
                                         >
                                             <HiStop className="w-4 h-4 mr-1 text-red-400" />
@@ -299,7 +301,7 @@ export const ContainerList = ({
                                                     });
                                                 }
                                             }}
-                                            className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white hover:bg-gray-600 transition-colors"
+                                            className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} transition-colors`}
                                             title="Restart all containers in this group"
                                         >
                                             <HiRefresh className="w-4 h-4 mr-1 text-blue-400" />
@@ -313,7 +315,7 @@ export const ContainerList = ({
                                                     });
                                                 }
                                             }}
-                                            className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white hover:bg-gray-600 transition-colors"
+                                            className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} transition-colors`}
                                             title="Rebuild all containers in this group"
                                         >
                                             <HiCog className="w-4 h-4 mr-1 text-purple-400" />
@@ -327,7 +329,7 @@ export const ContainerList = ({
                                                     });
                                                 }
                                             }}
-                                            className="inline-flex items-center bg-gray-700 rounded px-2 py-1 text-xs text-white hover:bg-gray-600 transition-colors"
+                                            className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} transition-colors`}
                                             title="Delete all containers in this group (WARNING: This action cannot be undone)"
                                         >
                                             <HiTrash className="w-4 h-4 mr-1 text-red-500" />
