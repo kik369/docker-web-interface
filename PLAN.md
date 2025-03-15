@@ -109,6 +109,20 @@ This document should be consulted before making any changes to the codebase and 
 
 ## Recently Completed Work
 
+### Theme Toggle Switch Implementation (Completed 2023-08-02)
+
+-   [x] Replaced icon-based theme toggle with an iPhone-style toggle switch
+-   [x] Implemented smooth transition animations for the toggle state
+-   [x] Used blue color for the active (dark mode) state
+-   [x] Maintained the same positioning and interaction behavior
+-   [x] Ensured consistent appearance in both light and dark modes
+-   [x] Added focus styles for better accessibility
+-   [x] Increased size to match keyboard shortcuts button dimensions
+-   [x] Added sun/moon icons inside the toggle button for better visual indication
+-   [x] Added shadow for improved depth perception
+-   [x] Changed sun icon color to blue in dark mode for better color consistency
+-   [x] Updated toggle background in dark mode to grey (rgb(31 41 55)) to match other UI elements
+
 ### UI Icon Consistency (Completed 2023-08-01)
 
 -   [x] Analyzed the theme switcher icon style

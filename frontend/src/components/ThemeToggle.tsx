@@ -8,23 +8,31 @@ interface ThemeToggleProps {
 
 const ThemeToggle: React.FC<ThemeToggleProps> = ({ className = '' }) => {
     const { theme, toggleTheme } = useTheme();
+    const isDark = theme === 'dark';
 
     return (
-        <button
-            onClick={toggleTheme}
-            className={`p-2 rounded-full transition-colors duration-200 ${theme === 'light'
-                ? 'bg-gray-200 hover:bg-gray-300'
-                : 'bg-gray-700 hover:bg-gray-600'
-                } ${className}`}
-            aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-            title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-        >
-            {theme === 'light' ? (
-                <HiMoon className="h-5 w-5 text-gray-800" />
-            ) : (
-                <HiSun className="h-5 w-5 text-yellow-300" />
-            )}
-        </button>
+        <div className={`flex items-center ${className}`}>
+            <button
+                onClick={toggleTheme}
+                className="relative inline-flex h-8 w-14 items-center rounded-full transition-colors duration-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 shadow-lg"
+                style={{
+                    backgroundColor: isDark ? 'rgb(31 41 55 / var(--tw-bg-opacity, 1))' : '#d1d5db'
+                }}
+                aria-label={`Switch to ${isDark ? 'light' : 'dark'} mode`}
+                title={`Switch to ${isDark ? 'light' : 'dark'} mode`}
+            >
+                <span
+                    className={`flex items-center justify-center h-7 w-7 transform rounded-full bg-white shadow-md transition-transform duration-300 ease-in-out ${isDark ? 'translate-x-6' : 'translate-x-1'
+                        }`}
+                >
+                    {isDark ? (
+                        <HiSun className="h-5 w-5 text-blue-400" />
+                    ) : (
+                        <HiMoon className="h-5 w-5 text-gray-700" />
+                    )}
+                </span>
+            </button>
+        </div>
     );
 };
 
