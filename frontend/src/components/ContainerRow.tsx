@@ -216,7 +216,9 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
     isExpanded,
     onToggleExpand,
     onAction,
-    actionInProgress
+    actionInProgress,
+    isHighlighted,
+    highlightTimestamp
 }) => {
     // State for log streaming
     const [logs, setLogs] = useState('');
@@ -232,6 +234,7 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
     });
     const [isLoadingLogs, setIsLoadingLogs] = useState(false);
     const [isStreamActive, setIsStreamActive] = useState(false);
+    const [highlightActive, setHighlightActive] = useState(isHighlighted || false);
 
     // Create stable refs to track state across renders
     const showLogsRef = useRef(showLogs);
@@ -246,6 +249,21 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
     useEffect(() => {
         streamActiveRef.current = isStreamActive;
     }, [isStreamActive]);
+
+    // Handle highlight effect
+    useEffect(() => {
+        if (isHighlighted && highlightTimestamp) {
+            // Activate highlight
+            setHighlightActive(true);
+
+            // Deactivate highlight after 2 seconds
+            const timer = setTimeout(() => {
+                setHighlightActive(false);
+            }, 2000);
+
+            return () => clearTimeout(timer);
+        }
+    }, [isHighlighted, highlightTimestamp]);
 
     // Save log view state to localStorage whenever it changes
     useEffect(() => {
@@ -275,10 +293,17 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                     lineCount: (log.match(/\n/g) || []).length + 1
                 });
 
-                // Update logs state with new content
+                // Use a functional update to avoid closure issues
+                // This is more efficient than capturing the previous logs in the closure
                 setLogs(prevLogs => {
-                    const newLogs = prevLogs + log;
-                    return newLogs;
+                    // Limit log size to prevent performance issues with very large logs
+                    // Keep only the last 5000 lines
+                    const combinedLogs = prevLogs + log;
+                    const lines = combinedLogs.split('\n');
+                    if (lines.length > 5000) {
+                        return lines.slice(lines.length - 5000).join('\n');
+                    }
+                    return combinedLogs;
                 });
 
                 // Ensure streaming state is active
@@ -464,7 +489,8 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
     };
 
     return (
-        <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-lg overflow-hidden mb-4`}>
+        <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-lg overflow-hidden mb-4 transition-all duration-300 ${highlightActive ? `${theme === 'dark' ? 'ring-2 ring-blue-500 ring-opacity-75' : 'ring-2 ring-blue-400 ring-opacity-75'} scale-[1.01]` : ''
+            }`}>
             <div
                 className={`p-4 cursor-pointer`}
                 onClick={onToggleExpand}

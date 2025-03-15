@@ -117,7 +117,8 @@ const initializeSocket = () => {
         if (!pendingFlushes.has(containerId)) {
             pendingFlushes.add(containerId);
 
-            // Use a shorter delay for more responsive updates
+            // Use a longer delay for better performance
+            // This significantly reduces the number of React re-renders
             setTimeout(() => {
                 const bufferToFlush = logBuffers.get(containerId) || '';
                 if (bufferToFlush.length > 0) {
@@ -146,7 +147,7 @@ const initializeSocket = () => {
                     // Buffer was empty, just clear the pending status
                     pendingFlushes.delete(containerId);
                 }
-            }, 5); // Ultra-responsive 5ms delay
+            }, 100); // Increased to 100ms for better performance with UI interactions
         }
     });
 

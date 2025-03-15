@@ -180,8 +180,26 @@ const ImageRow: React.FC<{
     image: Image;
     onDelete: (id: string, tag: string) => void;
     actionInProgress: string | null;
-}> = ({ image, onDelete, actionInProgress }) => {
+    isHighlighted: boolean;
+    highlightTimestamp?: number;
+}> = ({ image, onDelete, actionInProgress, isHighlighted, highlightTimestamp }) => {
     const { theme } = useTheme();
+    const [highlightActive, setHighlightActive] = useState(isHighlighted || false);
+
+    // Handle highlight effect
+    useEffect(() => {
+        if (isHighlighted && highlightTimestamp) {
+            // Activate highlight
+            setHighlightActive(true);
+
+            // Deactivate highlight after 2 seconds
+            const timer = setTimeout(() => {
+                setHighlightActive(false);
+            }, 2000);
+
+            return () => clearTimeout(timer);
+        }
+    }, [isHighlighted, highlightTimestamp]);
 
     // Get Docker Hub URL from image tag
     const getDockerHubUrl = (tag: string): string | null => {
@@ -223,7 +241,8 @@ const ImageRow: React.FC<{
     const fullDateTime = formatFullDateTime(createdTimestamp);
 
     return (
-        <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-lg overflow-hidden`}>
+        <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-lg shadow-lg overflow-hidden mb-4 transition-all duration-300 ${highlightActive ? `${theme === 'dark' ? 'ring-2 ring-blue-500 ring-opacity-75' : 'ring-2 ring-blue-400 ring-opacity-75'} scale-[1.01]` : ''
+            }`}>
             <div className="p-4">
                 <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-4">
@@ -314,9 +333,10 @@ const ImageRow: React.FC<{
 interface ImageListProps {
     searchTerm?: string;
     onSearchChange?: (value: string) => void;
+    highlightedItem?: { type: string; id: string; timestamp: number } | null;
 }
 
-export const ImageList: React.FC<ImageListProps> = ({ searchTerm = '', onSearchChange }) => {
+export const ImageList: React.FC<ImageListProps> = ({ searchTerm = '', onSearchChange, highlightedItem }) => {
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [imageToDelete, setImageToDelete] = useState<{ id: string, tag: string } | null>(null);
     const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -404,6 +424,8 @@ export const ImageList: React.FC<ImageListProps> = ({ searchTerm = '', onSearchC
                             image={image}
                             onDelete={handleDeleteClick}
                             actionInProgress={actionInProgress}
+                            isHighlighted={highlightedItem?.id === image.id}
+                            highlightTimestamp={highlightedItem?.id === image.id ? highlightedItem.timestamp : undefined}
                         />
                     ))
                 )}

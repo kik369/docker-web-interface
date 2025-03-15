@@ -1,4 +1,5 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import ReactDOM from 'react-dom';
 import { ContainerList } from './ContainerList';
 import { ImageList } from './ImageList';
 import Background from './Background';
@@ -7,9 +8,8 @@ import { useImages } from '../hooks/useImages';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { logger } from '../services/logging';
 import { useContainerContext, useContainerOperations } from '../context/ContainerContext';
-import { SearchBar } from './SearchBar';
-import { ShortcutsModal } from './ShortcutsModal';
-import { BsQuestionLg } from 'react-icons/bs';
+import CommandPalette from './CommandPalette';
+import { HiOutlineCommandLine } from 'react-icons/hi2';
 import ThemeToggle from './ThemeToggle';
 import { useTheme } from '../context/ThemeContext';
 import '../App.css';
@@ -22,16 +22,41 @@ const loadActiveTab = () => {
     return (savedTab === 'containers' || savedTab === 'images') ? savedTab : 'containers';
 };
 
+// CommandPalettePortal component to render the CommandPalette in a portal
+const CommandPalettePortal: React.FC<{
+    isOpen: boolean;
+    onClose: () => void;
+    onSearch: (query: string) => void;
+    commands: Array<{
+        id: string;
+        name: string;
+        shortcut?: string;
+        description?: string;
+        category?: string;
+        action: () => void;
+    }>;
+}> = ({ isOpen, onClose, onSearch, commands }) => {
+    return ReactDOM.createPortal(
+        <CommandPalette
+            isOpen={isOpen}
+            onClose={onClose}
+            onSearch={onSearch}
+            commands={commands}
+        />,
+        document.body
+    );
+};
+
 function MainApp() {
     const { state: { containers, isLoading: containersLoading, error: containersError } } = useContainerContext();
     const { setContainers, updateContainer, deleteContainer, setLoading, setError } = useContainerOperations();
-    const { refresh: refreshImages } = useImages();
+    const { images, refresh: refreshImages } = useImages();
     const [activeTab, setActiveTab] = useState<'containers' | 'images'>(loadActiveTab);
     const [wsError, setWsError] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState<string>('');
-    const searchInputRef = useRef<HTMLInputElement>(null);
-    const [showShortcutsModal, setShowShortcutsModal] = useState<boolean>(false);
+    const [commandPaletteOpen, setCommandPaletteOpen] = useState<boolean>(false);
     const { theme, toggleTheme } = useTheme();
+    const [highlightedItem, setHighlightedItem] = useState<{ type: string; id: string; timestamp: number } | null>(null);
 
     // Set up WebSocket handlers
     useWebSocket({
@@ -77,6 +102,123 @@ function MainApp() {
 
     // No settings needed anymore
 
+    // Handle command palette search - memoized to prevent unnecessary re-renders
+    const handleCommandSearch = useCallback((query: string) => {
+        // Set the search term and close the palette
+        setSearchTerm(query);
+        setCommandPaletteOpen(false);
+    }, []);
+
+    // Toggle command palette - memoized to prevent unnecessary re-renders
+    const toggleCommandPalette = useCallback(() => {
+        setCommandPaletteOpen(prev => !prev);
+    }, []);
+
+    // Close command palette - memoized to prevent unnecessary re-renders
+    const closeCommandPalette = useCallback(() => {
+        setCommandPaletteOpen(false);
+    }, []);
+
+    // Generate container and image search options
+    const containerOptions = useMemo(() => {
+        if (!containers || containers.length === 0) return [];
+
+        return containers.map(container => ({
+            id: `container-${container.id}`,
+            name: `Container: ${container.name}`,
+            description: `${container.image} (${container.status})`,
+            category: 'Containers',
+            action: () => {
+                setActiveTab('containers');
+                localStorage.setItem('app-active-tab', 'containers');
+                // Instead of filtering, set a highlight ID
+                setHighlightedItem({
+                    type: 'container',
+                    id: container.id,
+                    timestamp: Date.now()
+                });
+            }
+        }));
+    }, [containers, setActiveTab]);
+
+    const imageOptions = useMemo(() => {
+        if (!images || images.length === 0) return [];
+
+        return images.map(image => ({
+            id: `image-${image.id}`,
+            name: `Image: ${image.tags[0] || image.id.substring(7, 19)}`,
+            description: `${image.tags.length > 1 ? `${image.tags.length} tags` : ''}`,
+            category: 'Images',
+            action: () => {
+                setActiveTab('images');
+                localStorage.setItem('app-active-tab', 'images');
+                // Instead of filtering, set a highlight ID
+                setHighlightedItem({
+                    type: 'image',
+                    id: image.id,
+                    timestamp: Date.now()
+                });
+            }
+        }));
+    }, [images, setActiveTab]);
+
+    // Define commands for the command palette
+    const commands = useMemo(() => [
+        // Command options
+        {
+            id: 'containers-tab',
+            name: 'Switch to Containers tab',
+            shortcut: 'Ctrl + Shift + C',
+            category: 'Navigation',
+            action: () => {
+                setActiveTab('containers');
+                localStorage.setItem('app-active-tab', 'containers');
+            }
+        },
+        {
+            id: 'images-tab',
+            name: 'Switch to Images tab',
+            shortcut: 'Ctrl + Shift + I',
+            category: 'Navigation',
+            action: () => {
+                setActiveTab('images');
+                localStorage.setItem('app-active-tab', 'images');
+            }
+        },
+        {
+            id: 'toggle-theme',
+            name: 'Toggle dark/light mode',
+            shortcut: 'Ctrl + D',
+            category: 'Appearance',
+            action: toggleTheme
+        },
+        {
+            id: 'refresh',
+            name: 'Refresh current view',
+            shortcut: 'Ctrl + R',
+            category: 'Actions',
+            action: () => {
+                if (activeTab === 'containers') {
+                    setLoading(true);
+                    // The WebSocket will handle the refresh through the initial_state event
+                } else {
+                    refreshImages();
+                }
+            }
+        },
+        {
+            id: 'clear-search',
+            name: 'Clear search',
+            category: 'Actions',
+            action: () => {
+                setSearchTerm('');
+            }
+        },
+        // Include container and image options
+        ...containerOptions,
+        ...imageOptions
+    ], [containerOptions, imageOptions, setActiveTab, toggleTheme, refreshImages, setLoading, activeTab]);
+
     // Add keyboard shortcuts
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
@@ -105,60 +247,42 @@ function MainApp() {
                 localStorage.setItem('app-active-tab', 'images');
             }
 
-            // Ctrl+Shift+S for search focus
-            if (event.ctrlKey && event.shiftKey && event.key === 'S') {
-                event.preventDefault();
-                if (searchInputRef.current) {
-                    searchInputRef.current.focus();
-                }
-            }
-
-            // Ctrl+/ for showing keyboard shortcuts
-            if (event.ctrlKey && event.key === '/') {
-                event.preventDefault();
-                setShowShortcutsModal(true);
-            }
-
-            // Ctrl+D for toggling dark/light mode
+            // Ctrl+D for toggling dark mode
             if (event.ctrlKey && event.key === 'd') {
                 event.preventDefault();
                 toggleTheme();
             }
+
+            // Ctrl+K for command palette
+            if ((event.ctrlKey || event.metaKey) && event.key === 'k') {
+                event.preventDefault();
+                toggleCommandPalette();
+            }
         };
 
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [refreshImages, activeTab, setLoading, toggleTheme]);
+        document.addEventListener('keydown', handleKeyDown);
+        return () => {
+            document.removeEventListener('keydown', handleKeyDown);
+        };
+    }, [activeTab, refreshImages, setLoading, toggleTheme, toggleCommandPalette]);
 
     return (
-        <div className={`min-h-screen ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}>
+        <div className="flex flex-col h-screen">
             <Background />
-            <div className="container mx-auto px-4 py-8 relative z-10">
-                <div className="flex justify-between items-center mb-8">
-                    <h1 className="text-3xl font-bold">Docker Web Interface</h1>
-                    <div className="flex items-center space-x-4">
-                        <ThemeToggle />
-                        {wsError && (
-                            <span className="text-sm text-red-500">
-                                WebSocket Error: {wsError}
-                            </span>
-                        )}
-                    </div>
-                </div>
-
-                <div className="mb-6">
-                    <div className={`border-b ${theme === 'dark' ? 'border-gray-700' : 'border-gray-300'} flex justify-between items-center`}>
-                        <nav className="-mb-px flex space-x-8">
+            <ErrorBoundary>
+                <header className="relative z-10 py-4 px-6 flex items-center justify-between shadow-md dark:shadow-gray-800">
+                    <div className="flex items-center">
+                        <h1 className="text-2xl font-bold mr-8 dark:text-white">Docker Web Interface</h1>
+                        <div className="flex space-x-1">
                             <button
                                 onClick={() => {
                                     setActiveTab('containers');
                                     localStorage.setItem('app-active-tab', 'containers');
                                 }}
-                                className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'containers'
-                                    ? 'border-blue-500 text-blue-500'
-                                    : `border-transparent ${theme === 'dark' ? 'text-gray-400 hover:text-gray-300 hover:border-gray-300' : 'text-gray-600 hover:text-gray-700 hover:border-gray-500'}`
+                                className={`px-4 py-2 rounded-md transition-colors ${activeTab === 'containers'
+                                    ? 'bg-blue-500 text-white'
+                                    : 'hover:bg-gray-200 dark:hover:bg-gray-700 dark:text-gray-300'
                                     }`}
-                                title="Switch to Containers (Ctrl+Shift+C)"
                             >
                                 Containers
                             </button>
@@ -167,55 +291,61 @@ function MainApp() {
                                     setActiveTab('images');
                                     localStorage.setItem('app-active-tab', 'images');
                                 }}
-                                className={`py-4 px-1 border-b-2 font-medium text-sm ${activeTab === 'images'
-                                    ? 'border-blue-500 text-blue-500'
-                                    : `border-transparent ${theme === 'dark' ? 'text-gray-400 hover:text-gray-300 hover:border-gray-300' : 'text-gray-600 hover:text-gray-700 hover:border-gray-500'}`
+                                className={`px-4 py-2 rounded-md transition-colors ${activeTab === 'images'
+                                    ? 'bg-blue-500 text-white'
+                                    : 'hover:bg-gray-200 dark:hover:bg-gray-700 dark:text-gray-300'
                                     }`}
-                                title="Switch to Images (Ctrl+Shift+I)"
                             >
                                 Images
                             </button>
-                        </nav>
-                        <div className="w-64">
-                            <SearchBar
-                                ref={searchInputRef}
-                                value={searchTerm}
-                                onChange={setSearchTerm}
-                                placeholder="Ctrl+Shift+S"
-                            />
                         </div>
                     </div>
-                </div>
+                    <div className="flex items-center space-x-4">
+                        <button
+                            onClick={toggleCommandPalette}
+                            className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 flex items-center"
+                            title="Command Palette (Ctrl+K)"
+                        >
+                            <HiOutlineCommandLine className="w-5 h-5" />
+                            <span className="ml-1 text-sm hidden sm:inline">Ctrl+K</span>
+                        </button>
+                        <ThemeToggle />
+                    </div>
+                </header>
 
-                <ErrorBoundary>
-                    {activeTab === 'containers' ? (
-                        <ContainerList
-                            containers={containers}
-                            isLoading={containersLoading}
-                            error={containersError || wsError}
-                            searchTerm={searchTerm}
-                        />
-                    ) : (
-                        <ImageList
-                            searchTerm={searchTerm}
-                            onSearchChange={setSearchTerm}
-                        />
-                    )}
-                </ErrorBoundary>
-            </div>
+                <main className="flex-1 overflow-hidden relative z-0">
+                    <div className="container mx-auto px-4 py-6 max-w-6xl h-full overflow-auto">
+                        {activeTab === 'containers' ? (
+                            <ContainerList
+                                containers={containers}
+                                isLoading={containersLoading}
+                                error={containersError}
+                                searchTerm={searchTerm}
+                                highlightedItem={highlightedItem && highlightedItem.type === 'container' ? highlightedItem : null}
+                            />
+                        ) : (
+                            <ImageList
+                                searchTerm={searchTerm}
+                                highlightedItem={highlightedItem && highlightedItem.type === 'image' ? highlightedItem : null}
+                            />
+                        )}
+                    </div>
+                </main>
 
-            {/* Help Button */}
-            <button
-                onClick={() => setShowShortcutsModal(true)}
-                className={`fixed bottom-6 right-6 p-2 rounded-full transition-colors duration-200 ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'
-                    } shadow-lg z-20`}
-                title="Keyboard Shortcuts (Ctrl+/)"
-                aria-label="Show keyboard shortcuts"
-            >
-                <BsQuestionLg className={`w-5 h-5 ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`} />
-            </button>
+                {wsError && (
+                    <div className="fixed bottom-4 right-4 bg-red-500 text-white px-4 py-2 rounded shadow-lg">
+                        {wsError}
+                    </div>
+                )}
 
-            <ShortcutsModal isOpen={showShortcutsModal} onClose={() => setShowShortcutsModal(false)} />
+                {/* Render CommandPalette in a portal to isolate it from the main component tree */}
+                <CommandPalettePortal
+                    isOpen={commandPaletteOpen}
+                    onClose={closeCommandPalette}
+                    onSearch={handleCommandSearch}
+                    commands={commands}
+                />
+            </ErrorBoundary>
         </div>
     );
 }

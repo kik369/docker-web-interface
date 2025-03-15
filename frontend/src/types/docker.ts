@@ -43,6 +43,8 @@ export interface ContainerRowProps {
     onToggleExpand: () => void;
     onAction: (containerId: string, action: string) => Promise<void>;
     actionInProgress: string | null;
+    isHighlighted?: boolean;
+    highlightTimestamp?: number;
 }
 
 export interface SortConfig {

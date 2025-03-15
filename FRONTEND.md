@@ -44,6 +44,8 @@ frontend/
     - `PortDisplay`: Specialized port mapping visualization
     - `ActionButton`: Standardized action buttons
     - `ConfirmationDialog`: Action confirmation modal
+    - `CommandPalette`: Global search interface triggered by Ctrl+K
+    - `ThemeToggle`: Dark/light mode toggle switch
 
 4. **Log Visualization**:
     - `LogContainer`: Real-time container log display with auto-scroll
@@ -253,25 +255,35 @@ Tailwind CSS for styling components:
 
 ## User Experience Features
 
-1. **Keyboard Shortcuts**:
+1. **Command Palette**:
 
+    - Central interface for commands and search (activated with `Ctrl + K`)
+    - Categorized commands with keyboard navigation
+    - Container and image search functionality
+    - Shortcut hints for frequently used commands
+    - Keyboard navigation with arrow keys and Enter
+
+2. **Keyboard Shortcuts**:
+
+    - `Ctrl + K`: Open command palette
     - `Ctrl + Shift + C`: Switch to Containers tab
     - `Ctrl + Shift + I`: Switch to Images tab
-    - `Ctrl + Shift + S`: Focus search box
-    - `Ctrl + /`: Show shortcuts help
     - `Ctrl + D`: Toggle dark/light mode
+    - `Ctrl + R`: Refresh current view
 
-2. **Search Functionality**:
+3. **Search Functionality**:
 
+    - Integrated into command palette
     - Real-time filtering of containers and images
     - Filters across multiple fields (name, ID, status)
+    - Direct navigation to search results
 
-3. **Grouping Mechanism**:
+4. **Grouping Mechanism**:
 
     - Containers grouped by Docker Compose project
     - Expandable/collapsible groups
 
-4. **Theme Support**:
+5. **Theme Support**:
     - Dark and light mode with smooth transitions
     - System preference detection using `prefers-color-scheme` media query
     - User preference persistence using localStorage

@@ -11,6 +11,7 @@ type ContainerListProps = {
     isLoading: boolean;
     error: string | null;
     searchTerm?: string;
+    highlightedItem?: { type: string; id: string; timestamp: number } | null;
 };
 
 const LoadingSpinner = () => (
@@ -33,7 +34,8 @@ export const ContainerList = ({
     containers: initialContainers,
     isLoading,
     error,
-    searchTerm = ''
+    searchTerm = '',
+    highlightedItem
 }: ContainerListProps) => {
     const { theme } = useTheme();
     const [localContainers, setLocalContainers] = useState<Container[]>(initialContainers);
@@ -367,6 +369,8 @@ export const ContainerList = ({
                                             onToggleExpand={() => handleToggleExpand(container.id)}
                                             onAction={handleContainerAction}
                                             actionInProgress={actionStates[container.id] || null}
+                                            isHighlighted={highlightedItem?.id === container.id}
+                                            highlightTimestamp={highlightedItem?.id === container.id ? highlightedItem.timestamp : undefined}
                                         />
                                     ))}
                                 </div>

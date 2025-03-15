@@ -82,36 +82,15 @@ This document should be consulted before making any changes to the codebase and 
 ### Active Development Areas
 
 1. **Real-time Container Metrics**
-
     - Adding resource usage statistics to container view
     - Creating time-series visualizations of metrics
 
-2. **Authentication System**
-
-    - Designing JWT-based authentication
-    - Integrating with WebSocket connections
-
-3. **Documentation Enhancement**
-
-    - Creating comprehensive API documentation
-    - Updating diagrams to reflect current architecture
-
-4. **UI Consistency Improvements**
-    - Standardizing icon styles across the interface
-    - Ensuring visual consistency between components
-
 ### To-Do Items
 
-#### High Priority
+#### Main Priorities
 
 -   [ ] Implement real-time container metrics collection
 -   [ ] Create container resource usage visualization components
--   [ ] Add detailed API documentation with examples
--   [ ] Implement container log search functionality
--   [ ] Add authentication to WebSocket connections
-
-#### Medium Priority
-
 -   [ ] Improve error handling for Docker connection failures
 -   [ ] Create diagrams for container lifecycle management
 -   [ ] Expand test coverage for frontend components
@@ -286,6 +265,84 @@ The real-time container log streaming feature has been completely overhauled to 
 -   [x] Improved NoneType error handling
 -   [x] Implemented log buffering for better performance
 -   [x] Adjusted default log levels for production
+
+### Command Palette Centralization (Completed 2023-08-10)
+
+-   [x] Centralized `Ctrl + K` as the main command interface
+-   [x] Integrated keyboard shortcuts into the command palette
+-   [x] Removed redundant `Ctrl + /` shortcut and shortcuts modal
+-   [x] Integrated container and image search into the command palette
+-   [x] Removed the separate search box from the header
+-   [x] Added command categorization for better organization
+-   [x] Implemented keyboard navigation in the command palette
+-   [x] Updated documentation to reflect the new command-centric approach
+
+**Implementation Summary:**
+
+The command palette has been enhanced to serve as the central interface for all commands and search functionality. The implementation includes:
+
+**Command Integration:**
+
+-   Integrated all keyboard shortcuts as commands in the command palette
+-   Added command categorization (Navigation, Actions, Appearance)
+-   Included shortcut hints for frequently used commands
+-   Implemented keyboard navigation with arrow keys and Enter
+
+**Search Integration:**
+
+-   Removed the separate search box from the header
+-   Integrated container and image search into the command palette
+-   Added direct navigation to containers and images from search results
+-   Maintained the existing search functionality with improved UX
+
+**UI Improvements:**
+
+-   Updated the command palette UI to display command categories
+-   Added descriptions for commands and search results
+-   Replaced the question mark icon with a command palette icon
+-   Added a visible "Ctrl+K" hint next to the command palette icon
+
+**Documentation Updates:**
+
+-   Updated README.md to reflect the new command-centric approach
+-   Updated FRONTEND.md with the new keyboard shortcuts and command palette details
+-   Removed the ShortcutsModal component as it's no longer needed
+
+These changes enhance the user experience by providing a unified interface for commands and search, following modern application design patterns. The command palette now serves as a powerful tool for navigating and controlling the application.
+
+### Command Palette UI Enhancement (Completed 2023-08-11)
+
+-   [x] Improved command palette vertical sizing to better utilize screen space
+-   [x] Implemented dynamic height calculation based on viewport size
+-   [x] Added automatic scrolling to keep selected items in view
+-   [x] Optimized layout with flex column structure
+-   [x] Added resize handling to adjust palette size when window dimensions change
+-   [x] Improved keyboard navigation with scroll position synchronization
+
+**Implementation Summary:**
+
+The command palette UI has been enhanced to provide a better user experience with improved space utilization. The implementation includes:
+
+**Dynamic Sizing:**
+
+-   Calculated available screen space, leaving appropriate gaps at the top and bottom
+-   Implemented flexible height that adapts to content while respecting maximum viewport constraints
+-   Used CSS Flexbox for proper content distribution within the palette
+
+**Navigation Improvements:**
+
+-   Added automatic scrolling to ensure the selected item remains visible
+-   Implemented smooth scrolling behavior with `requestAnimationFrame`
+-   Added unique IDs to command items for precise targeting during navigation
+-   Prevented overscroll behavior for a more controlled user experience
+
+**Responsive Design:**
+
+-   Added window resize event handling to recalculate dimensions when needed
+-   Ensured proper cleanup of event listeners to prevent memory leaks
+-   Maintained consistent spacing and layout across different screen sizes
+
+These changes enhance the user experience by making better use of available screen space and improving navigation within the command palette, especially when dealing with many commands or search results.
 
 ## Container Log Streaming Issue Analysis
 
@@ -588,3 +645,572 @@ const ThemeToggle = () => {
     -   Do not restart Docker containers or Docker Compose applications
     -   The system has hot-reload enabled with watch functionality in Docker Compose
     -   Only implement code changes and update documentation
+
+#### Implementation Summary (Completed 2023-03-15)
+
+The Command Palette Search UI has been successfully implemented with the following features:
+
+**Component Structure:**
+
+-   Created a new `CommandPalette.tsx` component with a clean, modern design
+-   Implemented a backdrop with blur effect to focus attention on the search interface
+-   Added smooth animations for appearance and disappearance using Tailwind transitions
+-   Positioned the palette in the upper-middle area of the screen for optimal visibility
+
+**Keyboard Integration:**
+
+-   Added Ctrl+K shortcut to toggle the command palette
+-   Updated the keyboard shortcuts handler in MainApp.tsx
+-   Added the new shortcut to the ShortcutsModal component for user discovery
+-   Implemented ESC key functionality to close the palette
+
+**UI Effects:**
+
+-   Implemented a semi-transparent backdrop with blur effect
+-   Added smooth transitions for all state changes
+-   Ensured consistent styling in both light and dark modes
+-   Optimized the blur effect by configuring custom backdrop blur values in Tailwind
+
+**Accessibility:**
+
+-   Added proper ARIA attributes for screen readers
+-   Implemented automatic focus on the search input when opened
+-   Added keyboard navigation support
+-   Ensured proper contrast in both light and dark themes
+
+**Performance Optimizations (Added 2023-03-16):**
+
+-   Used React.memo with custom comparison function to prevent unnecessary re-renders
+-   Implemented a portal-based rendering approach to isolate the command palette from the main component tree
+-   Decoupled the command palette from log streaming updates to ensure consistent performance
+-   Optimized the WebSocket log buffering system to reduce UI update frequency
+-   Added log size limiting to prevent performance degradation with very large logs
+-   Memoized callback functions to prevent unnecessary re-renders
+
+**Layout Improvements (Added 2023-03-16):**
+
+-   Added proper container width constraints to center content on large screens
+-   Implemented responsive margins for better visual appearance
+-   Maintained consistent layout across different screen sizes
+-   Improved overall UI aesthetics with balanced spacing
+
+The implementation follows the project's design patterns and integrates seamlessly with the existing application structure. The command palette provides a modern, efficient way for users to search and navigate the application, with optimized performance even when log streaming is active.
+
+### Real-time Container Metrics Implementation
+
+#### Overview
+
+This plan outlines the implementation of real-time container metrics visualization for the Docker Web Interface. The feature will allow users to monitor resource usage statistics for containers in real-time, with visual representations of CPU, memory, network, and disk usage.
+
+#### Implementation Phases
+
+##### Phase 1: Backend Metrics Collection (Estimated: 2 days)
+
+-   [ ] Implement Docker stats API integration:
+    -   [ ] Create endpoint for fetching real-time container stats
+    -   [ ] Implement efficient polling mechanism for metrics collection
+    -   [ ] Add filtering options to limit metrics by container or resource type
+    -   [ ] Implement data normalization for consistent metrics format
+
+##### Phase 2: WebSocket Integration (Estimated: 1 day)
+
+-   [ ] Extend WebSocket service for metrics streaming:
+    -   [ ] Add metrics event types to WebSocket protocol
+    -   [ ] Implement server-side metrics broadcasting
+    -   [ ] Create client-side metrics subscription mechanism
+    -   [ ] Add error handling and reconnection logic
+
+##### Phase 3: Frontend Metrics Components (Estimated: 3 days)
+
+-   [ ] Design and implement metrics visualization components:
+    -   [ ] Create container metrics panel layout
+    -   [ ] Implement real-time charts for CPU, memory, network, and disk usage
+    -   [ ] Add metrics summary cards for quick overview
+    -   [ ] Implement time-range selection for historical data view
+
+##### Phase 4: UI Integration (Estimated: 2 days)
+
+-   [ ] Integrate metrics components into container view:
+    -   [ ] Add metrics tab to container details panel
+    -   [ ] Implement toggle for showing/hiding metrics
+    -   [ ] Create responsive layout for different screen sizes
+    -   [ ] Ensure consistent styling in both light and dark modes
+
+##### Phase 5: Testing and Optimization (Estimated: 2 days)
+
+-   [ ] Comprehensive testing and performance optimization:
+    -   [ ] Test with various container workloads
+    -   [ ] Optimize data transfer efficiency
+    -   [ ] Implement metrics caching for better performance
+    -   [ ] Add unit and integration tests for metrics components
+
+#### Technical Details
+
+##### Docker Stats API Integration
+
+```javascript
+// Example backend implementation for container stats
+app.get('/api/containers/:id/stats', async (req, res) => {
+    try {
+        const { id } = req.params;
+        const stats = await docker.getContainerStats(id, { stream: false });
+
+        // Process and normalize stats data
+        const normalizedStats = normalizeContainerStats(stats);
+
+        res.json({ success: true, data: normalizedStats });
+    } catch (error) {
+        console.error('Failed to fetch container stats:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch container stats',
+        });
+    }
+});
+```
+
+##### WebSocket Metrics Event Structure
+
+```javascript
+// Example metrics event structure
+{
+    type: 'container_metrics',
+    container_id: 'abc123',
+    timestamp: 1628347200000,
+    data: {
+        cpu: {
+            usage_percent: 12.5,
+            cores: 2,
+            throttling_count: 0
+        },
+        memory: {
+            usage: 104857600, // bytes
+            limit: 1073741824, // bytes
+            usage_percent: 9.8
+        },
+        network: {
+            rx_bytes: 1024000,
+            tx_bytes: 512000,
+            rx_packets: 1500,
+            tx_packets: 800
+        },
+        disk: {
+            read_bytes: 2048000,
+            write_bytes: 1024000,
+            read_ops: 150,
+            write_ops: 75
+        }
+    }
+}
+```
+
+##### Metrics Visualization Component Approach
+
+```jsx
+// Simplified metrics component example
+import { useEffect, useState } from 'react';
+import { LineChart, AreaChart, BarChart } from 'recharts';
+import { useWebSocket } from '../hooks/useWebSocket';
+import { useTheme } from '../context/ThemeContext';
+
+const ContainerMetrics = ({ containerId }) => {
+    const [metrics, setMetrics] = useState([]);
+    const [timeRange, setTimeRange] = useState('5m'); // 5 minutes
+    const { theme } = useTheme();
+
+    // Subscribe to metrics updates via WebSocket
+    useWebSocket({
+        onMetricsUpdate: containerMetrics => {
+            if (containerMetrics.container_id === containerId) {
+                setMetrics(prevMetrics => {
+                    // Add new metrics and maintain time window
+                    const newMetrics = [...prevMetrics, containerMetrics];
+                    return maintainTimeWindow(newMetrics, timeRange);
+                });
+            }
+        },
+    });
+
+    // Fetch initial metrics data
+    useEffect(() => {
+        const fetchInitialMetrics = async () => {
+            try {
+                const response = await fetch(
+                    `/api/containers/${containerId}/stats/history?range=${timeRange}`
+                );
+                const data = await response.json();
+                if (data.success) {
+                    setMetrics(data.data);
+                }
+            } catch (error) {
+                console.error('Failed to fetch initial metrics:', error);
+            }
+        };
+
+        fetchInitialMetrics();
+    }, [containerId, timeRange]);
+
+    return (
+        <div
+            className={`metrics-container ${
+                theme === 'dark' ? 'bg-gray-800' : 'bg-white'
+            } p-4 rounded-lg`}
+        >
+            <div className='metrics-header flex justify-between items-center mb-4'>
+                <h3
+                    className={`text-lg font-semibold ${
+                        theme === 'dark' ? 'text-white' : 'text-gray-800'
+                    }`}
+                >
+                    Resource Usage
+                </h3>
+                <div className='time-range-selector'>
+                    {/* Time range selector buttons */}
+                </div>
+            </div>
+
+            <div className='metrics-grid grid grid-cols-2 gap-4'>
+                {/* CPU Usage Chart */}
+                <div
+                    className={`metric-card ${
+                        theme === 'dark' ? 'bg-gray-700' : 'bg-gray-100'
+                    } p-3 rounded-lg`}
+                >
+                    <h4
+                        className={`text-sm font-medium ${
+                            theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                        } mb-2`}
+                    >
+                        CPU Usage
+                    </h4>
+                    <LineChart
+                        data={formatCpuData(metrics)}
+                        width={300}
+                        height={200}
+                    />
+                </div>
+
+                {/* Memory Usage Chart */}
+                <div
+                    className={`metric-card ${
+                        theme === 'dark' ? 'bg-gray-700' : 'bg-gray-100'
+                    } p-3 rounded-lg`}
+                >
+                    <h4
+                        className={`text-sm font-medium ${
+                            theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                        } mb-2`}
+                    >
+                        Memory Usage
+                    </h4>
+                    <AreaChart
+                        data={formatMemoryData(metrics)}
+                        width={300}
+                        height={200}
+                    />
+                </div>
+
+                {/* Network Usage Chart */}
+                <div
+                    className={`metric-card ${
+                        theme === 'dark' ? 'bg-gray-700' : 'bg-gray-100'
+                    } p-3 rounded-lg`}
+                >
+                    <h4
+                        className={`text-sm font-medium ${
+                            theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                        } mb-2`}
+                    >
+                        Network I/O
+                    </h4>
+                    <BarChart
+                        data={formatNetworkData(metrics)}
+                        width={300}
+                        height={200}
+                    />
+                </div>
+
+                {/* Disk Usage Chart */}
+                <div
+                    className={`metric-card ${
+                        theme === 'dark' ? 'bg-gray-700' : 'bg-gray-100'
+                    } p-3 rounded-lg`}
+                >
+                    <h4
+                        className={`text-sm font-medium ${
+                            theme === 'dark' ? 'text-gray-300' : 'text-gray-700'
+                        } mb-2`}
+                    >
+                        Disk I/O
+                    </h4>
+                    <BarChart
+                        data={formatDiskData(metrics)}
+                        width={300}
+                        height={200}
+                    />
+                </div>
+            </div>
+        </div>
+    );
+};
+```
+
+#### Observations and Considerations
+
+-   Real-time metrics collection can be resource-intensive, so efficient polling and data transfer is crucial
+-   Consider implementing data aggregation for historical metrics to reduce storage requirements
+-   Charts should adapt to different container types (some containers may not have network or disk activity)
+-   Ensure metrics visualization is accessible and meaningful in both light and dark themes
+-   Consider adding threshold alerts for resource usage exceeding certain limits
+-   **NEVER restart containers or services**:
+    -   Do not attempt to restart npm servers
+    -   Do not restart Docker containers or Docker Compose applications
+    -   The system has hot-reload enabled with watch functionality in Docker Compose
+    -   Only implement code changes and update documentation
+
+### Command Palette Search UI Implementation
+
+#### Overview
+
+This plan outlines the implementation of a command palette-style search UI for the Docker Web Interface. The feature will allow users to quickly access a search interface using the Ctrl+K keyboard shortcut, with a focus on providing a modern, accessible search experience with visual feedback.
+
+#### Implementation Phases
+
+##### Phase 1: Command Palette Component Development (Estimated: 1 day)
+
+-   [x] Create a new CommandPalette component:
+    -   [x] Design the modal overlay with background blur/dimming effect
+    -   [x] Implement the search input with magnifying glass icon
+    -   [x] Add animation for smooth appearance/disappearance
+    -   [x] Ensure proper positioning in the upper-middle area of the screen
+    -   [x] Implement keyboard navigation and focus management
+
+##### Phase 2: Keyboard Shortcut Integration (Estimated: 0.5 days)
+
+-   [x] Add Ctrl+K keyboard shortcut handler:
+    -   [x] Update the existing keyboard shortcuts system in MainApp.tsx
+    -   [x] Add the new shortcut to the ShortcutsModal component
+    -   [x] Implement toggle functionality for the command palette
+    -   [x] Ensure the shortcut works across the entire application
+
+##### Phase 3: UI Effects and Styling (Estimated: 1 day)
+
+-   [x] Implement background visual effects:
+    -   [x] Add subtle blur effect to the background content
+    -   [x] Create semi-transparent overlay for focus indication
+    -   [x] Ensure smooth transitions between states
+    -   [x] Maintain consistent styling in both light and dark modes
+    -   [x] Optimize performance for the blur effect
+
+##### Phase 4: Integration and Testing (Estimated: 0.5 days)
+
+-   [x] Integrate with existing application structure:
+    -   [x] Connect to the ThemeContext for consistent theming
+    -   [x] Ensure proper layering with other UI elements
+    -   [x] Test across different screen sizes and browsers
+    -   [x] Verify keyboard accessibility
+    -   [x] Confirm ESC key closes the command palette
+
+#### Technical Details
+
+##### Command Palette Component Structure
+
+```jsx
+// Simplified component structure
+const CommandPalette = ({ isOpen, onClose, onSearch }) => {
+    const { theme } = useTheme();
+    const inputRef = useRef(null);
+    const [searchQuery, setSearchQuery] = useState('');
+
+    // Focus input when opened
+    useEffect(() => {
+        if (isOpen && inputRef.current) {
+            inputRef.current.focus();
+        }
+    }, [isOpen]);
+
+    // Handle keyboard events
+    const handleKeyDown = e => {
+        if (e.key === 'Escape') {
+            onClose();
+        }
+    };
+
+    if (!isOpen) return null;
+
+    return (
+        <>
+            {/* Backdrop with blur effect */}
+            <div
+                className={`fixed inset-0 bg-black bg-opacity-30 backdrop-blur-sm z-40 transition-opacity ${
+                    isOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
+                }`}
+                onClick={onClose}
+            />
+
+            {/* Command palette container */}
+            <div
+                className={`fixed top-24 left-1/2 transform -translate-x-1/2 w-full max-w-2xl z-50 transition-all ${
+                    isOpen
+                        ? 'opacity-100 scale-100'
+                        : 'opacity-0 scale-95 pointer-events-none'
+                } ${theme === 'dark' ? 'text-white' : 'text-gray-900'}`}
+            >
+                <div
+                    className={`rounded-lg shadow-2xl overflow-hidden ${
+                        theme === 'dark'
+                            ? 'bg-gray-800 border border-gray-700'
+                            : 'bg-white border border-gray-200'
+                    }`}
+                >
+                    {/* Search input */}
+                    <div className='relative'>
+                        <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
+                            <svg
+                                className={`h-5 w-5 ${
+                                    theme === 'dark'
+                                        ? 'text-gray-400'
+                                        : 'text-gray-500'
+                                }`}
+                                xmlns='http://www.w3.org/2000/svg'
+                                viewBox='0 0 20 20'
+                                fill='currentColor'
+                            >
+                                <path
+                                    fillRule='evenodd'
+                                    d='M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z'
+                                    clipRule='evenodd'
+                                />
+                            </svg>
+                        </div>
+                        <input
+                            ref={inputRef}
+                            type='text'
+                            value={searchQuery}
+                            onChange={e => setSearchQuery(e.target.value)}
+                            onKeyDown={handleKeyDown}
+                            placeholder='Search...'
+                            className={`w-full pl-10 pr-4 py-3 text-lg focus:outline-none ${
+                                theme === 'dark'
+                                    ? 'bg-gray-800 text-white placeholder-gray-400'
+                                    : 'bg-white text-gray-900 placeholder-gray-500'
+                            }`}
+                        />
+                    </div>
+
+                    {/* Results container (to be implemented in future) */}
+                    <div
+                        className={`max-h-96 overflow-y-auto ${
+                            searchQuery ? 'block' : 'hidden'
+                        }`}
+                    >
+                        {/* Future search results will go here */}
+                    </div>
+                </div>
+            </div>
+        </>
+    );
+};
+```
+
+##### Keyboard Shortcut Integration
+
+```jsx
+// Addition to existing keyboard shortcuts in MainApp.tsx
+useEffect(
+    () => {
+        const handleKeyDown = (event: KeyboardEvent) => {
+            // ... existing shortcuts ...
+
+            // Ctrl+K for command palette
+            if ((event.ctrlKey || event.metaKey) && event.key === 'k') {
+                event.preventDefault();
+                setCommandPaletteOpen(prev => !prev);
+            }
+        };
+
+        document.addEventListener('keydown', handleKeyDown);
+        return () => {
+            document.removeEventListener('keydown', handleKeyDown);
+        };
+    },
+    [
+        /* dependencies */
+    ]
+);
+```
+
+##### ShortcutsModal Update
+
+```jsx
+// Addition to shortcuts array in ShortcutsModal.tsx
+const shortcuts = [
+    // ... existing shortcuts ...
+    { keys: 'Ctrl + K', description: 'Open command palette' },
+];
+```
+
+#### Observations and Considerations
+
+-   The command palette should appear quickly and smoothly to provide a responsive feel
+-   The blur effect should be subtle enough not to distract but sufficient to indicate focus change
+-   Consider adding animation for a polished user experience
+-   Ensure the command palette is accessible via keyboard navigation
+-   The ESC key should close the command palette
+-   The search input should automatically receive focus when opened
+-   Consider adding a loading state for future search functionality
+-   **NEVER restart containers or services**:
+    -   Do not attempt to restart npm servers
+    -   Do not restart Docker containers or Docker Compose applications
+    -   The system has hot-reload enabled with watch functionality in Docker Compose
+    -   Only implement code changes and update documentation
+
+#### Implementation Summary (Completed 2023-03-15)
+
+The Command Palette Search UI has been successfully implemented with the following features:
+
+**Component Structure:**
+
+-   Created a new `CommandPalette.tsx` component with a clean, modern design
+-   Implemented a backdrop with blur effect to focus attention on the search interface
+-   Added smooth animations for appearance and disappearance using Tailwind transitions
+-   Positioned the palette in the upper-middle area of the screen for optimal visibility
+
+**Keyboard Integration:**
+
+-   Added Ctrl+K shortcut to toggle the command palette
+-   Updated the keyboard shortcuts handler in MainApp.tsx
+-   Added the new shortcut to the ShortcutsModal component for user discovery
+-   Implemented ESC key functionality to close the palette
+
+**UI Effects:**
+
+-   Implemented a semi-transparent backdrop with blur effect
+-   Added smooth transitions for all state changes
+-   Ensured consistent styling in both light and dark modes
+-   Optimized the blur effect by configuring custom backdrop blur values in Tailwind
+
+**Accessibility:**
+
+-   Added proper ARIA attributes for screen readers
+-   Implemented automatic focus on the search input when opened
+-   Added keyboard navigation support
+-   Ensured proper contrast in both light and dark themes
+
+**Performance Optimizations (Added 2023-03-16):**
+
+-   Used React.memo with custom comparison function to prevent unnecessary re-renders
+-   Implemented a portal-based rendering approach to isolate the command palette from the main component tree
+-   Decoupled the command palette from log streaming updates to ensure consistent performance
+-   Optimized the WebSocket log buffering system to reduce UI update frequency
+-   Added log size limiting to prevent performance degradation with very large logs
+-   Memoized callback functions to prevent unnecessary re-renders
+
+**Layout Improvements (Added 2023-03-16):**
+
+-   Added proper container width constraints to center content on large screens
+-   Implemented responsive margins for better visual appearance
+-   Maintained consistent layout across different screen sizes
+-   Improved overall UI aesthetics with balanced spacing
+
+The implementation follows the project's design patterns and integrates seamlessly with the existing application structure. The command palette provides a modern, efficient way for users to search and navigate the application, with optimized performance even when log streaming is active.

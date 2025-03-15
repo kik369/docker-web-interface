@@ -23,6 +23,13 @@ module.exports = {
                 'dark-surface': '#2d3748',
                 'dark-text': '#f7fafc',
             },
+            backdropBlur: {
+                sm: '4px',
+                DEFAULT: '8px',
+                md: '12px',
+                lg: '16px',
+                xl: '24px',
+            },
         },
     },
     plugins: [],
