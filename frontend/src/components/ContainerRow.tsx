@@ -2,14 +2,15 @@
 import React, { useRef, useEffect, useCallback, useState, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import { IconBaseProps } from 'react-icons';
-import { HiDocument, HiPlay, HiStop, HiRefresh, HiCog, HiTrash, HiOutlineTemplate, HiOutlineStatusOnline } from 'react-icons/hi';
-import { HiOutlineInformationCircle, HiOutlineDesktopComputer, HiOutlineServer } from 'react-icons/hi';
+import { HiDocument, HiPlay, HiStop, HiRefresh, HiCog, HiTrash, HiOutlineTemplate, HiOutlineStatusOnline, HiOutlineInformationCircle } from 'react-icons/hi';
+import { HiOutlineDesktopComputer, HiOutlineServer } from 'react-icons/hi';
 import { ContainerRowProps } from '../types/docker';
 import { logger } from '../services/logging';
 import { config } from '../config';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useTheme } from '../context/ThemeContext';
 import LogContainer from './LogContainer';
+import { CopyableText } from './CopyableText';
 
 // Create wrapper components for icons
 const DocumentIcon: React.FC<IconBaseProps> = (props): React.JSX.Element => (
@@ -95,37 +96,47 @@ const PortDisplay: React.FC<{ portsString: string }> = ({ portsString }) => {
                     <div key={index} className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'} rounded px-2 py-1 text-xs font-mono ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
                         {containerPort ? (
                             <>
-                                <span className="flex items-center mr-1" title="Host Port (your computer)">
-                                    <HiOutlineDesktopComputer className="mr-1 text-blue-400" />
-                                    {hostPort}
-                                </span>
+                                <Tooltip text="Host Port (your computer)">
+                                    <CopyableText text={hostPort}>
+                                        <span className="flex items-center mr-1">
+                                            <HiOutlineDesktopComputer className="mr-1 text-blue-400" />
+                                            {hostPort}
+                                        </span>
+                                    </CopyableText>
+                                </Tooltip>
                                 <span className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} mx-1`}>→</span>
-                                <span className="flex items-center" title="Container Port (inside Docker)">
-                                    <HiOutlineServer className="mr-1 text-green-400" />
-                                    {port}
-                                </span>
+                                <Tooltip text="Container Port (inside Docker)">
+                                    <CopyableText text={port}>
+                                        <span className="flex items-center">
+                                            <HiOutlineServer className="mr-1 text-green-400" />
+                                            {port}
+                                        </span>
+                                    </CopyableText>
+                                </Tooltip>
                             </>
                         ) : (
-                            <span className="flex items-center">
-                                <HiOutlineServer className="mr-1 text-green-400" />
-                                {port}
-                            </span>
+                            <Tooltip text="Container Port (inside Docker)">
+                                <CopyableText text={port}>
+                                    <span className="flex items-center">
+                                        <HiOutlineServer className="mr-1 text-green-400" />
+                                        {port}
+                                    </span>
+                                </CopyableText>
+                            </Tooltip>
                         )}
-
                         {protocol && (
-                            <div className="relative inline-block ml-1 group">
-                                <span className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{protocol}</span>
-                                <HiOutlineInformationCircle className={`inline-block ml-1 ${theme === 'dark' ? 'text-gray-400 hover:text-blue-400' : 'text-gray-500 hover:text-blue-500'} cursor-help`} />
-                                <div className={`absolute hidden group-hover:block bottom-full left-1/2 transform -translate-x-1/2 ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-500'} text-white p-2 rounded shadow-lg w-64 z-10 text-xs`}>
-                                    {protocol.toLowerCase() === 'tcp' ? (
-                                        <>TCP (Transmission Control Protocol): Reliable, connection-oriented protocol that ensures data delivery.</>
-                                    ) : protocol.toLowerCase() === 'udp' ? (
-                                        <>UDP (User Datagram Protocol): Faster, connectionless protocol used for speed over reliability.</>
-                                    ) : (
-                                        <>{protocol} Protocol</>
-                                    )}
+                            <Tooltip text={
+                                protocol.toLowerCase() === 'tcp' ?
+                                    "TCP (Transmission Control Protocol): Reliable, connection-oriented protocol that ensures data delivery." :
+                                    protocol.toLowerCase() === 'udp' ?
+                                        "UDP (User Datagram Protocol): Faster, connectionless protocol used for speed over reliability." :
+                                        `${protocol} Protocol`
+                            }>
+                                <div className="inline-flex items-center ml-1">
+                                    <span className={`text-xs ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>{protocol}</span>
+                                    <HiOutlineInformationCircle className={`inline-block ml-1 ${theme === 'dark' ? 'text-gray-400 hover:text-blue-400' : 'text-gray-500 hover:text-blue-500'}`} />
                                 </div>
-                            </div>
+                            </Tooltip>
                         )}
                     </div>
                 );
@@ -150,7 +161,7 @@ const Tooltip: React.FC<TooltipProps> = ({ children, text }) => {
         if (triggerRef.current) {
             const rect = triggerRef.current.getBoundingClientRect();
             setPosition({
-                top: rect.top - 5,
+                top: rect.top - 10,
                 left: rect.left + rect.width / 2
             });
         }
@@ -190,18 +201,30 @@ const Tooltip: React.FC<TooltipProps> = ({ children, text }) => {
 
             {showTooltip && document.body && ReactDOM.createPortal(
                 <div
-                    className={`fixed ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-500'} text-white p-2 rounded shadow-lg z-[1000] text-xs whitespace-nowrap min-w-min`}
+                    className={`fixed ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-500'} text-white p-2 rounded
+                    shadow-xl z-[1000] text-xs whitespace-nowrap min-w-min
+                    ${theme === 'dark' ? 'shadow-black/50 border border-gray-700' : 'shadow-gray-700/50'}
+                    backdrop-blur-sm backdrop-filter`}
                     style={{
                         top: `${position.top}px`,
                         left: `${position.left}px`,
-                        transform: 'translate(-50%, -100%)'
+                        transform: 'translate(-50%, -100%)',
+                        boxShadow: theme === 'dark'
+                            ? '0 4px 8px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.3)'
+                            : '0 4px 8px rgba(0, 0, 0, 0.25), 0 2px 4px rgba(0, 0, 0, 0.15)'
                     }}
                 >
                     <div className="relative">
                         {text}
                         <div
-                            className={`absolute w-0 h-0 border-l-8 border-r-8 border-t-8 border-transparent ${theme === 'dark' ? 'border-t-gray-800' : 'border-t-gray-500'}`}
-                            style={{ bottom: '-8px', left: '50%', transform: 'translateX(-50%)' }}
+                            className={`absolute w-0 h-0 border-l-6 border-r-6 border-t-6 border-transparent
+                            ${theme === 'dark' ? 'border-t-gray-800' : 'border-t-gray-500'}`}
+                            style={{
+                                bottom: '-12px',
+                                left: '50%',
+                                transform: 'translateX(-50%)',
+                                filter: theme === 'dark' ? 'drop-shadow(0 2px 2px rgba(0, 0, 0, 0.5))' : 'drop-shadow(0 2px 2px rgba(0, 0, 0, 0.25))'
+                            }}
                         />
                     </div>
                 </div>,
@@ -475,7 +498,7 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
     };
 
     return (
-        <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-lg overflow-hidden mb-3 transition-all duration-300 border border-opacity-10 ${theme === 'dark' ? 'border-gray-600' : 'border-gray-300'} shadow-custom ${highlightActive ? `${theme === 'dark' ? 'ring-2 ring-blue-500 ring-opacity-75' : 'ring-2 ring-blue-400 ring-opacity-75'} scale-[1.01]` : ''
+        <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-lg overflow-hidden transition-all duration-300 border border-opacity-10 ${theme === 'dark' ? 'border-gray-600' : 'border-gray-300'} shadow-custom ${highlightActive ? `${theme === 'dark' ? 'ring-2 ring-blue-500 ring-opacity-75' : 'ring-2 ring-blue-400 ring-opacity-75'} scale-[1.01]` : ''
             }`}
             style={{
                 boxShadow: theme === 'dark'
@@ -506,7 +529,9 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                                             Set in docker-compose.yml with container_name: property
                                         </>
                                 }>
-                                    <h3 className={`text-lg font-semibold font-mono ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{container.name}</h3>
+                                    <CopyableText text={container.name}>
+                                        <h3 className={`text-lg font-semibold font-mono ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{container.name}</h3>
+                                    </CopyableText>
                                 </Tooltip>
 
                                 {container.compose_project && container.compose_project !== 'Standalone Containers' &&
@@ -514,9 +539,11 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                                         <Tooltip text={<>
                                             Docker Compose Service Name
                                         </>}>
-                                            <span className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} font-mono`}>
-                                                {container.compose_service}
-                                            </span>
+                                            <CopyableText text={container.compose_service}>
+                                                <span className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} font-mono`}>
+                                                    {container.compose_service}
+                                                </span>
+                                            </CopyableText>
                                         </Tooltip>
                                     )}
                             </div>
@@ -594,10 +621,12 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                 <div className="mt-2 space-y-1">
                     <div className="grid grid-cols-[80px_auto] gap-y-1">
                         <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Image:</p>
-                        <p><span className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} font-mono`}>
-                            <HiOutlineTemplate className="mr-1 text-purple-400" />
-                            {container.image}
-                        </span></p>
+                        <p><CopyableText text={container.image}>
+                            <span className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} font-mono`}>
+                                <HiOutlineTemplate className="mr-1 text-purple-400" />
+                                {container.image}
+                            </span>
+                        </CopyableText></p>
 
                         <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Status:</p>
                         <p><span className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} font-mono`}>

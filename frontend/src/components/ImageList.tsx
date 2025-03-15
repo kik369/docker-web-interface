@@ -5,6 +5,7 @@ import { HiTrash, HiExternalLink, HiOutlineTemplate, HiOutlineClock, HiOutlineSc
 import { useImages } from '../hooks/useImages';
 import { Image } from '../types/docker';
 import { useTheme } from '../context/ThemeContext';
+import { CopyableText } from './CopyableText';
 
 // Create wrapper components for icons
 const TrashIcon: React.FC<IconBaseProps> = (props): React.JSX.Element => (
@@ -43,7 +44,7 @@ const Tooltip: React.FC<TooltipProps> = ({ children, text }) => {
         if (triggerRef.current) {
             const rect = triggerRef.current.getBoundingClientRect();
             setPosition({
-                top: rect.top - 5,
+                top: rect.top - 10,
                 left: rect.left + rect.width / 2
             });
         }
@@ -83,18 +84,30 @@ const Tooltip: React.FC<TooltipProps> = ({ children, text }) => {
 
             {showTooltip && document.body && ReactDOM.createPortal(
                 <div
-                    className={`fixed ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-500'} text-white p-2 rounded shadow-lg z-[1000] text-xs whitespace-nowrap min-w-min`}
+                    className={`fixed ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-500'} text-white p-2 rounded
+                    shadow-xl z-[1000] text-xs whitespace-nowrap min-w-min
+                    ${theme === 'dark' ? 'shadow-black/50 border border-gray-700' : 'shadow-gray-700/50'}
+                    backdrop-blur-sm backdrop-filter`}
                     style={{
                         top: `${position.top}px`,
                         left: `${position.left}px`,
-                        transform: 'translate(-50%, -100%)'
+                        transform: 'translate(-50%, -100%)',
+                        boxShadow: theme === 'dark'
+                            ? '0 4px 8px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.3)'
+                            : '0 4px 8px rgba(0, 0, 0, 0.25), 0 2px 4px rgba(0, 0, 0, 0.15)'
                     }}
                 >
                     <div className="relative">
                         {text}
                         <div
-                            className={`absolute w-0 h-0 border-l-8 border-r-8 border-t-8 border-transparent ${theme === 'dark' ? 'border-t-gray-800' : 'border-t-gray-500'}`}
-                            style={{ bottom: '-8px', left: '50%', transform: 'translateX(-50%)' }}
+                            className={`absolute w-0 h-0 border-l-6 border-r-6 border-t-6 border-transparent
+                            ${theme === 'dark' ? 'border-t-gray-800' : 'border-t-gray-500'}`}
+                            style={{
+                                bottom: '-12px',
+                                left: '50%',
+                                transform: 'translateX(-50%)',
+                                filter: theme === 'dark' ? 'drop-shadow(0 2px 2px rgba(0, 0, 0, 0.5))' : 'drop-shadow(0 2px 2px rgba(0, 0, 0, 0.25))'
+                            }}
                         />
                     </div>
                 </div>,
@@ -241,7 +254,7 @@ const ImageRow: React.FC<{
     const fullDateTime = formatFullDateTime(createdTimestamp);
 
     return (
-        <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-lg overflow-hidden mb-4 transition-all duration-300 border border-opacity-10 ${theme === 'dark' ? 'border-gray-600' : 'border-gray-300'} ${highlightActive ? `${theme === 'dark' ? 'ring-2 ring-blue-500 ring-opacity-75' : 'ring-2 ring-blue-400 ring-opacity-75'} scale-[1.01]` : ''
+        <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-lg overflow-hidden transition-all duration-300 border border-opacity-10 ${theme === 'dark' ? 'border-gray-600' : 'border-gray-300'} ${highlightActive ? `${theme === 'dark' ? 'ring-2 ring-blue-500 ring-opacity-75' : 'ring-2 ring-blue-400 ring-opacity-75'} scale-[1.01]` : ''
             }`}
             style={{
                 boxShadow: theme === 'dark'
@@ -255,7 +268,9 @@ const ImageRow: React.FC<{
                         <div>
                             <div className="flex items-center space-x-2">
                                 <Tooltip text="Docker Image">
-                                    <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{displayName}</h3>
+                                    <CopyableText text={displayName}>
+                                        <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{displayName}</h3>
+                                    </CopyableText>
                                 </Tooltip>
 
                                 {image.tags.length > 1 && (
@@ -295,10 +310,12 @@ const ImageRow: React.FC<{
                 <div className="mt-2 space-y-1">
                     <div className="grid grid-cols-[80px_auto] gap-y-1">
                         <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>ID:</p>
-                        <p><span className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-200'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} font-mono`}>
-                            <TemplateIcon className="mr-1 text-purple-400" />
-                            {shortId}
-                        </span></p>
+                        <p><CopyableText text={image.id}>
+                            <span className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-200'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} font-mono`}>
+                                <TemplateIcon className="mr-1 text-purple-400" />
+                                {shortId}
+                            </span>
+                        </CopyableText></p>
 
                         <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Size:</p>
                         <Tooltip text={exactSizeInBytes}>
@@ -321,9 +338,11 @@ const ImageRow: React.FC<{
                                 <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Tags:</p>
                                 <div className="flex flex-wrap gap-2">
                                     {image.tags.slice(1).map((tag, index) => (
-                                        <span key={index} className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-200'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} font-mono`}>
-                                            {tag}
-                                        </span>
+                                        <CopyableText key={index} text={tag}>
+                                            <span className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-200'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} font-mono`}>
+                                                {tag}
+                                            </span>
+                                        </CopyableText>
                                     ))}
                                 </div>
                             </>
@@ -426,22 +445,24 @@ export const ImageList: React.FC<ImageListProps> = ({ searchTerm = '', onSearchC
                         </div>
                     </div>
 
-                    <div className="p-3 space-y-3">
+                    <div className="p-4">
                         {filteredImages.length === 0 ? (
                             <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-100'} p-4 rounded-lg text-center ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>
                                 {searchTerm ? `No images found matching "${searchTerm}"` : "No images found"}
                             </div>
                         ) : (
-                            filteredImages.map(image => (
-                                <ImageRow
-                                    key={image.id}
-                                    image={image}
-                                    onDelete={handleDeleteClick}
-                                    actionInProgress={actionInProgress}
-                                    isHighlighted={highlightedItem?.id === image.id}
-                                    highlightTimestamp={highlightedItem?.id === image.id ? highlightedItem.timestamp : undefined}
-                                />
-                            ))
+                            <div className="grid gap-4">
+                                {filteredImages.map(image => (
+                                    <ImageRow
+                                        key={image.id}
+                                        image={image}
+                                        onDelete={handleDeleteClick}
+                                        actionInProgress={actionInProgress}
+                                        isHighlighted={highlightedItem?.id === image.id}
+                                        highlightTimestamp={highlightedItem?.id === image.id ? highlightedItem.timestamp : undefined}
+                                    />
+                                ))}
+                            </div>
                         )}
                     </div>
                 </div>
