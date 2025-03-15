@@ -9,7 +9,7 @@ import { logger } from '../services/logging';
 import { useContainerContext, useContainerOperations } from '../context/ContainerContext';
 import { SearchBar } from './SearchBar';
 import { ShortcutsModal } from './ShortcutsModal';
-import { HiQuestionMarkCircle } from 'react-icons/hi';
+import { BsQuestionLg } from 'react-icons/bs';
 import ThemeToggle from './ThemeToggle';
 import { useTheme } from '../context/ThemeContext';
 import '../App.css';
@@ -207,10 +207,12 @@ function MainApp() {
             {/* Help Button */}
             <button
                 onClick={() => setShowShortcutsModal(true)}
-                className={`fixed bottom-6 right-6 ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} text-blue-400 rounded-full p-2 shadow-lg transition-colors z-20`}
+                className={`fixed bottom-6 right-6 p-2 rounded-full transition-colors duration-200 ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'
+                    } shadow-lg z-20`}
                 title="Keyboard Shortcuts (Ctrl+/)"
+                aria-label="Show keyboard shortcuts"
             >
-                <HiQuestionMarkCircle className="w-8 h-8" />
+                <BsQuestionLg className={`w-5 h-5 ${theme === 'dark' ? 'text-blue-400' : 'text-blue-600'}`} />
             </button>
 
             <ShortcutsModal isOpen={showShortcutsModal} onClose={() => setShowShortcutsModal(false)} />

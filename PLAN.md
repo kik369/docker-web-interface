@@ -75,8 +75,13 @@ This document should be consulted before making any changes to the codebase and 
     - Integrating with WebSocket connections
 
 3. **Documentation Enhancement**
+
     - Creating comprehensive API documentation
     - Updating diagrams to reflect current architecture
+
+4. **UI Consistency Improvements**
+    - Standardizing icon styles across the interface
+    - Ensuring visual consistency between components
 
 ### To-Do Items
 
@@ -103,6 +108,24 @@ This document should be consulted before making any changes to the codebase and 
 -   [ ] Add multi-node support for Docker Swarm
 
 ## Recently Completed Work
+
+### UI Icon Consistency (Completed 2023-08-01)
+
+-   [x] Analyzed the theme switcher icon style
+-   [x] Updated the keyboard shortcuts icon to match theme switcher styling
+-   [x] Changed the icon to a simple question mark without circular background
+-   [x] Used blue color for the question mark icon
+-   [x] Ensured consistent appearance in both light and dark modes
+-   [x] Maintained the same positioning and interaction behavior
+
+### Dark Mode Fixes (Completed 2023-07-31)
+
+-   [x] Identified components not properly adapting to theme changes
+-   [x] Updated ContainerList and ImageList components for proper light mode styling
+-   [x] Fixed tooltip and log container styling in light mode
+-   [x] Removed hard-coded dark background colors from CSS
+-   [x] Ensured consistent appearance across both themes
+-   [x] Verified no layout shifts when switching themes
 
 ### Dark Mode Implementation (Completed 2023-07-30)
 
@@ -310,47 +333,3 @@ const ThemeToggle = () => {
     -   Do not restart Docker containers or Docker Compose applications
     -   The system has hot-reload enabled with watch functionality in Docker Compose
     -   Only implement code changes and update documentation
-
-### Dark Mode Fixes Implementation
-
-#### Overview
-
-This plan outlines the fixes needed for the dark/light mode implementation, focusing on components that are not properly adapting to the light mode theme.
-
-#### Implementation Phases
-
-##### Phase 1: Component Analysis (Estimated: 0.5 day)
-
--   [x] Identify all components that are not properly adapting to theme changes:
-    -   [x] Container panels and cards
-    -   [x] List items and rows
-    -   [x] Status indicators and badges
-    -   [x] Action buttons and controls
-
-##### Phase 2: Component Updates (Estimated: 1 day)
-
--   [x] Update ContainerList component:
-    -   [x] Apply proper light mode styling to container panels
-    -   [x] Update container group headers
-    -   [x] Fix container row backgrounds and borders
--   [x] Update ImageList component:
-    -   [x] Apply proper light mode styling to image panels
-    -   [x] Fix image row backgrounds and borders
--   [x] Update action buttons and controls:
-    -   [x] Ensure proper styling for buttons in both themes
-    -   [x] Update status indicators and badges
-
-##### Phase 3: Testing and Verification (Estimated: 0.5 day)
-
--   [x] Test theme switching across all components
--   [x] Verify consistent appearance in both themes
--   [x] Ensure no layout shifts or size changes when switching themes
--   [x] Check for any remaining hard-coded colors
-
-#### Technical Approach
-
--   Systematically review each component file
--   Replace hard-coded color classes with theme-aware alternatives
--   Use Tailwind's dark mode variant consistently
--   Maintain the same layout, sizing, and spacing across themes
--   Focus only on color and shadow changes
