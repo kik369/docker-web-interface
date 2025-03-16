@@ -159,16 +159,14 @@ const LogContainer: React.FC<LogContainerProps> = React.memo(({
                     {isFullScreen && (
                         <span className="inline-block w-3 h-3 bg-green-400 rounded-full mr-2"></span>
                     )}
-                    {isFullScreen ? (
-                        <div className="flex items-center">
-                            <span>Container Logs</span>
-                            {containerName && (
-                                <span className={`ml-2 font-mono text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
-                                    ({containerName})
-                                </span>
-                            )}
-                        </div>
-                    ) : 'Container Logs'}
+                    <div className="flex items-center space-x-2">
+                        <span>Container Logs</span>
+                        {isFullScreen && containerName && (
+                            <span className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} font-mono font-normal`}>
+                                {containerName}
+                            </span>
+                        )}
+                    </div>
                 </h3>
                 <div className="flex items-center space-x-2">
                     {/* Follow button first (conditionally rendered) */}
@@ -194,7 +192,7 @@ const LogContainer: React.FC<LogContainerProps> = React.memo(({
                     {/* Full Screen button */}
                     <button
                         onClick={toggleFullScreen}
-                        className={`${buttonClasses} ${isFullScreen ? 'bg-blue-600 hover:bg-blue-700 text-white' : ''}`}
+                        className={buttonClasses}
                         title={isFullScreen ? "Exit full screen" : "Full screen"}
                     >
                         {isFullScreen ? (
