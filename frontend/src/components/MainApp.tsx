@@ -225,6 +225,70 @@ function MainApp() {
         }));
     }, [images, setLoading]);
 
+    // Helper function to check if any logs are open
+    const areAnyLogsOpen = useCallback(() => {
+        const LOGS_STORAGE_KEY_PREFIX = 'dockerWebInterface_logsViewed_';
+        const keys = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith(LOGS_STORAGE_KEY_PREFIX)) {
+                const isOpen = localStorage.getItem(key) === 'true';
+                if (isOpen) return true;
+            }
+        }
+        return false;
+    }, []);
+
+    // Helper function to show all logs
+    const showAllLogs = useCallback(() => {
+        const LOGS_STORAGE_KEY_PREFIX = 'dockerWebInterface_logsViewed_';
+
+        // Get all container IDs from localStorage
+        const keys = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith(LOGS_STORAGE_KEY_PREFIX)) {
+                keys.push(key);
+            }
+        }
+
+        // Set all log view states to true
+        keys.forEach(key => {
+            localStorage.setItem(key, 'true');
+        });
+
+        // Force a re-render of the container list to apply changes
+        setLoading(true);
+        setTimeout(() => setLoading(false), 100);
+
+        logger.info('Opened all container logs');
+    }, [setLoading]);
+
+    // Helper function to close all logs
+    const closeAllLogs = useCallback(() => {
+        const LOGS_STORAGE_KEY_PREFIX = 'dockerWebInterface_logsViewed_';
+
+        // Get all keys from localStorage
+        const keys = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith(LOGS_STORAGE_KEY_PREFIX)) {
+                keys.push(key);
+            }
+        }
+
+        // Set all log view states to false
+        keys.forEach(key => {
+            localStorage.setItem(key, 'false');
+        });
+
+        // Force a re-render of the container list to apply changes
+        setLoading(true);
+        setTimeout(() => setLoading(false), 100);
+
+        logger.info('Closed all container logs');
+    }, [setLoading]);
+
     // Define commands for the command palette
     const commands = useMemo(() => [
         // Command options
@@ -257,40 +321,23 @@ function MainApp() {
             action: toggleTheme
         },
         {
-            id: 'close-all-logs',
-            name: 'Close All Logs',
+            id: 'toggle-all-logs',
+            name: areAnyLogsOpen() ? 'Close All Logs' : 'Show All Logs',
             shortcut: 'Ctrl + Shift + L',
             category: 'Actions',
             icon: 'logs',
             action: () => {
-                // Close all logs by clearing localStorage entries that start with the logs prefix
-                const LOGS_STORAGE_KEY_PREFIX = 'dockerWebInterface_logsViewed_';
-
-                // Get all keys from localStorage
-                const keys = [];
-                for (let i = 0; i < localStorage.length; i++) {
-                    const key = localStorage.key(i);
-                    if (key && key.startsWith(LOGS_STORAGE_KEY_PREFIX)) {
-                        keys.push(key);
-                    }
+                if (areAnyLogsOpen()) {
+                    closeAllLogs();
+                } else {
+                    showAllLogs();
                 }
-
-                // Set all log view states to false
-                keys.forEach(key => {
-                    localStorage.setItem(key, 'false');
-                });
-
-                // Force a re-render of the container list to apply changes
-                setLoading(true);
-                setTimeout(() => setLoading(false), 100);
-
-                logger.info('Closed all container logs');
             }
         },
         // Include container and image options
         ...containerOptions,
         ...imageOptions
-    ], [containerOptions, imageOptions, setLoading]);
+    ], [containerOptions, imageOptions, setLoading, areAnyLogsOpen, closeAllLogs, showAllLogs]);
 
     // Add keyboard shortcuts
     useEffect(() => {
@@ -330,31 +377,15 @@ function MainApp() {
                 toggleCommandPalette();
             }
 
-            // Ctrl+Shift+L for closing all logs
+            // Ctrl+Shift+L for toggling logs
             if (event.ctrlKey && event.shiftKey && event.key === 'L') {
                 event.preventDefault();
-                // Close all logs by clearing localStorage entries that start with the logs prefix
-                const LOGS_STORAGE_KEY_PREFIX = 'dockerWebInterface_logsViewed_';
-
-                // Get all keys from localStorage
-                const keys = [];
-                for (let i = 0; i < localStorage.length; i++) {
-                    const key = localStorage.key(i);
-                    if (key && key.startsWith(LOGS_STORAGE_KEY_PREFIX)) {
-                        keys.push(key);
-                    }
+                if (areAnyLogsOpen()) {
+                    closeAllLogs();
+                } else {
+                    showAllLogs();
                 }
-
-                // Set all log view states to false
-                keys.forEach(key => {
-                    localStorage.setItem(key, 'false');
-                });
-
-                // Force a re-render of the container list to apply changes
-                setLoading(true);
-                setTimeout(() => setLoading(false), 100);
-
-                logger.info('Closed all container logs via keyboard shortcut');
+                logger.info('Toggled all container logs via keyboard shortcut');
             }
         };
 
@@ -362,7 +393,7 @@ function MainApp() {
         return () => {
             window.removeEventListener('keydown', handleKeyDown);
         };
-    }, [activeTab, refreshImages, setLoading, toggleTheme, toggleCommandPalette]);
+    }, [activeTab, refreshImages, setLoading, toggleTheme, toggleCommandPalette, areAnyLogsOpen, closeAllLogs, showAllLogs]);
 
     return (
         <div className="flex flex-col h-screen">
