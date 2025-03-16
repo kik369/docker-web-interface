@@ -104,6 +104,22 @@ Currently, all planned features have been implemented. The project is in a stabl
 
 ## Recently Completed Work
 
+-   Implemented Command Palette Z-Index and Log Closing Fix (March 20, 2025)
+
+    -   Fixed command palette to always appear on top of all elements, including full screen logs
+    -   Ensured command palette has the highest z-index in the application (10000)
+    -   Added automatic log closing when selecting containers or images from the command palette
+    -   Improved user experience by ensuring command palette is always accessible with Ctrl+K
+    -   Fixed issue where full screen logs would remain open when navigating via command palette
+
+-   Implemented Full Screen Mode for Container Logs (March 19, 2025)
+    -   Added a new "Full Screen" button next to existing Follow, Live Indicator, and Close buttons
+    -   Implemented fullscreen mode that expands log text to occupy the entire browser window
+    -   Used React Portal to ensure proper rendering above all other UI elements
+    -   Added keyboard shortcut (Escape key) to exit fullscreen mode
+    -   Ensured scrolling functionality works properly in fullscreen mode
+    -   Added visual indicators and styling to improve user experience
+    -   Fixed overlap issues with navigation bar for a clean, uninterrupted view
 -   Implemented Command Palette Selection Glow Effect (March 18, 2025)
     -   Added subtle glow animation to enhance visibility of selected items from the command palette
     -   Created theme-aware glow effects with different colors for light/dark modes

@@ -134,6 +134,24 @@ function MainApp() {
             icon: 'container',
             status: container.state === 'running' ? 'running' : 'stopped',
             action: () => {
+                // Close all logs first
+                const LOGS_STORAGE_KEY_PREFIX = 'dockerWebInterface_logsViewed_';
+
+                // Get all keys from localStorage
+                const keys = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && key.startsWith(LOGS_STORAGE_KEY_PREFIX)) {
+                        keys.push(key);
+                    }
+                }
+
+                // Set all log view states to false
+                keys.forEach(key => {
+                    localStorage.setItem(key, 'false');
+                });
+
+                // Then navigate to the container
                 setActiveTab('containers');
                 localStorage.setItem('app-active-tab', 'containers');
                 // Instead of filtering, set a highlight ID
@@ -142,9 +160,15 @@ function MainApp() {
                     id: container.id,
                     timestamp: Date.now()
                 });
+
+                // Force a re-render to apply log changes
+                setLoading(true);
+                setTimeout(() => setLoading(false), 100);
+
+                logger.info('Closed all logs when selecting container from command palette');
             }
         }));
-    }, [containers, setActiveTab]);
+    }, [containers, setActiveTab, setLoading]);
 
     const imageOptions = useMemo(() => {
         if (!images || images.length === 0) return [];
@@ -156,6 +180,24 @@ function MainApp() {
             category: 'Images',
             icon: 'image',
             action: () => {
+                // Close all logs first
+                const LOGS_STORAGE_KEY_PREFIX = 'dockerWebInterface_logsViewed_';
+
+                // Get all keys from localStorage
+                const keys = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && key.startsWith(LOGS_STORAGE_KEY_PREFIX)) {
+                        keys.push(key);
+                    }
+                }
+
+                // Set all log view states to false
+                keys.forEach(key => {
+                    localStorage.setItem(key, 'false');
+                });
+
+                // Then navigate to the image
                 setActiveTab('images');
                 localStorage.setItem('app-active-tab', 'images');
                 // Instead of filtering, set a highlight ID
@@ -164,9 +206,15 @@ function MainApp() {
                     id: image.id,
                     timestamp: Date.now()
                 });
+
+                // Force a re-render to apply log changes
+                setLoading(true);
+                setTimeout(() => setLoading(false), 100);
+
+                logger.info('Closed all logs when selecting image from command palette');
             }
         }));
-    }, [images, setActiveTab]);
+    }, [images, setActiveTab, setLoading]);
 
     // Define commands for the command palette
     const commands = useMemo(() => [

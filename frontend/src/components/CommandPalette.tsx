@@ -201,11 +201,12 @@ const CommandPalette: React.FC<CommandPaletteProps> = React.memo(({
                 aria-modal="true"
                 aria-labelledby="command-palette-title"
                 onClick={(e) => e.target === e.currentTarget && onClose()}
+                style={{ zIndex: 10000 }}
             >
                 <div
                     className={`w-full max-w-2xl rounded-lg shadow-2xl overflow-hidden flex flex-col ${theme === 'dark' ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-200'
                         }`}
-                    style={{ maxHeight: 'calc(100vh - 160px)' }}
+                    style={{ maxHeight: 'calc(100vh - 160px)', position: 'relative', zIndex: 10001 }}
                 >
                     {/* Search input - enhanced styling */}
                     <div className={`relative flex-shrink-0 ${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-50'
