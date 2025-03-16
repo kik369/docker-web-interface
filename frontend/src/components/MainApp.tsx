@@ -105,6 +105,17 @@ function MainApp() {
 
     // No settings needed anymore
 
+    // Create a function to handle tab switching that resets highlight when not from command palette
+    const handleTabSwitch = (tab: 'containers' | 'images', fromCommandPalette: boolean = false) => {
+        setActiveTab(tab);
+        localStorage.setItem('app-active-tab', tab);
+
+        // Reset highlight if switching tabs manually (not from command palette)
+        if (!fromCommandPalette) {
+            setHighlightedItem(null);
+        }
+    };
+
     // Handle command palette search - memoized to prevent unnecessary re-renders
     const handleCommandSearch = useCallback((query: string) => {
         // Set the search term and close the palette
@@ -152,8 +163,7 @@ function MainApp() {
                 });
 
                 // Then navigate to the container
-                setActiveTab('containers');
-                localStorage.setItem('app-active-tab', 'containers');
+                handleTabSwitch('containers', true);
                 // Instead of filtering, set a highlight ID
                 setHighlightedItem({
                     type: 'container',
@@ -168,7 +178,7 @@ function MainApp() {
                 logger.info('Closed all logs when selecting container from command palette');
             }
         }));
-    }, [containers, setActiveTab, setLoading]);
+    }, [containers, setLoading]);
 
     const imageOptions = useMemo(() => {
         if (!images || images.length === 0) return [];
@@ -198,8 +208,7 @@ function MainApp() {
                 });
 
                 // Then navigate to the image
-                setActiveTab('images');
-                localStorage.setItem('app-active-tab', 'images');
+                handleTabSwitch('images', true);
                 // Instead of filtering, set a highlight ID
                 setHighlightedItem({
                     type: 'image',
@@ -214,7 +223,7 @@ function MainApp() {
                 logger.info('Closed all logs when selecting image from command palette');
             }
         }));
-    }, [images, setActiveTab, setLoading]);
+    }, [images, setLoading]);
 
     // Define commands for the command palette
     const commands = useMemo(() => [
@@ -226,8 +235,7 @@ function MainApp() {
             category: 'Navigation',
             icon: 'container',
             action: () => {
-                setActiveTab('containers');
-                localStorage.setItem('app-active-tab', 'containers');
+                handleTabSwitch('containers');
             }
         },
         {
@@ -237,8 +245,7 @@ function MainApp() {
             category: 'Navigation',
             icon: 'image',
             action: () => {
-                setActiveTab('images');
-                localStorage.setItem('app-active-tab', 'images');
+                handleTabSwitch('images');
             }
         },
         {
@@ -283,7 +290,7 @@ function MainApp() {
         // Include container and image options
         ...containerOptions,
         ...imageOptions
-    ], [containerOptions, imageOptions, setActiveTab, toggleTheme, setLoading]);
+    ], [containerOptions, imageOptions, setLoading]);
 
     // Add keyboard shortcuts
     useEffect(() => {
@@ -302,15 +309,13 @@ function MainApp() {
             // Ctrl+Shift+C for Containers tab
             if (event.ctrlKey && event.shiftKey && event.key === 'C') {
                 event.preventDefault();
-                setActiveTab('containers');
-                localStorage.setItem('app-active-tab', 'containers');
+                handleTabSwitch('containers');
             }
 
             // Ctrl+Shift+I for Images tab
             if (event.ctrlKey && event.shiftKey && event.key === 'I') {
                 event.preventDefault();
-                setActiveTab('images');
-                localStorage.setItem('app-active-tab', 'images');
+                handleTabSwitch('images');
             }
 
             // Ctrl+D for toggling dark mode
@@ -353,9 +358,9 @@ function MainApp() {
             }
         };
 
-        document.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('keydown', handleKeyDown);
         return () => {
-            document.removeEventListener('keydown', handleKeyDown);
+            window.removeEventListener('keydown', handleKeyDown);
         };
     }, [activeTab, refreshImages, setLoading, toggleTheme, toggleCommandPalette]);
 
@@ -368,12 +373,9 @@ function MainApp() {
                         <nav className="flex items-center justify-between">
                             <div className="flex items-center">
                                 <h1 className="text-2xl font-bold mr-8 dark:text-white font-mono">docker_web_interface</h1>
-                                <div className="flex space-x-2">
+                                <div className="flex items-center space-x-2">
                                     <button
-                                        onClick={() => {
-                                            setActiveTab('containers');
-                                            localStorage.setItem('app-active-tab', 'containers');
-                                        }}
+                                        onClick={() => handleTabSwitch('containers')}
                                         className={`px-4 py-2 rounded-md transition-colors font-mono text-sm flex items-center ${activeTab === 'containers'
                                             ? 'bg-gray-700 text-white dark:bg-gray-700 dark:text-white'
                                             : 'bg-gray-200 text-gray-800 hover:bg-gray-300 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
@@ -383,10 +385,7 @@ function MainApp() {
                                         containers
                                     </button>
                                     <button
-                                        onClick={() => {
-                                            setActiveTab('images');
-                                            localStorage.setItem('app-active-tab', 'images');
-                                        }}
+                                        onClick={() => handleTabSwitch('images')}
                                         className={`px-4 py-2 rounded-md transition-colors font-mono text-sm flex items-center ${activeTab === 'images'
                                             ? 'bg-gray-700 text-white dark:bg-gray-700 dark:text-white'
                                             : 'bg-gray-200 text-gray-800 hover:bg-gray-300 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700'
