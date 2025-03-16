@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import ReactDOM from 'react-dom';
 import { IconBaseProps } from 'react-icons';
-import { HiTrash, HiExternalLink, HiOutlineTemplate, HiOutlineClock, HiOutlineScale } from 'react-icons/hi';
+import { HiTrash, HiOutlineTemplate, HiOutlineClock, HiOutlineScale } from 'react-icons/hi';
 import { useImages } from '../hooks/useImages';
 import { Image } from '../types/docker';
 import { useTheme } from '../context/ThemeContext';
@@ -10,10 +10,6 @@ import { CopyableText } from './CopyableText';
 // Create wrapper components for icons
 const TrashIcon: React.FC<IconBaseProps> = (props): React.JSX.Element => (
     <HiTrash {...props} />
-);
-
-const ExternalLinkIcon: React.FC<IconBaseProps> = (props): React.JSX.Element => (
-    <HiExternalLink {...props} />
 );
 
 const TemplateIcon: React.FC<IconBaseProps> = (props): React.JSX.Element => (
@@ -214,31 +210,6 @@ const ImageRow: React.FC<{
         }
     }, [isHighlighted, highlightTimestamp]);
 
-    // Get Docker Hub URL from image tag
-    const getDockerHubUrl = (tag: string): string | null => {
-        // Example tag: nginx:latest or library/nginx:latest
-        try {
-            if (!tag.includes('/')) {
-                // Official image
-                const name = tag.split(':')[0];
-                return `https://hub.docker.com/_/${name}`;
-            } else {
-                // User repository or organization
-                const parts = tag.split(':')[0].split('/');
-                if (parts.length === 2) {
-                    // user/repo format
-                    return `https://hub.docker.com/r/${parts[0]}/${parts[1]}`;
-                } else if (parts.length === 3 && parts[0].includes('.')) {
-                    // registry.example.com/user/repo format - not Docker Hub
-                    return `https://${parts[0]}`;
-                }
-            }
-        } catch (e) {
-            console.error('Error parsing image tag:', e);
-        }
-        return null;
-    };
-
     const isActionLoading = actionInProgress === image.id;
     const formattedSize = formatFileSize(image.size);
     const exactSizeInBytes = formatSizeInBytes(image.size);
@@ -286,18 +257,6 @@ const ImageRow: React.FC<{
                         </div>
                     </div>
                     <div className="flex items-center space-x-2">
-                        {mainTag && getDockerHubUrl(mainTag) && (
-                            <a
-                                href={getDockerHubUrl(mainTag) || '#'}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded-md px-3 py-1.5 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} transition-colors`}
-                                title={`Open ${mainTag} in Docker Hub or registry`}
-                            >
-                                <ExternalLinkIcon className="w-4 h-4 mr-1.5 text-blue-300" />
-                                Docker Hub
-                            </a>
-                        )}
                         <button
                             onClick={() => onDelete(image.id, displayName)}
                             className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded-md px-3 py-1.5 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} transition-colors`}
@@ -478,47 +437,69 @@ export const ImageList: React.FC<ImageListProps> = ({ searchTerm = '', onSearchC
 
             {/* Delete Confirmation Modal */}
             {showDeleteModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-lg p-6 max-w-md w-full shadow-xl`}>
-                        <h3 className={`text-xl font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'} mb-4`}>Delete Image</h3>
-                        <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} mb-4`}>
-                            Are you sure you want to delete the image <span className="font-semibold">{imageToDelete?.tag}</span>?
-                            This action cannot be undone.
-                        </p>
-
-                        {deleteError && (
-                            <div className="bg-red-900 text-white p-3 rounded mb-4">
-                                Error: {deleteError}
-                            </div>
-                        )}
-
-                        <div className="flex items-center mb-4">
-                            <input
-                                type="checkbox"
-                                id="force-delete"
-                                checked={isForceDelete}
-                                onChange={() => setIsForceDelete(!isForceDelete)}
-                                className="mr-2"
-                            />
-                            <label htmlFor="force-delete" className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} text-sm`}>
-                                Force delete (remove even if used by containers)
-                            </label>
+                <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div
+                        className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-lg overflow-hidden shadow-xl max-w-md w-full`}
+                        style={{
+                            boxShadow: theme === 'dark'
+                                ? '0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 2px 5px 0 rgba(0, 0, 0, 0.2), 0 1px 1px 0 rgba(0, 0, 0, 0.1)'
+                                : '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 2px 5px 0 rgba(0, 0, 0, 0.08), 0 1px 1px 0 rgba(0, 0, 0, 0.05)'
+                        }}
+                    >
+                        {/* Header section with title */}
+                        <div className={`flex items-center px-4 py-3 ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-100'} border-b ${theme === 'dark' ? 'border-gray-600' : 'border-gray-200'}`}>
+                            <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>Delete Image</h3>
                         </div>
 
-                        <div className="flex justify-end space-x-4">
-                            <button
-                                onClick={handleDeleteCancel}
-                                className={`px-4 py-2 rounded-md ${theme === 'dark' ? 'bg-gray-700 text-white hover:bg-gray-600' : 'bg-gray-200 text-gray-800 hover:bg-gray-300'} transition-colors`}
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={handleDeleteConfirm}
-                                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors"
-                                disabled={actionInProgress === imageToDelete?.id}
-                            >
-                                {actionInProgress === imageToDelete?.id ? 'Deleting...' : 'Delete'}
-                            </button>
+                        {/* Content section */}
+                        <div className="p-5">
+                            <div className="mb-4">
+                                <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} mb-2`}>
+                                    Are you sure you want to delete the image:
+                                </p>
+                                <div className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'} rounded px-3 py-2 text-sm ${theme === 'dark' ? 'text-white' : 'text-gray-800'} font-mono mb-2 w-full overflow-hidden`}>
+                                    <span className="truncate">{imageToDelete?.tag}</span>
+                                </div>
+                                <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} text-sm`}>
+                                    This action cannot be undone.
+                                </p>
+                            </div>
+
+                            {deleteError && (
+                                <div className="bg-red-900 bg-opacity-75 text-white p-3 rounded mb-4 text-sm">
+                                    Error: {deleteError}
+                                </div>
+                            )}
+
+                            <div className="flex items-center mb-4">
+                                <input
+                                    type="checkbox"
+                                    id="force-delete"
+                                    checked={isForceDelete}
+                                    onChange={() => setIsForceDelete(!isForceDelete)}
+                                    className={`mr-2 h-4 w-4 rounded border-gray-300 ${theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-gray-100'}`}
+                                />
+                                <label htmlFor="force-delete" className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} text-sm`}>
+                                    Force delete (remove even if used by containers)
+                                </label>
+                            </div>
+
+                            <div className="flex justify-end space-x-3">
+                                <button
+                                    onClick={handleDeleteCancel}
+                                    className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded-md px-3 py-1.5 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} transition-colors`}
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleDeleteConfirm}
+                                    className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded-md px-3 py-1.5 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} transition-colors ${actionInProgress === imageToDelete?.id ? 'opacity-75' : ''}`}
+                                    disabled={actionInProgress === imageToDelete?.id}
+                                >
+                                    <TrashIcon className={`w-4 h-4 mr-1.5 text-red-400 ${actionInProgress === imageToDelete?.id ? 'animate-pulse' : ''}`} />
+                                    {actionInProgress === imageToDelete?.id ? 'Deleting...' : 'Delete'}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
