@@ -96,33 +96,33 @@ const PortDisplay: React.FC<{ portsString: string }> = ({ portsString }) => {
                     <div key={index} className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'} rounded px-2 py-1 text-xs font-mono ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
                         {containerPort ? (
                             <>
-                                <Tooltip text="Host Port (your computer)">
-                                    <CopyableText text={hostPort}>
+                                <CopyableText text={hostPort}>
+                                    <Tooltip text="Host Port (your computer)">
                                         <span className="flex items-center mr-1">
                                             <HiOutlineDesktopComputer className="mr-1 text-blue-300" />
                                             {hostPort}
                                         </span>
-                                    </CopyableText>
-                                </Tooltip>
+                                    </Tooltip>
+                                </CopyableText>
                                 <span className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} mx-1`}>→</span>
-                                <Tooltip text="Container Port (inside Docker)">
-                                    <CopyableText text={port}>
+                                <CopyableText text={port}>
+                                    <Tooltip text="Container Port (inside Docker)">
                                         <span className="flex items-center">
                                             <HiOutlineServer className="mr-1 text-green-300" />
                                             {port}
                                         </span>
-                                    </CopyableText>
-                                </Tooltip>
+                                    </Tooltip>
+                                </CopyableText>
                             </>
                         ) : (
-                            <Tooltip text="Container Port (inside Docker)">
-                                <CopyableText text={port}>
+                            <CopyableText text={port}>
+                                <Tooltip text="Container Port (inside Docker)">
                                     <span className="flex items-center">
                                         <HiOutlineServer className="mr-1 text-green-400" />
                                         {port}
                                     </span>
-                                </CopyableText>
-                            </Tooltip>
+                                </Tooltip>
+                            </CopyableText>
                         )}
                         {protocol && (
                             <Tooltip text={
@@ -516,35 +516,35 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                         </Tooltip>
                         <div>
                             <div className="flex items-center space-x-2">
-                                <Tooltip text={
-                                    (!container.compose_project || container.compose_project === 'Standalone Containers') ?
-                                        <>
-                                            Container Name
-                                            <br />
-                                            Created with docker run or docker create command
-                                        </> :
-                                        <>
-                                            Container Name
-                                            <br />
-                                            Set in docker-compose.yml with container_name: property
-                                        </>
-                                }>
-                                    <CopyableText text={container.name}>
+                                <CopyableText text={container.name}>
+                                    <Tooltip text={
+                                        (!container.compose_project || container.compose_project === 'Standalone Containers') ?
+                                            <>
+                                                Container Name
+                                                <br />
+                                                Created with docker run or docker create command
+                                            </> :
+                                            <>
+                                                Container Name
+                                                <br />
+                                                Set in docker-compose.yml with container_name: property
+                                            </>
+                                    }>
                                         <h3 className={`text-lg font-semibold font-mono ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{container.name}</h3>
-                                    </CopyableText>
-                                </Tooltip>
+                                    </Tooltip>
+                                </CopyableText>
 
                                 {container.compose_project && container.compose_project !== 'Standalone Containers' &&
                                     container.compose_service && (
-                                        <Tooltip text={<>
-                                            Docker Compose Service Name
-                                        </>}>
-                                            <CopyableText text={container.compose_service}>
+                                        <CopyableText text={container.compose_service}>
+                                            <Tooltip text={<>
+                                                Docker Compose Service Name
+                                            </>}>
                                                 <span className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} font-mono`}>
                                                     {container.compose_service}
                                                 </span>
-                                            </CopyableText>
-                                        </Tooltip>
+                                            </Tooltip>
+                                        </CopyableText>
                                     )}
                             </div>
                         </div>
