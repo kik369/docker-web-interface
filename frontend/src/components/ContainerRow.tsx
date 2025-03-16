@@ -581,6 +581,8 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                     containerName={container.name}
                     onClose={handleCloseLogs}
                     isStreamActive={isStreamActive}
+                    isPaused={isPaused}
+                    onPauseToggle={() => setIsPaused(prev => !prev)}
                 />
             </div>
         );
@@ -694,30 +696,6 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                             <DocumentIcon className={`h-4 w-4 mr-1.5 ${showLogs ? 'text-blue-400' : 'text-gray-400'}`} />
                             <span className="hidden sm:inline">{showLogs ? 'Hide Logs' : 'Show Logs'}</span>
                         </button>
-
-                        {showLogs && (
-                            <button
-                                onClick={() => setIsPaused(prev => !prev)}
-                                className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded-md px-3 py-1.5 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} transition-colors`}
-                                title={isPaused ? "Resume log streaming" : "Pause log streaming"}
-                            >
-                                {isPaused ? (
-                                    <>
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
-                                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
-                                        </svg>
-                                        <span className="hidden sm:inline">Resume</span>
-                                    </>
-                                ) : (
-                                    <>
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
-                                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                                        </svg>
-                                        <span className="hidden sm:inline">Pause</span>
-                                    </>
-                                )}
-                            </button>
-                        )}
 
                         <button
                             onClick={(e) => {

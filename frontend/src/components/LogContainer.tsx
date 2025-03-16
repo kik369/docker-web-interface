@@ -12,6 +12,8 @@ interface LogContainerProps {
     containerName?: string;
     onClose: () => void;
     isStreamActive: boolean;
+    isPaused: boolean;
+    onPauseToggle: () => void;
 }
 
 // Extract Log Container to its own memoized component
@@ -21,7 +23,9 @@ const LogContainer: React.FC<LogContainerProps> = React.memo(({
     containerId,
     containerName,
     onClose,
-    isStreamActive
+    isStreamActive,
+    isPaused,
+    onPauseToggle
 }) => {
     const logContainerRef = useRef<HTMLDivElement>(null);
     const [autoScroll, setAutoScroll] = useState(true);
@@ -188,7 +192,27 @@ const LogContainer: React.FC<LogContainerProps> = React.memo(({
                     </div>
                 </h3>
                 <div className="flex items-center space-x-2">
-                    {/* Follow button first (conditionally rendered) */}
+                    {/* Live indicator - always visible with different states (now first) */}
+                    <span className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
+                        {!isStreamActive ? (
+                            <>
+                                <span className="inline-block w-2 h-2 bg-gray-500 rounded-full mr-2"></span>
+                                <span className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Inactive</span>
+                            </>
+                        ) : isPaused ? (
+                            <>
+                                <span className="inline-block w-2 h-2 bg-yellow-400 rounded-full mr-2"></span>
+                                <span className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'}`}>Paused</span>
+                            </>
+                        ) : (
+                            <>
+                                <span className="inline-block w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse"></span>
+                                Live
+                            </>
+                        )}
+                    </span>
+
+                    {/* Follow button (conditionally rendered, now second) */}
                     {!autoScroll && (
                         <button
                             onClick={() => setAutoScroll(true)}
@@ -200,15 +224,30 @@ const LogContainer: React.FC<LogContainerProps> = React.memo(({
                         </button>
                     )}
 
-                    {/* Live indicator in the middle (conditionally rendered) */}
-                    {isStreamActive && (
-                        <span className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
-                            <span className="inline-block w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse"></span>
-                            Live
-                        </span>
-                    )}
+                    {/* Pause/Resume button (now third) */}
+                    <button
+                        onClick={onPauseToggle}
+                        className={buttonClasses}
+                        title={isPaused ? "Resume log streaming" : "Pause log streaming"}
+                    >
+                        {isPaused ? (
+                            <>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                                </svg>
+                                <span className="hidden sm:inline">Resume</span>
+                            </>
+                        ) : (
+                            <>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                                </svg>
+                                <span className="hidden sm:inline">Pause</span>
+                            </>
+                        )}
+                    </button>
 
-                    {/* Full Screen button */}
+                    {/* Full Screen button (now fourth) */}
                     <button
                         onClick={toggleFullScreen}
                         className={buttonClasses}
@@ -227,13 +266,14 @@ const LogContainer: React.FC<LogContainerProps> = React.memo(({
                         )}
                     </button>
 
-                    {/* Close button always last */}
+                    {/* Close button with text label (now fifth) */}
                     <button
                         onClick={onClose}
                         className={buttonClasses}
                         title="Close logs"
                     >
-                        <HiX className="w-4 h-4" />
+                        <HiX className="w-4 h-4 mr-1.5" />
+                        <span className="hidden sm:inline">Close</span>
                     </button>
                 </div>
             </div>
