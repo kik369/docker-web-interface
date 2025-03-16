@@ -22,6 +22,38 @@
   animation: softPulse 3s ease-in-out infinite;
 }
 
+@keyframes glowPulse {
+  0% {
+    box-shadow: 0 0 5px rgba(59, 130, 246, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 15px rgba(59, 130, 246, 0.7);
+  }
+  100% {
+    box-shadow: 0 0 5px rgba(59, 130, 246, 0.5);
+  }
+}
+
+@keyframes glowPulseDark {
+  0% {
+    box-shadow: 0 0 5px rgba(96, 165, 250, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 15px rgba(96, 165, 250, 0.7);
+  }
+  100% {
+    box-shadow: 0 0 5px rgba(96, 165, 250, 0.5);
+  }
+}
+
+.animate-glow-pulse {
+  animation: glowPulse 2s ease-out;
+}
+
+.dark .animate-glow-pulse {
+  animation: glowPulseDark 2s ease-out;
+}
+
 .container {
   max-width: 1200px;
   margin: 0 auto;

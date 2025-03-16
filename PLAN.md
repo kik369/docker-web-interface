@@ -104,6 +104,11 @@ Currently, all planned features have been implemented. The project is in a stabl
 
 ## Recently Completed Work
 
+-   Implemented Command Palette Selection Glow Effect (March 18, 2025)
+    -   Added subtle glow animation to enhance visibility of selected items from the command palette
+    -   Created theme-aware glow effects with different colors for light/dark modes
+    -   Synchronized the glow effect with the existing scale animation
+    -   Ensured consistent behavior across container and image components
 -   Implemented icon consistency across the application (March 17, 2025)
     -   Updated Docker Compose stack application description to use the container icon (HiOutlineCube) instead of the image icon
     -   Updated command palette to use the same icons as the navigation bar for containers and images
