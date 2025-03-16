@@ -491,6 +491,7 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                 logs={logs}
                 isLoading={isLoadingLogs}
                 containerId={container.id}
+                containerName={container.name}
                 onClose={handleCloseLogs}
                 isStreamActive={isStreamActive}
             />

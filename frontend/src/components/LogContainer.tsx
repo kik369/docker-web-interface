@@ -9,6 +9,7 @@ interface LogContainerProps {
     logs: string;
     isLoading: boolean;
     containerId: string;
+    containerName?: string;
     onClose: () => void;
     isStreamActive: boolean;
 }
@@ -18,6 +19,7 @@ const LogContainer: React.FC<LogContainerProps> = React.memo(({
     logs,
     isLoading,
     containerId,
+    containerName,
     onClose,
     isStreamActive
 }) => {
@@ -157,7 +159,16 @@ const LogContainer: React.FC<LogContainerProps> = React.memo(({
                     {isFullScreen && (
                         <span className="inline-block w-3 h-3 bg-green-400 rounded-full mr-2"></span>
                     )}
-                    {isFullScreen ? 'Container Logs (Full Screen Mode)' : 'Container Logs'}
+                    {isFullScreen ? (
+                        <div className="flex items-center">
+                            <span>Container Logs</span>
+                            {containerName && (
+                                <span className={`ml-2 font-mono text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-600'}`}>
+                                    ({containerName})
+                                </span>
+                            )}
+                        </div>
+                    ) : 'Container Logs'}
                 </h3>
                 <div className="flex items-center space-x-2">
                     {/* Follow button first (conditionally rendered) */}

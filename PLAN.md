@@ -104,6 +104,14 @@ Currently, all planned features have been implemented. The project is in a stabl
 
 ## Recently Completed Work
 
+-   Added Container Name to Full Screen Logs (March 21, 2025)
+
+    -   Added container name display in the full screen logs header
+    -   Used monospaced font to maintain consistent styling with the rest of the application
+    -   Improved user experience by providing context about which container's logs are being viewed
+    -   Implemented subtle styling to ensure the container name is visible but not distracting
+    -   Maintained existing layout and design patterns for consistency
+
 -   Implemented Command Palette Z-Index and Log Closing Fix (March 20, 2025)
 
     -   Fixed command palette to always appear on top of all elements, including full screen logs
