@@ -500,13 +500,48 @@ class DockerService:
                         except (ValueError, TypeError):
                             created = datetime.now(timezone.utc)
 
+                # IMPORTANT: Override the container state with the event state
+                # This ensures the UI reflects the actual transition state
+                # rather than what Docker might report in container.attrs
+                # For example, when a container is stopping, Docker might still report it as "running"
+                # but we want to show "stopping" in the UI
+
+                # Determine the actual state to use
+                # For transitional states (starting, stopping, restarting), always use the event state
+                # For final states (running, stopped), verify against the container's actual state
+                actual_state = state
+
+                # For final states, double-check against the container's actual state
+                if state == "running":
+                    # Verify the container is actually running
+                    is_running = (
+                        state_info.get("Running", False)
+                        if isinstance(state_info, dict)
+                        else False
+                    )
+                    if not is_running:
+                        # Container is not actually running, use the real state
+                        actual_state = "stopped"
+                        status = "exited"
+                elif state == "stopped":
+                    # Verify the container is actually stopped
+                    is_running = (
+                        state_info.get("Running", False)
+                        if isinstance(state_info, dict)
+                        else False
+                    )
+                    if is_running:
+                        # Container is still running, use the real state
+                        actual_state = "running"
+                        status = "running"
+
                 # Create container data object
                 container_data = {
                     "container_id": container_id,
                     "name": name,
                     "image": image,
                     "status": status,
-                    "state": state,
+                    "state": actual_state,
                     "ports": ports,
                     "compose_project": compose_project,
                     "compose_service": compose_service,
@@ -517,7 +552,19 @@ class DockerService:
 
                 # Emit the container state change event
                 try:
+                    # Emit with the correct event name
                     self.socketio.emit("container_state_changed", container_data)
+
+                    logger.debug(
+                        f"Emitted container state change: {container_id} -> {actual_state} (status: {status})",
+                        extra={
+                            "event": "container_state_change_emitted",
+                            "container_id": container_id,
+                            "state": actual_state,
+                            "status": status,
+                            "original_event_state": state,
+                        },
+                    )
                 except Exception as e:
                     logger.debug(
                         f"Failed to emit container state change due to socket error: {str(e)}",

@@ -66,14 +66,45 @@ const getStatusColor = (state: string | undefined, isActionLoading: string | nul
     }
 };
 
-// Get descriptive status message for tooltip
+// Get a human-readable description of the container state
 const getStatusDescription = (state: string | undefined, actionInProgress: string | null): string => {
     if (actionInProgress) {
-        return actionInProgress.charAt(0).toUpperCase() + actionInProgress.slice(1) + '...';
+        switch (actionInProgress) {
+            case 'stop':
+                return 'Container is being stopped';
+            case 'start':
+                return 'Container is being started';
+            case 'restart':
+                return 'Container is being restarted';
+            case 'rebuild':
+                return 'Container is being rebuilt';
+            default:
+                return `Container is being ${actionInProgress}ed`;
+        }
     }
 
-    // Return the same status value that's shown in the UI for consistency
-    return state || 'Unknown';
+    const stateLower = (state || '').toLowerCase();
+    switch (stateLower) {
+        case 'running':
+            return 'Container is running';
+        case 'paused':
+            return 'Container is paused';
+        case 'exited':
+        case 'stopped':
+            return 'Container is stopped';
+        case 'dead':
+            return 'Container is in a dead state';
+        case 'created':
+            return 'Container is created but not started';
+        case 'restarting':
+            return 'Container is restarting';
+        case 'starting':
+            return 'Container is starting';
+        case 'stopping':
+            return 'Container is stopping';
+        default:
+            return `Container state: ${state}`;
+    }
 };
 
 // Port mapping display component
@@ -477,8 +508,30 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
             }
         }
 
-        // When no action is in progress, show the actual container status
-        return container.status;
+        // When no action is in progress, show the appropriate status based on state
+        const stateLower = (container.state || '').toLowerCase();
+        switch (stateLower) {
+            case 'running':
+                return 'Running';
+            case 'paused':
+                return 'Paused';
+            case 'exited':
+            case 'stopped':
+                return 'Exited';
+            case 'dead':
+                return 'Dead';
+            case 'created':
+                return 'Created';
+            case 'restarting':
+                return 'Restarting...';
+            case 'starting':
+                return 'Starting...';
+            case 'stopping':
+                return 'Stopping...';
+            default:
+                // Fall back to the container status if state doesn't match known values
+                return container.status || 'Unknown';
+        }
     };
 
     // Determine if the container is actually running based on both state and status

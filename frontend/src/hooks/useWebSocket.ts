@@ -92,6 +92,12 @@ const initializeSocket = () => {
         globalHandlers.forEach(handler => handler.onContainerStateChange?.(data));
     });
 
+    // Also handle the alternative event name for backward compatibility
+    globalSocket.on('container_state_changed', (data: ContainerState) => {
+        logger.info('Received container state changed (legacy event):', data);
+        globalHandlers.forEach(handler => handler.onContainerStateChange?.(data));
+    });
+
     // Handle initial state
     globalSocket.on('initial_state', (data: { containers: ContainerState[] }) => {
         logger.info(`Received initial container states: ${data.containers.length}`);

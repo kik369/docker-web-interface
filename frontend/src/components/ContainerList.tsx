@@ -111,9 +111,43 @@ export const ContainerList = ({
 
                     if (containerExists) {
                         // Update existing container
-                        return prevContainers.map(container =>
-                            container.id === containerData.container_id
-                                ? {
+                        return prevContainers.map(container => {
+                            if (container.id === containerData.container_id) {
+                                // Determine if this is a transition state
+                                const isTransitionState = ['starting', 'stopping', 'restarting'].includes(containerData.state);
+
+                                // For transition states, we want to show them immediately
+                                // For final states (running, stopped), we need to ensure we're not overriding a transition
+                                const currentIsTransition = ['starting', 'stopping', 'restarting'].includes(container.state);
+
+                                // Only override a transition state if we're getting a final state that doesn't match
+                                // the expected outcome of the transition
+                                if (currentIsTransition) {
+                                    // If we're in a transition state, only update if:
+                                    // 1. We're getting another transition state, or
+                                    // 2. We're getting a final state that makes sense for the current transition
+                                    if (isTransitionState ||
+                                        (container.state === 'starting' && containerData.state === 'running') ||
+                                        (container.state === 'stopping' && containerData.state === 'stopped') ||
+                                        (container.state === 'restarting' && containerData.state === 'running')) {
+                                        return {
+                                            ...container,
+                                            state: containerData.state,
+                                            status: containerData.status || container.status,
+                                            // Update other fields that might have changed
+                                            name: containerData.name || container.name,
+                                            image: containerData.image || container.image,
+                                            ports: containerData.ports || container.ports,
+                                            compose_project: containerData.compose_project || container.compose_project,
+                                            compose_service: containerData.compose_service || container.compose_service
+                                        };
+                                    }
+                                    // Otherwise, keep the current transition state
+                                    return container;
+                                }
+
+                                // Not in a transition state, update normally
+                                return {
                                     ...container,
                                     state: containerData.state,
                                     status: containerData.status || container.status,
@@ -123,9 +157,10 @@ export const ContainerList = ({
                                     ports: containerData.ports || container.ports,
                                     compose_project: containerData.compose_project || container.compose_project,
                                     compose_service: containerData.compose_service || container.compose_service
-                                }
-                                : container
-                        );
+                                };
+                            }
+                            return container;
+                        });
                     } else {
                         // This is a new container, add it to the list
                         // Only add if it's not a transition state (starting, stopping, etc.)
