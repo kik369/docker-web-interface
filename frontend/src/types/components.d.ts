@@ -1,5 +1,5 @@
 // Type declarations for component modules
-import { Container, Image } from './docker';
+import { Container } from './docker';
 
 declare module './components/ContainerList' {
     export interface ContainerListProps {
