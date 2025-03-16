@@ -1,6 +1,6 @@
 # Docker Web Interface - Project Plan
 
-## ⚠️ CRITICAL IMPLEMENTATION GUIDELINES ⚠️
+## CRITICAL IMPLEMENTATION GUIDELINES
 
 1. **NEVER RESTART ANY SERVICES**
 
@@ -30,15 +30,19 @@ This document should be consulted before making any changes to the codebase and 
 
 ## Documentation Architecture
 
-| File                                 | Purpose                                             | When to Consult                                    | When to Update                                   |
-| ------------------------------------ | --------------------------------------------------- | -------------------------------------------------- | ------------------------------------------------ |
-| [README.md](README.md)               | User-facing project overview and setup instructions | Before changing user workflows or setup process    | After adding features or changing installation   |
-| [DATA_FLOW.md](DATA_FLOW.md)         | Visual diagrams of system data flows                | Before modifying data paths between components     | After changing how data moves through the system |
-| [WEBSOCKET.md](WEBSOCKET.md)         | WebSocket implementation details                    | Before changing real-time communication            | After modifying WebSocket architecture or events |
-| [FRONTEND.md](FRONTEND.md)           | Frontend architecture documentation                 | Before changing React components or state          | After modifying frontend architecture            |
-| [BACKEND.md](BACKEND.md)             | Backend architecture documentation                  | Before changing Flask routes or Docker integration | After modifying backend architecture             |
-| [API_REFERENCE.md](API_REFERENCE.md) | API endpoint documentation                          | Before changing any API endpoints                  | After modifying API contracts                    |
-| [TESTING.md](TESTING.md)             | Testing strategy and instructions                   | Before changing test architecture                  | After adding or modifying tests                  |
+| File                                             | Purpose                                             | When to Consult                                    | When to Update                                   |
+| ------------------------------------------------ | --------------------------------------------------- | -------------------------------------------------- | ------------------------------------------------ |
+| [README.md](README.md)                           | User-facing project overview and setup instructions | Before changing user workflows or setup process    | After adding features or changing installation   |
+| [DATA_FLOW.md](DATA_FLOW.md)                     | Visual diagrams of system data flows                | Before modifying data paths between components     | After changing how data moves through the system |
+| [WEBSOCKET.md](WEBSOCKET.md)                     | WebSocket implementation details                    | Before changing real-time communication            | After modifying WebSocket architecture or events |
+| [FRONTEND.md](FRONTEND.md)                       | Frontend architecture documentation                 | Before changing React components or state          | After modifying frontend architecture            |
+| [BACKEND.md](BACKEND.md)                         | Backend architecture documentation                  | Before changing Flask routes or Docker integration | After modifying backend architecture             |
+| [API_REFERENCE.md](API_REFERENCE.md)             | API endpoint documentation                          | Before changing any API endpoints                  | After modifying API contracts                    |
+| [TESTING.md](TESTING.md)                         | Testing strategy and instructions                   | Before changing test architecture                  | After adding or modifying tests                  |
+| [DOCKER_INTEGRATION.md](DOCKER_INTEGRATION.md)   | Docker integration details                          | Before modifying Docker configuration              | After changing Docker integration                |
+| [FRONTEND_ARCHITECTURE.md](FRONTEND_ARCHITECTURE.md) | Detailed frontend architecture                  | Before making significant frontend changes         | After restructuring frontend components          |
+| [GUNICORN_CONFIG.md](GUNICORN_CONFIG.md)         | Gunicorn server configuration                       | Before changing server settings                    | After modifying Gunicorn configuration           |
+| [LOGGING.md](LOGGING.md)                         | Logging system documentation                        | Before changing logging behavior                   | After modifying logging architecture             |
 
 ## Documentation Guidelines
 
@@ -98,15 +102,6 @@ No pending tasks at this time. All planned features have been successfully imple
     -   Added verification of container state against actual Docker state
     -   Improved UI feedback during state transitions
     -   Fixed event name inconsistency between backend and frontend
-
--   Log Streaming Performance Optimization (March 16, 2025)
-
-    -   Increased WebSocket buffer delay from 100ms to 200ms to reduce React re-renders
-    -   Implemented optimized log rendering with line capping to handle large log volumes
-    -   Added priority-based streaming based on container visibility
-    -   Implemented pause/resume functionality for log streams
-    -   Optimized log size management to prevent memory issues
-    -   Improved overall UI responsiveness when multiple log streams are active
 
 ## Implementation Workflow
 
