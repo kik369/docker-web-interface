@@ -1,8 +1,8 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { useTheme } from '../context/ThemeContext';
 
-// Add import for X icon and Play icon
-import { HiX } from 'react-icons/hi';
+// Add import for X icon and Document icon
+import { HiX, HiOutlineDocumentText } from 'react-icons/hi';
 
 interface LogContainerProps {
     logs: string;
@@ -11,18 +11,6 @@ interface LogContainerProps {
     onClose: () => void;
     isStreamActive: boolean;
 }
-
-// Custom Lightning Bolt icon component
-const LightningBoltIcon: React.FC<{ className?: string }> = ({ className }) => (
-    <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 24 24"
-        fill="currentColor"
-        className={className}
-    >
-        <path d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
-    </svg>
-);
 
 // Extract Log Container to its own memoized component
 const LogContainer: React.FC<LogContainerProps> = React.memo(({
@@ -99,7 +87,7 @@ const LogContainer: React.FC<LogContainerProps> = React.memo(({
                             className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} transition-colors`}
                             title="Scroll to bottom and follow new logs"
                         >
-                            <LightningBoltIcon className="w-3.5 h-3.5 mr-1.5 text-yellow-300/70" />
+                            <HiOutlineDocumentText className="w-4 h-4 mr-1.5 text-blue-300" />
                             Follow
                         </button>
                     )}

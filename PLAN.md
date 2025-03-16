@@ -104,6 +104,11 @@ Currently, all planned features have been implemented. The project is in a stabl
 
 ## Recently Completed Work
 
+-   Implemented icon consistency across the application (March 17, 2025)
+    -   Updated Docker Compose stack application description to use the container icon (HiOutlineCube) instead of the image icon
+    -   Updated command palette to use the same icons as the navigation bar for containers and images
+    -   Standardized log-related icons across the application using HiOutlineDocumentText
+    -   Ensured consistent styling and colors for all icons
 -   Fixed tooltip positioning inconsistency in the images tab (March 16, 2025)
     -   Standardized tooltip component nesting pattern across the application
     -   Ensured tooltips always appear directly above their associated elements

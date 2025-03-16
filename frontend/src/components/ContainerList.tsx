@@ -3,7 +3,7 @@ import type { Container } from '../types/docker';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useContainers } from '../hooks/useContainers';
 import { ContainerRow } from './ContainerRow';
-import { HiChevronDown, HiChevronRight, HiPlay, HiStop, HiRefresh, HiCog, HiTrash, HiOutlineTemplate } from 'react-icons/hi';
+import { HiChevronDown, HiChevronRight, HiPlay, HiStop, HiRefresh, HiCog, HiTrash, HiOutlineTemplate, HiOutlineCube } from 'react-icons/hi';
 import { useTheme } from '../context/ThemeContext';
 
 type ContainerListProps = {
@@ -315,7 +315,7 @@ export const ContainerList = ({
                                         {group.projectName}
                                         <div className="inline-flex items-center ml-2">
                                             <span className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-200'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>
-                                                <HiOutlineTemplate className="w-4 h-4 mr-1 text-purple-300" />
+                                                <HiOutlineCube className="w-4 h-4 mr-1 text-blue-300" />
                                                 <span>{group.containers.length}</span>
                                             </span>
                                         </div>

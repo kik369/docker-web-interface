@@ -2,7 +2,7 @@
 import React, { useRef, useEffect, useCallback, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { IconBaseProps } from 'react-icons';
-import { HiDocument, HiPlay, HiStop, HiRefresh, HiTrash, HiOutlineTemplate, HiOutlineStatusOnline, HiOutlineInformationCircle } from 'react-icons/hi';
+import { HiPlay, HiStop, HiRefresh, HiTrash, HiOutlineTemplate, HiOutlineStatusOnline, HiOutlineInformationCircle, HiOutlineDocumentText } from 'react-icons/hi';
 import { HiOutlineDesktopComputer, HiOutlineServer } from 'react-icons/hi';
 import { ContainerRowProps } from '../types/docker';
 import { logger } from '../services/logging';
@@ -14,7 +14,7 @@ import { CopyableText } from './CopyableText';
 
 // Create wrapper components for icons
 const DocumentIcon: React.FC<IconBaseProps> = (props): React.JSX.Element => (
-    <HiDocument {...props} />
+    <HiOutlineDocumentText {...props} />
 );
 
 const PlayIcon: React.FC<IconBaseProps> = (props): React.JSX.Element => (
