@@ -23,11 +23,13 @@ const LogContainer: React.FC<LogContainerProps> = React.memo(({
     onClose,
     isStreamActive
 }) => {
-    const logContainerRef = useRef<HTMLPreElement>(null);
+    const logContainerRef = useRef<HTMLDivElement>(null);
     const [autoScroll, setAutoScroll] = useState(true);
     const [isFullScreen, setIsFullScreen] = useState(false);
     const prevLogsLengthRef = useRef<number>(0);
     const { theme } = useTheme();
+    const [logLines, setLogLines] = useState<string[]>([]);
+    const isAutoScrolling = useRef(false);
 
     // Detect when logs change to update tracking
     useEffect(() => {
@@ -36,14 +38,31 @@ const LogContainer: React.FC<LogContainerProps> = React.memo(({
         }
     }, [logs]);
 
-    // Scroll to bottom when logs update, but only if autoScroll is enabled
+    // Process logs into lines for optimized rendering
     useEffect(() => {
-        if (logContainerRef.current && logs && autoScroll) {
-            const scrollContainer = logContainerRef.current;
-            // Use requestAnimationFrame to ensure the scroll happens after the DOM update
-            requestAnimationFrame(() => {
-                scrollContainer.scrollTop = scrollContainer.scrollHeight;
-            });
+        if (logs) {
+            // Split logs into lines
+            const lines = logs.split('\n');
+
+            // Cap total lines to prevent memory issues (keep most recent 5,000 lines)
+            const cappedLines = lines.length > 5000 ? lines.slice(lines.length - 5000) : lines;
+
+            setLogLines(cappedLines);
+
+            // Handle auto-scrolling
+            if (autoScroll) {
+                isAutoScrolling.current = true;
+                // Use requestAnimationFrame to ensure scroll happens after render
+                requestAnimationFrame(() => {
+                    if (logContainerRef.current) {
+                        logContainerRef.current.scrollTop = logContainerRef.current.scrollHeight;
+                        // Reset the flag after scrolling
+                        setTimeout(() => {
+                            isAutoScrolling.current = false;
+                        }, 50);
+                    }
+                });
+            }
         }
     }, [logs, autoScroll]);
 
@@ -221,14 +240,33 @@ const LogContainer: React.FC<LogContainerProps> = React.memo(({
             {isLoading ? (
                 <div className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} ${isFullScreen ? 'p-4' : ''}`}>Loading logs...</div>
             ) : (
-                <pre
+                <div
                     ref={logContainerRef}
                     onScroll={handleScroll}
                     className={preClasses}
                     style={{ padding: isFullScreen ? '16px' : undefined }}
                 >
-                    {logs || 'No logs available'}
-                </pre>
+                    {logs ? (
+                        // Render logs with optimized approach - only show the last 5000 lines
+                        logLines.map((line, index) => (
+                            <div
+                                key={`${containerId}-log-${index}`}
+                                className="log-line"
+                                style={{
+                                    fontFamily: 'monospace',
+                                    fontSize: '0.75rem',
+                                    lineHeight: '1.25rem',
+                                    whiteSpace: 'pre-wrap',
+                                    wordBreak: 'break-all'
+                                }}
+                            >
+                                {line}
+                            </div>
+                        ))
+                    ) : (
+                        'No logs available'
+                    )}
+                </div>
             )}
         </div>
     );

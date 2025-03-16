@@ -289,10 +289,14 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
     const [isLoadingLogs, setIsLoadingLogs] = useState(false);
     const [isStreamActive, setIsStreamActive] = useState(false);
     const [highlightActive, setHighlightActive] = useState(isHighlighted || false);
+    const [isPaused, setIsPaused] = useState(false);
+    const [isInView, setIsInView] = useState(false);
 
     // Create stable refs to track state across renders
     const showLogsRef = useRef(showLogs);
     const streamActiveRef = useRef(false);
+    const logContainerRef = useRef<HTMLDivElement>(null);
+    const logContainerObserver = useRef<IntersectionObserver | null>(null);
     const { theme } = useTheme();
 
     // Update refs when state changes
@@ -303,6 +307,43 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
     useEffect(() => {
         streamActiveRef.current = isStreamActive;
     }, [isStreamActive]);
+
+    // Set up intersection observer to detect when logs are in/out of viewport
+    useEffect(() => {
+        if (showLogs && logContainerRef.current) {
+            // Set up intersection observer to detect when logs are in/out of viewport
+            logContainerObserver.current = new IntersectionObserver(
+                (entries) => {
+                    entries.forEach((entry) => {
+                        setIsInView(entry.isIntersecting);
+                    });
+                },
+                { threshold: 0.1 } // 10% visibility threshold
+            );
+
+            logContainerObserver.current.observe(logContainerRef.current);
+        }
+
+        return () => {
+            if (logContainerObserver.current) {
+                logContainerObserver.current.disconnect();
+            }
+        };
+    }, [showLogs]);
+
+    // Pause/resume streaming based on isPaused state
+    useEffect(() => {
+        // Pause/resume streaming based on isPaused state
+        if (showLogs && isPaused && isStreamActive) {
+            // Temporarily stop streaming
+            stopLogStream(container.id);
+            setIsStreamActive(false);
+        } else if (showLogs && !isPaused && !isStreamActive) {
+            // Resume streaming
+            startLogStream(container.id);
+            setIsStreamActive(true);
+        }
+    }, [showLogs, isPaused, isStreamActive, container.id]);
 
     // Handle highlight effect
     useEffect(() => {
@@ -342,22 +383,21 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                 // Use a functional update to avoid closure issues
                 // This is more efficient than capturing the previous logs in the closure
                 setLogs(prevLogs => {
-                    // Limit log size to prevent performance issues with very large logs
-                    // Keep only the last 5000 lines
+                    // First check if log is empty to avoid unnecessary processing
+                    if (!log) return prevLogs;
+
+                    // Add new log content
                     const combinedLogs = prevLogs + log;
-                    const lines = combinedLogs.split('\n');
-                    if (lines.length > 5000) {
-                        return lines.slice(lines.length - 5000).join('\n');
+
+                    // Only process if we might be exceeding the limit (optimization)
+                    if (combinedLogs.length > 500000) { // Rough estimate - 100 chars per line * 5000 lines
+                        // Split by newline, keep only the last 5000 lines
+                        const lines = combinedLogs.split('\n');
+                        return lines.slice(Math.max(0, lines.length - 5000)).join('\n');
                     }
+
                     return combinedLogs;
                 });
-
-                // Ensure streaming state is active
-                if (!isStreamActive) {
-                    setIsStreamActive(true);
-                    setIsLoadingLogs(false);
-                    logger.info('Log stream became active', { containerId });
-                }
             }
         },
         onError: (error) => {
@@ -375,13 +415,58 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                 }, 2000); // Wait 2 seconds before trying to reconnect
             }
         },
-        enabled: true // Always keep WebSocket connection enabled
+        enabled: true, // Always keep WebSocket connection enabled
+        isInView: isInView // Pass visibility state to control update frequency
     });
+
+    // Toggle log display
+    const handleToggleLogs = useCallback(async (isRestoring: boolean = false) => {
+        if (showLogs && !isRestoring) {
+            // Logs are being hidden, stop streaming
+            stopLogStream(container.id);
+            setIsStreamActive(false);
+            setShowLogs(false);
+            setIsPaused(false);
+            streamActiveRef.current = false;
+            return;
+        }
+
+        try {
+            logger.info('Fetching container logs', { containerId: container.id });
+            setIsLoadingLogs(true);
+
+            if (!isRestoring) {
+                setShowLogs(true);
+                setIsPaused(false);
+            }
+
+            // Fetch initial logs via API
+            const response = await fetch(`${config.API_URL}/api/containers/${container.id}/logs`);
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to fetch logs');
+            }
+
+            // Set the initial logs
+            setLogs(data.data.logs || '');
+
+            // Start real-time streaming
+            streamActiveRef.current = true;
+            startLogStream(container.id);
+            setIsStreamActive(true);
+            setIsLoadingLogs(false);
+        } catch (error) {
+            logger.error('Failed to fetch logs:', error instanceof Error ? error : new Error(String(error)));
+            setIsLoadingLogs(false);
+            setLogs('Error loading logs. Please try again.');
+        }
+    }, [container.id, showLogs, startLogStream, stopLogStream]);
 
     // Start log streaming immediately when component mounts if logs should be shown
     useEffect(() => {
         if (showLogs) {
-            handleViewLogs(true);
+            handleToggleLogs(true);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
@@ -422,61 +507,9 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
         setShowLogs(false);
         streamActiveRef.current = false;
         setIsStreamActive(false);
+        setIsPaused(false);
         logger.info('Logs closed by user', { containerId: container.id });
     }, [container.id, stopLogStream]);
-
-    const handleViewLogs = useCallback(async (isRestoring: boolean = false) => {
-        if (showLogs && !isRestoring) {
-            // Stop streaming when closing logs view
-            stopLogStream(container.id);
-            setShowLogs(false);
-            streamActiveRef.current = false;
-            setIsStreamActive(false);
-            return;
-        }
-
-        try {
-            logger.info('Fetching container logs', { containerId: container.id });
-            setIsLoadingLogs(true);
-
-            if (!isRestoring) {
-                setShowLogs(true);
-            }
-
-            // Fetch initial logs via API
-            const response = await fetch(`${config.API_URL}/api/containers/${container.id}/logs`);
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || 'Failed to fetch logs');
-            }
-
-            // Set the initial logs
-            setLogs(data.data.logs || '');
-
-            // Start real-time streaming
-            streamActiveRef.current = true;
-            startLogStream(container.id);
-            setIsStreamActive(true);
-
-            logger.info('Successfully fetched initial logs and started streaming', {
-                containerId: container.id,
-                initialLogsLength: data.data.logs ? data.data.logs.length : 0
-            });
-
-        } catch (err) {
-            logger.error('Failed to fetch container logs', err instanceof Error ? err : new Error(String(err)), {
-                containerId: container.id
-            });
-            console.error('Failed to fetch logs:', err);
-            if (isRestoring) {
-                setShowLogs(false);
-            }
-            setIsStreamActive(false);
-        } finally {
-            setIsLoadingLogs(false);
-        }
-    }, [container.id, startLogStream, stopLogStream, showLogs]);
 
     const handleAction = async (action: string) => {
         try {
@@ -540,14 +573,16 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
     // Render the logs section if logs are being shown
     const renderLogs = () => {
         return (
-            <LogContainer
-                logs={logs}
-                isLoading={isLoadingLogs}
-                containerId={container.id}
-                containerName={container.name}
-                onClose={handleCloseLogs}
-                isStreamActive={isStreamActive}
-            />
+            <div ref={logContainerRef}>
+                <LogContainer
+                    logs={logs}
+                    isLoading={isLoadingLogs}
+                    containerId={container.id}
+                    containerName={container.name}
+                    onClose={handleCloseLogs}
+                    isStreamActive={isStreamActive}
+                />
+            </div>
         );
     };
 
@@ -650,15 +685,39 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                         <button
                             onClick={(e) => {
                                 e.stopPropagation();
-                                handleViewLogs();
+                                handleToggleLogs();
                             }}
                             className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded-md px-3 py-1.5 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} transition-colors`}
                             disabled={isLoadingLogs}
-                            title={`${showLogs ? 'Hide' : 'Show'} logs (docker logs ${container.name})`}
+                            title={showLogs ? "Hide logs" : "Show logs"}
                         >
-                            <DocumentIcon className="w-4 h-4 mr-1.5 text-blue-300" />
-                            {showLogs ? 'Hide Logs' : 'Show Logs'}
+                            <DocumentIcon className={`h-4 w-4 mr-1.5 ${showLogs ? 'text-blue-400' : 'text-gray-400'}`} />
+                            <span className="hidden sm:inline">{showLogs ? 'Hide Logs' : 'Show Logs'}</span>
                         </button>
+
+                        {showLogs && (
+                            <button
+                                onClick={() => setIsPaused(prev => !prev)}
+                                className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded-md px-3 py-1.5 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} transition-colors`}
+                                title={isPaused ? "Resume log streaming" : "Pause log streaming"}
+                            >
+                                {isPaused ? (
+                                    <>
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5 text-green-400" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clipRule="evenodd" />
+                                        </svg>
+                                        <span className="hidden sm:inline">Resume</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zM7 8a1 1 0 012 0v4a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v4a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                                        </svg>
+                                        <span className="hidden sm:inline">Pause</span>
+                                    </>
+                                )}
+                            </button>
+                        )}
 
                         <button
                             onClick={(e) => {

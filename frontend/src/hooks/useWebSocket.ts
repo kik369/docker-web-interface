@@ -21,6 +21,7 @@ interface UseWebSocketProps {
     onInitialState?: (containers: ContainerState[]) => void;
     onError?: (error: string) => void;
     enabled?: boolean;
+    isInView?: boolean;
 }
 
 interface WebSocketError {
@@ -36,6 +37,7 @@ let globalHandlers: Set<UseWebSocketProps> = new Set();
 // Moved outside the initializeSocket function to ensure they persist
 const logBuffers = new Map<string, string>();
 const pendingFlushes = new Set<string>();
+const containerVisibility = new Map<string, boolean>();
 
 const initializeSocket = () => {
     if (globalSocket || isInitializing) return;
@@ -153,7 +155,7 @@ const initializeSocket = () => {
                     // Buffer was empty, just clear the pending status
                     pendingFlushes.delete(containerId);
                 }
-            }, 100); // Increased to 100ms for better performance with UI interactions
+            }, 200); // Increased to 200ms for better performance with multiple log streams
         }
     });
 
@@ -165,14 +167,16 @@ export const useWebSocket = ({
     onContainerStateChange,
     onInitialState,
     onError,
-    enabled = true
+    enabled = true,
+    isInView = true
 }: UseWebSocketProps) => {
     // Create a handler ref to keep it stable between renders
     const handlers = useRef<UseWebSocketProps>({
         onLogUpdate,
         onContainerStateChange,
         onInitialState,
-        onError
+        onError,
+        isInView
     });
 
     const [isConnected, setIsConnected] = useState(false);
@@ -183,9 +187,10 @@ export const useWebSocket = ({
             onLogUpdate,
             onContainerStateChange,
             onInitialState,
-            onError
+            onError,
+            isInView
         };
-    }, [onLogUpdate, onContainerStateChange, onInitialState, onError]);
+    }, [onLogUpdate, onContainerStateChange, onInitialState, onError, isInView]);
 
     useEffect(() => {
         if (!enabled) return;
@@ -233,6 +238,9 @@ export const useWebSocket = ({
                 pendingFlushes.delete(containerId);
             }
 
+            // Set initial visibility state
+            containerVisibility.set(containerId, handlers.current.isInView || true);
+
             // Start the stream
             globalSocket.emit('start_log_stream', { container_id: containerId });
             logger.info('Started log stream for container', { containerId });
@@ -243,6 +251,21 @@ export const useWebSocket = ({
             });
         }
     }, [enabled]);
+
+    // Update container visibility when isInView changes
+    useEffect(() => {
+        if (enabled && handlers.current.onLogUpdate) {
+            // This effect runs when isInView changes
+            // We'll update the visibility map for any active containers
+            const updateVisibility = (containerId: string, isVisible: boolean) => {
+                containerVisibility.set(containerId, isVisible);
+                logger.debug('Updated container visibility', { containerId, isVisible });
+            };
+
+            // For now, we don't know which container this hook instance is for
+            // The actual visibility will be set when startLogStream is called
+        }
+    }, [isInView, enabled]);
 
     const stopLogStream = useCallback((containerId: string) => {
         if (globalSocket && enabled) {
