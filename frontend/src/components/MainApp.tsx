@@ -128,7 +128,7 @@ function MainApp() {
 
         return containers.map(container => ({
             id: `container-${container.id}`,
-            name: `Container: ${container.name}`,
+            name: `container: ${container.name}`,
             description: `${container.image} (${container.status})`,
             category: 'Containers',
             icon: 'container',
@@ -151,7 +151,7 @@ function MainApp() {
 
         return images.map(image => ({
             id: `image-${image.id}`,
-            name: `Image: ${image.tags[0] || image.id.substring(7, 19)}`,
+            name: `image: ${image.tags[0] || image.id.substring(7, 19)}`,
             description: `${image.tags.length > 1 ? `${image.tags.length} tags` : ''}`,
             category: 'Images',
             icon: 'image',
