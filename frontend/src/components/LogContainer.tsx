@@ -85,7 +85,7 @@ const LogContainer: React.FC<LogContainerProps> = React.memo(({
                 }
             });
         }
-    }, []);
+    }, [autoScroll]);
 
     return (
         <div className={`${theme === 'dark' ? 'bg-gray-900' : 'bg-gray-100'} p-4 rounded-lg mt-2`}>

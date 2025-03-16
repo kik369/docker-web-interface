@@ -1,8 +1,8 @@
 /// <reference types="react" />
-import React, { useRef, useEffect, useCallback, useState, useMemo } from 'react';
+import React, { useRef, useEffect, useCallback, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { IconBaseProps } from 'react-icons';
-import { HiDocument, HiPlay, HiStop, HiRefresh, HiCog, HiTrash, HiOutlineTemplate, HiOutlineStatusOnline, HiOutlineInformationCircle } from 'react-icons/hi';
+import { HiDocument, HiPlay, HiStop, HiRefresh, HiTrash, HiOutlineTemplate, HiOutlineStatusOnline, HiOutlineInformationCircle } from 'react-icons/hi';
 import { HiOutlineDesktopComputer, HiOutlineServer } from 'react-icons/hi';
 import { ContainerRowProps } from '../types/docker';
 import { logger } from '../services/logging';
@@ -27,10 +27,6 @@ const StopIcon: React.FC<IconBaseProps> = (props): React.JSX.Element => (
 
 const RefreshIcon: React.FC<IconBaseProps> = (props): React.JSX.Element => (
     <HiRefresh {...props} />
-);
-
-const CogIcon: React.FC<IconBaseProps> = (props): React.JSX.Element => (
-    <HiCog {...props} />
 );
 
 const TrashIcon: React.FC<IconBaseProps> = (props): React.JSX.Element => (

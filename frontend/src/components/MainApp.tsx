@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import { ContainerList } from './ContainerList';
 import { ImageList } from './ImageList';
@@ -58,7 +58,7 @@ function MainApp() {
     const [wsError, setWsError] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState<string>('');
     const [commandPaletteOpen, setCommandPaletteOpen] = useState<boolean>(false);
-    const { theme, toggleTheme } = useTheme();
+    const { toggleTheme } = useTheme();
     const [highlightedItem, setHighlightedItem] = useState<{ type: string; id: string; timestamp: number } | null>(null);
 
     // Set up WebSocket handlers
