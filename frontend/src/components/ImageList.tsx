@@ -6,6 +6,7 @@ import { useImages } from '../hooks/useImages';
 import { Image } from '../types/docker';
 import { useTheme } from '../context/ThemeContext';
 import { CopyableText } from './CopyableText';
+import DeleteConfirmationDialog from './DeleteConfirmationDialog';
 
 // Create wrapper components for icons
 const TrashIcon: React.FC<IconBaseProps> = (props): React.JSX.Element => (
@@ -332,7 +333,6 @@ export const ImageList: React.FC<ImageListProps> = ({ searchTerm = '', onSearchC
     const [showDeleteModal, setShowDeleteModal] = useState(false);
     const [imageToDelete, setImageToDelete] = useState<{ id: string, tag: string } | null>(null);
     const [deleteError, setDeleteError] = useState<string | null>(null);
-    const [isForceDelete, setIsForceDelete] = useState(false);
     const { theme } = useTheme();
 
     // Use the hook for all image-related functionality
@@ -367,13 +367,12 @@ export const ImageList: React.FC<ImageListProps> = ({ searchTerm = '', onSearchC
     const handleDeleteClick = (id: string, tag: string) => {
         setImageToDelete({ id, tag });
         setShowDeleteModal(true);
-        setIsForceDelete(false);
     };
 
-    const handleDeleteConfirm = async () => {
+    const handleDeleteConfirm = async (force: boolean) => {
         if (imageToDelete) {
             setDeleteError(null);
-            const success = await deleteImage(imageToDelete.id, isForceDelete);
+            const success = await deleteImage(imageToDelete.id, force);
             if (success) {
                 setShowDeleteModal(false);
                 setImageToDelete(null);
@@ -435,75 +434,15 @@ export const ImageList: React.FC<ImageListProps> = ({ searchTerm = '', onSearchC
                 </div>
             </div>
 
-            {/* Delete Confirmation Modal */}
-            {showDeleteModal && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                    <div
-                        className={`${theme === 'dark' ? 'bg-gray-800' : 'bg-white'} rounded-lg overflow-hidden shadow-xl max-w-md w-full`}
-                        style={{
-                            boxShadow: theme === 'dark'
-                                ? '0 1px 3px 0 rgba(0, 0, 0, 0.3), 0 2px 5px 0 rgba(0, 0, 0, 0.2), 0 1px 1px 0 rgba(0, 0, 0, 0.1)'
-                                : '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 2px 5px 0 rgba(0, 0, 0, 0.08), 0 1px 1px 0 rgba(0, 0, 0, 0.05)'
-                        }}
-                    >
-                        {/* Header section with title */}
-                        <div className={`flex items-center px-4 py-3 ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-100'} border-b ${theme === 'dark' ? 'border-gray-600' : 'border-gray-200'}`}>
-                            <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>Delete Image</h3>
-                        </div>
-
-                        {/* Content section */}
-                        <div className="p-5">
-                            <div className="mb-4">
-                                <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} mb-2`}>
-                                    Are you sure you want to delete the image:
-                                </p>
-                                <div className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'} rounded px-3 py-2 text-sm ${theme === 'dark' ? 'text-white' : 'text-gray-800'} font-mono mb-2 w-full overflow-hidden`}>
-                                    <span className="truncate">{imageToDelete?.tag}</span>
-                                </div>
-                                <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} text-sm`}>
-                                    This action cannot be undone.
-                                </p>
-                            </div>
-
-                            {deleteError && (
-                                <div className="bg-red-900 bg-opacity-75 text-white p-3 rounded mb-4 text-sm">
-                                    Error: {deleteError}
-                                </div>
-                            )}
-
-                            <div className="flex items-center mb-4">
-                                <input
-                                    type="checkbox"
-                                    id="force-delete"
-                                    checked={isForceDelete}
-                                    onChange={() => setIsForceDelete(!isForceDelete)}
-                                    className={`mr-2 h-4 w-4 rounded border-gray-300 ${theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-gray-100'}`}
-                                />
-                                <label htmlFor="force-delete" className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} text-sm`}>
-                                    Force delete (remove even if used by containers)
-                                </label>
-                            </div>
-
-                            <div className="flex justify-end space-x-3">
-                                <button
-                                    onClick={handleDeleteCancel}
-                                    className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded-md px-3 py-1.5 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} transition-colors`}
-                                >
-                                    Cancel
-                                </button>
-                                <button
-                                    onClick={handleDeleteConfirm}
-                                    className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded-md px-3 py-1.5 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} transition-colors ${actionInProgress === imageToDelete?.id ? 'opacity-75' : ''}`}
-                                    disabled={actionInProgress === imageToDelete?.id}
-                                >
-                                    <TrashIcon className={`w-4 h-4 mr-1.5 text-red-400 ${actionInProgress === imageToDelete?.id ? 'animate-pulse' : ''}`} />
-                                    {actionInProgress === imageToDelete?.id ? 'Deleting...' : 'Delete'}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
+            {/* Use the new DeleteConfirmationDialog component */}
+            <DeleteConfirmationDialog
+                isOpen={showDeleteModal}
+                onClose={handleDeleteCancel}
+                imageToDelete={imageToDelete}
+                onConfirm={handleDeleteConfirm}
+                isDeleting={!!imageToDelete && actionInProgress === imageToDelete.id}
+                error={deleteError}
+            />
         </div>
     );
 };
