@@ -331,7 +331,7 @@ interface ImageListProps {
 
 export const ImageList: React.FC<ImageListProps> = ({ searchTerm = '', onSearchChange, highlightedItem }) => {
     const [showDeleteModal, setShowDeleteModal] = useState(false);
-    const [imageToDelete, setImageToDelete] = useState<{ id: string, tag: string } | null>(null);
+    const [imageToDelete, setImageToDelete] = useState<{ id: string; name: string; type: 'image' | 'container' } | null>(null);
     const [deleteError, setDeleteError] = useState<string | null>(null);
     const { theme } = useTheme();
 
@@ -365,7 +365,11 @@ export const ImageList: React.FC<ImageListProps> = ({ searchTerm = '', onSearchC
     });
 
     const handleDeleteClick = (id: string, tag: string) => {
-        setImageToDelete({ id, tag });
+        setImageToDelete({
+            id,
+            name: tag,
+            type: 'image'
+        });
         setShowDeleteModal(true);
     };
 
@@ -438,7 +442,7 @@ export const ImageList: React.FC<ImageListProps> = ({ searchTerm = '', onSearchC
             <DeleteConfirmationDialog
                 isOpen={showDeleteModal}
                 onClose={handleDeleteCancel}
-                imageToDelete={imageToDelete}
+                itemToDelete={imageToDelete}
                 onConfirm={handleDeleteConfirm}
                 isDeleting={!!imageToDelete && actionInProgress === imageToDelete.id}
                 error={deleteError}

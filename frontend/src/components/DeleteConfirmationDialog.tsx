@@ -6,7 +6,11 @@ import ModalPortal from './ModalPortal';
 interface DeleteConfirmationDialogProps {
     isOpen: boolean;
     onClose: () => void;
-    imageToDelete: { id: string; tag: string } | null;
+    itemToDelete: {
+        id: string;
+        name: string;
+        type: 'image' | 'container';
+    } | null;
     onConfirm: (force: boolean) => Promise<void>;
     isDeleting: boolean;
     error: string | null;
@@ -15,7 +19,7 @@ interface DeleteConfirmationDialogProps {
 const DeleteConfirmationDialog: React.FC<DeleteConfirmationDialogProps> = ({
     isOpen,
     onClose,
-    imageToDelete,
+    itemToDelete,
     onConfirm,
     isDeleting,
     error
@@ -23,7 +27,12 @@ const DeleteConfirmationDialog: React.FC<DeleteConfirmationDialogProps> = ({
     const { theme } = useTheme();
     const [isForceDelete, setIsForceDelete] = useState(false);
 
-    if (!imageToDelete) return null;
+    if (!itemToDelete) return null;
+
+    const title = `Delete ${itemToDelete.type === 'image' ? 'Image' : 'Container'}`;
+    const forceDeleteLabel = itemToDelete.type === 'image'
+        ? 'Force delete (remove even if used by containers)'
+        : 'Force delete (remove even if running)';
 
     return (
         <ModalPortal isOpen={isOpen} onClose={onClose}>
@@ -37,17 +46,17 @@ const DeleteConfirmationDialog: React.FC<DeleteConfirmationDialogProps> = ({
             >
                 {/* Header section with title */}
                 <div className={`flex items-center px-4 py-3 ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-100'} border-b ${theme === 'dark' ? 'border-gray-600' : 'border-gray-200'}`}>
-                    <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>Delete Image</h3>
+                    <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{title}</h3>
                 </div>
 
                 {/* Content section */}
                 <div className="p-5">
                     <div className="mb-4">
                         <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} mb-2`}>
-                            Are you sure you want to delete the image:
+                            Are you sure you want to delete the {itemToDelete.type}:
                         </p>
                         <div className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'} rounded px-3 py-2 text-sm ${theme === 'dark' ? 'text-white' : 'text-gray-800'} font-mono mb-2 w-full overflow-hidden`}>
-                            <span className="truncate">{imageToDelete.tag}</span>
+                            <span className="truncate">{itemToDelete.name}</span>
                         </div>
                         <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} text-sm`}>
                             This action cannot be undone.
@@ -69,7 +78,7 @@ const DeleteConfirmationDialog: React.FC<DeleteConfirmationDialogProps> = ({
                             className={`mr-2 h-4 w-4 rounded border-gray-300 ${theme === 'dark' ? 'bg-gray-700 border-gray-600' : 'bg-gray-100'}`}
                         />
                         <label htmlFor="force-delete" className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} text-sm`}>
-                            Force delete (remove even if used by containers)
+                            {forceDeleteLabel}
                         </label>
                     </div>
 

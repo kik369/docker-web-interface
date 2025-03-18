@@ -5,6 +5,7 @@ import { useContainers } from '../hooks/useContainers';
 import { ContainerRow } from './ContainerRow';
 import { HiChevronDown, HiChevronRight, HiPlay, HiStop, HiRefresh, HiCog, HiTrash, HiOutlineTemplate, HiOutlineCube } from 'react-icons/hi';
 import { useTheme } from '../context/ThemeContext';
+import DeleteConfirmationDialog from './DeleteConfirmationDialog';
 
 type ContainerListProps = {
     containers: Container[];
@@ -49,6 +50,10 @@ export const ContainerList = ({
         }
     });
     const [actionStates, setActionStates] = useState<Record<string, string | null>>({});
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [containerToDelete, setContainerToDelete] = useState<{ id: string; name: string; type: 'image' | 'container' } | null>(null);
+    const [deleteError, setDeleteError] = useState<string | null>(null);
+    const [groupToDelete, setGroupToDelete] = useState<string | null>(null);
 
     // Store which Docker Compose groups are expanded
     const [expandedGroups, setExpandedGroups] = useState<Set<string>>(() => {
@@ -209,12 +214,18 @@ export const ContainerList = ({
 
     const handleContainerAction = async (containerId: string, action: string) => {
         try {
-            // Ask for confirmation before deleting a container
+            // Special handling for delete action
             if (action === 'delete') {
-                const containerName = localContainers.find(c => c.id === containerId)?.name || 'unknown';
-                if (!window.confirm(`Are you sure you want to delete container "${containerName}"?`)) {
-                    return;
-                }
+                const containerToDelete = localContainers.find(c => c.id === containerId);
+                if (!containerToDelete) return;
+
+                setContainerToDelete({
+                    id: containerId,
+                    name: containerToDelete.name,
+                    type: 'container'
+                });
+                setShowDeleteModal(true);
+                return;
             }
 
             setActionStates(prev => ({ ...prev, [containerId]: action }));
@@ -233,27 +244,68 @@ export const ContainerList = ({
                 case 'rebuild':
                     await rebuildContainer(containerId);
                     break;
-                case 'delete':
-                    await deleteContainer(containerId);
-                    break;
                 default:
                     throw new Error(`Unknown action: ${action}`);
             }
 
             // The WebSocket will handle updating the UI after action completes
-
         } catch (error) {
             console.error(`Failed to ${action} container:`, error);
             setActionStates(prev => ({ ...prev, [containerId]: null }));
-        } finally {
-            // Clear action state after a short delay to allow animation to be visible
-            // if we haven't already cleared it due to an error
-            if (action !== 'delete') { // Don't auto-clear for delete as it may take longer
-                setTimeout(() => {
-                    setActionStates(prev => ({ ...prev, [containerId]: null }));
-                }, 1000);
+        }
+    };
+
+    const handleGroupDelete = (projectName: string) => {
+        setGroupToDelete(projectName);
+        const groupContainers = localContainers.filter(c => c.compose_project === projectName);
+        if (groupContainers.length > 0) {
+            setContainerToDelete({
+                id: groupContainers.map(c => c.id).join(','),
+                name: `${projectName} (${groupContainers.length} containers)`,
+                type: 'container'
+            });
+            setShowDeleteModal(true);
+        }
+    };
+
+    const handleDeleteConfirm = async (force: boolean) => {
+        if (!containerToDelete) return;
+
+        try {
+            if (groupToDelete) {
+                // Handle group delete
+                const groupContainers = localContainers.filter(c => c.compose_project === groupToDelete);
+                for (const container of groupContainers) {
+                    setActionStates(prev => ({ ...prev, [container.id]: 'delete' }));
+                    await deleteContainer(container.id);
+                }
+                setGroupToDelete(null);
+            } else {
+                // Handle single container delete
+                setActionStates(prev => ({ ...prev, [containerToDelete.id]: 'delete' }));
+                await deleteContainer(containerToDelete.id);
+            }
+            setShowDeleteModal(false);
+            setContainerToDelete(null);
+            setDeleteError(null);
+        } catch (error) {
+            console.error('Failed to delete container(s):', error);
+            setDeleteError(error instanceof Error ? error.message : 'Failed to delete container(s)');
+            if (groupToDelete) {
+                const groupContainers = localContainers.filter(c => c.compose_project === groupToDelete);
+                groupContainers.forEach(container => {
+                    setActionStates(prev => ({ ...prev, [container.id]: null }));
+                });
+            } else {
+                setActionStates(prev => ({ ...prev, [containerToDelete.id]: null }));
             }
         }
+    };
+
+    const handleDeleteCancel = () => {
+        setShowDeleteModal(false);
+        setContainerToDelete(null);
+        setDeleteError(null);
     };
 
     // Group containers by Docker Compose project
@@ -421,13 +473,7 @@ export const ContainerList = ({
                                             Rebuild All
                                         </button>
                                         <button
-                                            onClick={() => {
-                                                if (window.confirm(`Delete all containers in ${group.projectName}? This action cannot be undone.`)) {
-                                                    group.containers.forEach(container => {
-                                                        handleContainerAction(container.id, 'delete');
-                                                    });
-                                                }
-                                            }}
+                                            onClick={() => handleGroupDelete(group.projectName)}
                                             className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded-md px-3 py-1.5 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} transition-colors`}
                                             title="Delete all containers in this group (WARNING: This action cannot be undone)"
                                         >
@@ -458,6 +504,16 @@ export const ContainerList = ({
                     ))}
                 </div>
             )}
+
+            {/* Add DeleteConfirmationDialog */}
+            <DeleteConfirmationDialog
+                isOpen={showDeleteModal}
+                onClose={handleDeleteCancel}
+                itemToDelete={containerToDelete}
+                onConfirm={handleDeleteConfirm}
+                isDeleting={!!containerToDelete && actionStates[containerToDelete.id] === 'delete'}
+                error={deleteError}
+            />
         </div>
     );
 };
