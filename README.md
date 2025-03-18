@@ -63,17 +63,6 @@ graph TD
 
 > ℹ️ **Note:** Real-time container metrics updates and resource usage tracking are planned features.
 
-### Detailed Architecture Documentation
-
-The project includes comprehensive documentation of various aspects of the architecture:
-
--   **[DATA_FLOW.md](DATA_FLOW.md)**: Visual diagrams of data flows throughout the application using Mermaid charts
--   **[WEBSOCKET.md](WEBSOCKET.md)**: Detailed explanation of the WebSocket implementation for real-time communication
--   **[FRONTEND.md](FRONTEND.md)**: Frontend architecture, components, and state management
--   **[BACKEND.md](BACKEND.md)**: Backend architecture, API endpoints, and Docker integration
--   **[API_REFERENCE.md](API_REFERENCE.md)**: Complete API endpoint documentation with request/response formats
--   **[FRONTEND_ARCHITECTURE.md](FRONTEND_ARCHITECTURE.md)**: Detailed frontend design patterns and implementation
-
 ## Installation and Setup
 
 ### Prerequisites
