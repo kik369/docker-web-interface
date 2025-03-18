@@ -8,6 +8,7 @@ import { useImages } from '../hooks/useImages';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { logger } from '../services/logging';
 import { useContainerContext, useContainerOperations } from '../context/ContainerContext';
+import { useDockerMaintenance } from '../hooks/useDockerMaintenance';
 import CommandPalette from './CommandPalette';
 import { HiOutlineCommandLine } from 'react-icons/hi2';
 import { HiOutlineCube, HiOutlineTemplate } from 'react-icons/hi';
@@ -60,6 +61,15 @@ function MainApp() {
     const [commandPaletteOpen, setCommandPaletteOpen] = useState<boolean>(false);
     const { toggleTheme } = useTheme();
     const [highlightedItem, setHighlightedItem] = useState<{ type: string; id: string; timestamp: number } | null>(null);
+    const {
+        pruneContainers,
+        pruneImages,
+        pruneVolumes,
+        pruneNetworks,
+        pruneAll,
+        isLoading: maintenanceLoading,
+        formatBytes
+    } = useDockerMaintenance();
 
     // Set up WebSocket handlers
     useWebSocket({
@@ -334,10 +344,101 @@ function MainApp() {
                 }
             }
         },
+        // Docker Maintenance commands
+        {
+            id: 'prune-containers',
+            name: 'Prune Containers',
+            description: 'docker container prune',
+            category: 'Docker Maintenance',
+            icon: 'container',
+            action: async () => {
+                logger.info('Pruning containers from command palette');
+                const success = await pruneContainers();
+                if (success) {
+                    // Force refresh of containers list if successful
+                    setLoading(true);
+                    setTimeout(() => setLoading(false), 100);
+                }
+            }
+        },
+        {
+            id: 'prune-images',
+            name: 'Prune Images',
+            description: 'docker image prune',
+            category: 'Docker Maintenance',
+            icon: 'image',
+            action: async () => {
+                logger.info('Pruning images from command palette');
+                const success = await pruneImages();
+                if (success) {
+                    // Refresh images if we're on the images tab
+                    if (activeTab === 'images') {
+                        refreshImages();
+                    }
+                }
+            }
+        },
+        {
+            id: 'prune-volumes',
+            name: 'Prune Volumes',
+            description: 'docker volume prune',
+            category: 'Docker Maintenance',
+            icon: 'toggle',
+            action: async () => {
+                logger.info('Pruning volumes from command palette');
+                await pruneVolumes();
+            }
+        },
+        {
+            id: 'prune-networks',
+            name: 'Prune Networks',
+            description: 'docker network prune',
+            category: 'Docker Maintenance',
+            icon: 'refresh',
+            action: async () => {
+                logger.info('Pruning networks from command palette');
+                await pruneNetworks();
+            }
+        },
+        {
+            id: 'prune-all',
+            name: 'Prune Everything',
+            description: 'docker system prune -a',
+            category: 'Docker Maintenance',
+            icon: 'refresh',
+            action: async () => {
+                logger.info('Pruning all Docker resources from command palette');
+                const success = await pruneAll();
+                if (success) {
+                    // Refresh both containers and images
+                    setLoading(true);
+                    setTimeout(() => {
+                        setLoading(false);
+                        if (activeTab === 'images') {
+                            refreshImages();
+                        }
+                    }, 100);
+                }
+            }
+        },
         // Include container and image options
         ...containerOptions,
         ...imageOptions
-    ], [containerOptions, imageOptions, setLoading, areAnyLogsOpen, closeAllLogs, showAllLogs]);
+    ], [
+        containerOptions,
+        imageOptions,
+        setLoading,
+        areAnyLogsOpen,
+        closeAllLogs,
+        showAllLogs,
+        pruneContainers,
+        pruneImages,
+        pruneVolumes,
+        pruneNetworks,
+        pruneAll,
+        refreshImages,
+        activeTab
+    ]);
 
     // Add keyboard shortcuts
     useEffect(() => {

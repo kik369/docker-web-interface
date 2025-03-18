@@ -999,5 +999,150 @@ class DockerService:
         """Stop the Docker events subscription thread."""
         if self._event_thread and self._event_thread.is_alive():
             self._stop_event.set()
-            self._event_thread.join(timeout=5)
-            logger.info("Stopped Docker events subscription thread")
+            self._event_thread.join(timeout=2)
+            logger.info("Stopped Docker event subscription")
+
+    def prune_containers(self) -> Tuple[bool, dict, Optional[str]]:
+        """
+        Remove all stopped containers.
+        Equivalent to 'docker container prune'.
+        """
+        try:
+            logger.info("Pruning all stopped containers")
+            result = self.client.containers.prune()
+            containers_deleted = result.get("ContainersDeleted", [])
+            space_reclaimed = result.get("SpaceReclaimed", 0)
+
+            logger.info(
+                f"Pruned {len(containers_deleted) if containers_deleted else 0} containers, reclaimed {space_reclaimed} bytes"
+            )
+
+            return (
+                True,
+                {
+                    "containers_deleted": containers_deleted or [],
+                    "space_reclaimed": space_reclaimed,
+                },
+                None,
+            )
+        except Exception as e:
+            error_msg = f"Failed to prune containers: {str(e)}"
+            logger.error(error_msg)
+            return False, {}, error_msg
+
+    def prune_images(self) -> Tuple[bool, dict, Optional[str]]:
+        """
+        Remove all dangling images.
+        Equivalent to 'docker image prune'.
+        """
+        try:
+            logger.info("Pruning all dangling images")
+            result = self.client.images.prune()
+            images_deleted = result.get("ImagesDeleted", [])
+            space_reclaimed = result.get("SpaceReclaimed", 0)
+
+            logger.info(
+                f"Pruned {len(images_deleted) if images_deleted else 0} images, reclaimed {space_reclaimed} bytes"
+            )
+
+            return (
+                True,
+                {
+                    "images_deleted": images_deleted or [],
+                    "space_reclaimed": space_reclaimed,
+                },
+                None,
+            )
+        except Exception as e:
+            error_msg = f"Failed to prune images: {str(e)}"
+            logger.error(error_msg)
+            return False, {}, error_msg
+
+    def prune_volumes(self) -> Tuple[bool, dict, Optional[str]]:
+        """
+        Remove all unused volumes.
+        Equivalent to 'docker volume prune'.
+        """
+        try:
+            logger.info("Pruning all unused volumes")
+            result = self.client.volumes.prune()
+            volumes_deleted = result.get("VolumesDeleted", [])
+            space_reclaimed = result.get("SpaceReclaimed", 0)
+
+            logger.info(
+                f"Pruned {len(volumes_deleted) if volumes_deleted else 0} volumes, reclaimed {space_reclaimed} bytes"
+            )
+
+            return (
+                True,
+                {
+                    "volumes_deleted": volumes_deleted or [],
+                    "space_reclaimed": space_reclaimed,
+                },
+                None,
+            )
+        except Exception as e:
+            error_msg = f"Failed to prune volumes: {str(e)}"
+            logger.error(error_msg)
+            return False, {}, error_msg
+
+    def prune_networks(self) -> Tuple[bool, dict, Optional[str]]:
+        """
+        Remove all unused networks.
+        Equivalent to 'docker network prune'.
+        """
+        try:
+            logger.info("Pruning all unused networks")
+            result = self.client.networks.prune()
+            networks_deleted = result.get("NetworksDeleted", [])
+
+            logger.info(
+                f"Pruned {len(networks_deleted) if networks_deleted else 0} networks"
+            )
+
+            return True, {"networks_deleted": networks_deleted or []}, None
+        except Exception as e:
+            error_msg = f"Failed to prune networks: {str(e)}"
+            logger.error(error_msg)
+            return False, {}, error_msg
+
+    def prune_system(
+        self, all_unused: bool = False
+    ) -> Tuple[bool, dict, Optional[str]]:
+        """
+        Remove all unused Docker resources.
+        Equivalent to 'docker system prune' or 'docker system prune -a' when all_unused=True.
+        """
+        try:
+            logger.info(f"Pruning all unused Docker resources (all={all_unused})")
+            result = self.client.system.prune(volumes=True, all=all_unused)
+
+            containers_deleted = result.get("ContainersDeleted", [])
+            images_deleted = result.get("ImagesDeleted", [])
+            networks_deleted = result.get("NetworksDeleted", [])
+            volumes_deleted = result.get("VolumesDeleted", [])
+            space_reclaimed = result.get("SpaceReclaimed", 0)
+
+            logger.info(
+                f"Pruned {len(containers_deleted) if containers_deleted else 0} containers, "
+                f"{len(images_deleted) if images_deleted else 0} images, "
+                f"{len(networks_deleted) if networks_deleted else 0} networks, "
+                f"{len(volumes_deleted) if volumes_deleted else 0} volumes, "
+                f"reclaimed {space_reclaimed} bytes"
+            )
+
+            return (
+                True,
+                {
+                    "containers_deleted": containers_deleted or [],
+                    "images_deleted": images_deleted or [],
+                    "networks_deleted": networks_deleted or [],
+                    "volumes_deleted": volumes_deleted or [],
+                    "space_reclaimed": space_reclaimed,
+                },
+                None,
+            )
+        except Exception as e:
+            error_msg = f"Failed to prune system: {str(e)}"
+            logger.error(error_msg)
+            return False, {}, error_msg

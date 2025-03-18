@@ -369,6 +369,247 @@ class FlaskApp:
             )
             return self.success_response({"message": "Image deleted successfully"})
 
+        @self.app.route(
+            "/api/docker/prune/containers",
+            methods=["POST"],
+            endpoint="prune_containers",
+        )
+        @self.rate_limit
+        @log_request()
+        def prune_containers() -> Response:
+            """Prune all stopped containers."""
+            logger.info(
+                "Received request to prune all stopped containers",
+                extra={
+                    "event": "prune_containers",
+                    "path": "/api/docker/prune/containers",
+                },
+            )
+
+            success, result, error = self.docker_service.prune_containers()
+
+            if not success or error:
+                logger.error(
+                    "Failed to prune containers",
+                    extra={
+                        "event": "prune_containers_error",
+                        "error": error,
+                    },
+                )
+                return self.error_response(error or "Failed to prune containers")
+
+            logger.info(
+                "Successfully pruned containers",
+                extra={
+                    "event": "prune_containers_success",
+                    "containers_deleted": len(result.get("containers_deleted", [])),
+                    "space_reclaimed": result.get("space_reclaimed", 0),
+                },
+            )
+
+            return self.success_response(
+                {
+                    "message": "Containers pruned successfully",
+                    "command": "docker container prune",
+                    "result": {
+                        "containers_deleted": result.get("containers_deleted", []),
+                        "space_reclaimed": result.get("space_reclaimed", 0),
+                    },
+                }
+            )
+
+        @self.app.route(
+            "/api/docker/prune/images", methods=["POST"], endpoint="prune_images"
+        )
+        @self.rate_limit
+        @log_request()
+        def prune_images() -> Response:
+            """Prune all dangling images."""
+            logger.info(
+                "Received request to prune all dangling images",
+                extra={
+                    "event": "prune_images",
+                    "path": "/api/docker/prune/images",
+                },
+            )
+
+            success, result, error = self.docker_service.prune_images()
+
+            if not success or error:
+                logger.error(
+                    "Failed to prune images",
+                    extra={
+                        "event": "prune_images_error",
+                        "error": error,
+                    },
+                )
+                return self.error_response(error or "Failed to prune images")
+
+            logger.info(
+                "Successfully pruned images",
+                extra={
+                    "event": "prune_images_success",
+                    "images_deleted": len(result.get("images_deleted", [])),
+                    "space_reclaimed": result.get("space_reclaimed", 0),
+                },
+            )
+
+            return self.success_response(
+                {
+                    "message": "Images pruned successfully",
+                    "command": "docker image prune",
+                    "result": {
+                        "images_deleted": result.get("images_deleted", []),
+                        "space_reclaimed": result.get("space_reclaimed", 0),
+                    },
+                }
+            )
+
+        @self.app.route(
+            "/api/docker/prune/volumes", methods=["POST"], endpoint="prune_volumes"
+        )
+        @self.rate_limit
+        @log_request()
+        def prune_volumes() -> Response:
+            """Prune all unused volumes."""
+            logger.info(
+                "Received request to prune all unused volumes",
+                extra={
+                    "event": "prune_volumes",
+                    "path": "/api/docker/prune/volumes",
+                },
+            )
+
+            success, result, error = self.docker_service.prune_volumes()
+
+            if not success or error:
+                logger.error(
+                    "Failed to prune volumes",
+                    extra={
+                        "event": "prune_volumes_error",
+                        "error": error,
+                    },
+                )
+                return self.error_response(error or "Failed to prune volumes")
+
+            logger.info(
+                "Successfully pruned volumes",
+                extra={
+                    "event": "prune_volumes_success",
+                    "volumes_deleted": len(result.get("volumes_deleted", [])),
+                    "space_reclaimed": result.get("space_reclaimed", 0),
+                },
+            )
+
+            return self.success_response(
+                {
+                    "message": "Volumes pruned successfully",
+                    "command": "docker volume prune",
+                    "result": {
+                        "volumes_deleted": result.get("volumes_deleted", []),
+                        "space_reclaimed": result.get("space_reclaimed", 0),
+                    },
+                }
+            )
+
+        @self.app.route(
+            "/api/docker/prune/networks", methods=["POST"], endpoint="prune_networks"
+        )
+        @self.rate_limit
+        @log_request()
+        def prune_networks() -> Response:
+            """Prune all unused networks."""
+            logger.info(
+                "Received request to prune all unused networks",
+                extra={
+                    "event": "prune_networks",
+                    "path": "/api/docker/prune/networks",
+                },
+            )
+
+            success, result, error = self.docker_service.prune_networks()
+
+            if not success or error:
+                logger.error(
+                    "Failed to prune networks",
+                    extra={
+                        "event": "prune_networks_error",
+                        "error": error,
+                    },
+                )
+                return self.error_response(error or "Failed to prune networks")
+
+            logger.info(
+                "Successfully pruned networks",
+                extra={
+                    "event": "prune_networks_success",
+                    "networks_deleted": len(result.get("networks_deleted", [])),
+                },
+            )
+
+            return self.success_response(
+                {
+                    "message": "Networks pruned successfully",
+                    "command": "docker network prune",
+                    "result": {
+                        "networks_deleted": result.get("networks_deleted", []),
+                    },
+                }
+            )
+
+        @self.app.route("/api/docker/prune/all", methods=["POST"], endpoint="prune_all")
+        @self.rate_limit
+        @log_request()
+        def prune_all() -> Response:
+            """Prune all unused Docker resources."""
+            logger.info(
+                "Received request to prune all unused Docker resources",
+                extra={
+                    "event": "prune_all",
+                    "path": "/api/docker/prune/all",
+                },
+            )
+
+            success, result, error = self.docker_service.prune_system(all_unused=True)
+
+            if not success or error:
+                logger.error(
+                    "Failed to prune all Docker resources",
+                    extra={
+                        "event": "prune_all_error",
+                        "error": error,
+                    },
+                )
+                return self.error_response(
+                    error or "Failed to prune all Docker resources"
+                )
+
+            logger.info(
+                "Successfully pruned all Docker resources",
+                extra={
+                    "event": "prune_all_success",
+                    "containers_deleted": len(result.get("containers_deleted", [])),
+                    "images_deleted": len(result.get("images_deleted", [])),
+                    "networks_deleted": len(result.get("networks_deleted", [])),
+                    "volumes_deleted": len(result.get("volumes_deleted", [])),
+                    "space_reclaimed": result.get("space_reclaimed", 0),
+                },
+            )
+
+            return self.success_response(
+                {
+                    "message": "All unused Docker resources pruned successfully",
+                    "command": "docker system prune -a",
+                    "result": {
+                        "containers_deleted": result.get("containers_deleted", []),
+                        "images_deleted": result.get("images_deleted", []),
+                        "networks_deleted": result.get("networks_deleted", []),
+                        "volumes_deleted": result.get("volumes_deleted", []),
+                        "space_reclaimed": result.get("space_reclaimed", 0),
+                    },
+                }
+            )
+
         @self.app.errorhandler(Exception)
         def handle_error(error: Exception) -> Response:
             """Handle exceptions."""

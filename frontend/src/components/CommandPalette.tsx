@@ -307,7 +307,13 @@ const CommandPalette: React.FC<CommandPaletteProps> = React.memo(({
                                                         )}
                                                     </div>
                                                     {command.description && (
-                                                        <div className={`text-sm mt-1 ml-10 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} ${command.category === 'Containers' || command.category === 'Images' ? 'font-mono' : ''}`}>
+                                                        <div className={`text-sm mt-1 ml-10 ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'
+                                                            } ${command.category === 'Containers' ||
+                                                                command.category === 'Images' ||
+                                                                command.category === 'Docker Maintenance'
+                                                                ? 'font-mono'
+                                                                : ''
+                                                            }`}>
                                                             {command.description}
                                                         </div>
                                                     )}
