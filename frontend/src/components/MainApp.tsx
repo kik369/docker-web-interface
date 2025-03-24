@@ -386,7 +386,12 @@ function MainApp() {
             icon: 'toggle',
             action: async () => {
                 logger.info('Pruning volumes from command palette');
-                await pruneVolumes();
+                const success = await pruneVolumes();
+                if (success) {
+                    // Force refresh of containers list since volumes affect containers
+                    setLoading(true);
+                    setTimeout(() => setLoading(false), 100);
+                }
             }
         },
         {
@@ -397,7 +402,12 @@ function MainApp() {
             icon: 'refresh',
             action: async () => {
                 logger.info('Pruning networks from command palette');
-                await pruneNetworks();
+                const success = await pruneNetworks();
+                if (success) {
+                    // Force refresh of containers list since networks affect containers
+                    setLoading(true);
+                    setTimeout(() => setLoading(false), 100);
+                }
             }
         },
         {
