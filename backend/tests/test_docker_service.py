@@ -1,5 +1,5 @@
 from datetime import datetime
-from unittest.mock import Mock, call, patch
+from unittest.mock import Mock, patch
 
 import docker
 import pytest
@@ -152,12 +152,9 @@ class TestDockerService:
         assert success is True
         assert error is None
 
-        # Verify WebSocket events were emitted (transition and final states)
-        docker_service._emit_container_state.assert_has_calls(
-            [
-                call("test_container_id", "starting"),
-                call("test_container_id", "running"),
-            ]
+        # Verify only the transition state was emitted
+        docker_service._emit_container_state.assert_called_once_with(
+            "test_container_id", "starting"
         )
 
     def test_stop_container(self, docker_service, mock_docker_client):
@@ -174,12 +171,9 @@ class TestDockerService:
         assert success is True
         assert error is None
 
-        # Verify WebSocket events were emitted (transition and final states)
-        docker_service._emit_container_state.assert_has_calls(
-            [
-                call("test_container_id", "stopping"),
-                call("test_container_id", "stopped"),
-            ]
+        # Verify only the transition state was emitted
+        docker_service._emit_container_state.assert_called_once_with(
+            "test_container_id", "stopping"
         )
 
     def test_restart_container(self, docker_service, mock_docker_client):
@@ -196,12 +190,9 @@ class TestDockerService:
         assert success is True
         assert error is None
 
-        # Verify WebSocket events were emitted (transition and final states)
-        docker_service._emit_container_state.assert_has_calls(
-            [
-                call("test_container_id", "restarting"),
-                call("test_container_id", "running"),
-            ]
+        # Verify only the transition state was emitted
+        docker_service._emit_container_state.assert_called_once_with(
+            "test_container_id", "restarting"
         )
 
     def test_delete_container(self, docker_service, mock_docker_client):
@@ -304,30 +295,27 @@ class TestDockerService:
 
         mock_docker_client.images.list.return_value = [mock_image]
 
-        # Patch the datetime.strptime to avoid format issues
-        with patch("docker_service.datetime") as mock_datetime:
-            mock_datetime.strptime.return_value = datetime(2023, 1, 1)
-            mock_datetime.fromtimestamp.return_value = datetime(2023, 1, 1)
-            mock_datetime.now.return_value = datetime(2023, 1, 1)
+        images, error = docker_service.get_all_images()
 
-            images, error = docker_service.get_all_images()
+        # Verify we called the Docker API correctly
+        mock_docker_client.images.list.assert_called_once_with(all=True)
 
-            # Verify we called the Docker API correctly
-            mock_docker_client.images.list.assert_called_once_with(all=True)
+        # Verify we got the expected result
+        assert error is None
+        assert len(images) == 1
 
-            # Verify we got the expected result
-            assert error is None
-            assert len(images) == 1
-
-            # Check image properties
-            image = images[0]
-            assert image.id == "sha256:test_image_id"
-            assert image.tags == ["test:latest"]
-            assert image.size == 10.0  # 10MB
-            assert isinstance(image.created, datetime)
-            assert image.repo_digests == ["test@sha256:digest"]
-            assert image.parent_id == "sha256:parent_id"
-            assert image.labels == {"maintainer": "test"}
+        # Check image properties
+        image = images[0]
+        assert image.id == "sha256:test_image_id"
+        assert image.tags == ["test:latest"]
+        assert image.size == 10.0  # 10MB
+        assert isinstance(image.created, datetime)
+        assert image.created == datetime(
+            2023, 1, 1, 0, 0, 0, tzinfo=image.created.tzinfo
+        )
+        assert image.repo_digests == ["test@sha256:digest"]
+        assert image.parent_id == "sha256:parent_id"
+        assert image.labels == {"maintainer": "test"}
 
     def test_delete_image(self, docker_service, mock_docker_client):
         """Test the delete_image method."""
@@ -420,17 +408,22 @@ class TestDockerService:
         mock_docker_client.images.remove.side_effect = None
 
     @pytest.mark.parametrize(
-        "container_action,expected_method",
+        "container_action,expected_method,expected_state",
         [
-            ("start", "start_container"),
-            ("stop", "stop_container"),
-            ("restart", "restart_container"),
-            ("delete", "delete_container"),
-            ("rebuild", "rebuild_container"),
+            ("start", "start_container", "starting"),
+            ("stop", "stop_container", "stopping"),
+            ("restart", "restart_container", "restarting"),
+            ("delete", "delete_container", "deleted"),
+            ("rebuild", "rebuild_container", "stopped"),
         ],
     )
     def test_container_actions_parameterized(
-        self, docker_service, mock_docker_client, container_action, expected_method
+        self,
+        docker_service,
+        mock_docker_client,
+        container_action,
+        expected_method,
+        expected_state,
     ):
         """Test different container actions using parameterization."""
         # Set up the mock container
@@ -447,18 +440,20 @@ class TestDockerService:
         # Verify Docker client was called properly
         mock_docker_client.containers.get.assert_called_with("test_container_id")
 
-        # Verify WebSocket event was emitted with correct state
-        expected_states = {
-            "start_container": "running",
-            "stop_container": "stopped",
-            "restart_container": "running",
-            "delete_container": "deleted",
-            "rebuild_container": "running",
-        }
-
-        docker_service._emit_container_state.assert_called_with(
-            "test_container_id", expected_states[expected_method]
-        )
+        # For rebuild, expect two emits: 'stopped' and 'running'. For others, only one emit.
+        if expected_method == "rebuild_container":
+            calls = [
+                (("test_container_id", "stopped"),),
+                ((mock_container.id, "running"),),
+            ]
+            actual_calls = docker_service._emit_container_state.call_args_list
+            assert len(actual_calls) == 2
+            assert actual_calls[0][0] == ("test_container_id", "stopped")
+            assert actual_calls[1][0] == (mock_container.id, "running")
+        else:
+            docker_service._emit_container_state.assert_called_once_with(
+                "test_container_id", expected_state
+            )
 
     def test_stream_container_logs_success(self, docker_service, mock_docker_client):
         """Test successful streaming of container logs."""

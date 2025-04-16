@@ -428,39 +428,27 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
             setShowLogs(false);
             setIsPaused(false);
             streamActiveRef.current = false;
+            setLogs(''); // Clear logs when hiding
             return;
         }
 
-        try {
-            logger.info('Fetching container logs', { containerId: container.id });
-            setIsLoadingLogs(true);
-
-            if (!isRestoring) {
-                setShowLogs(true);
-                setIsPaused(false);
-            }
-
-            // Fetch initial logs via API
-            const response = await fetch(`${config.API_URL}/api/containers/${container.id}/logs`);
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || 'Failed to fetch logs');
-            }
-
-            // Set the initial logs
-            setLogs(data.data.logs || '');
-
-            // Start real-time streaming
-            streamActiveRef.current = true;
-            startLogStream(container.id);
-            setIsStreamActive(true);
-            setIsLoadingLogs(false);
-        } catch (error) {
-            logger.error('Failed to fetch logs:', error instanceof Error ? error : new Error(String(error)));
-            setIsLoadingLogs(false);
-            setLogs('Error loading logs. Please try again.');
+        // Only show logs and start streaming, do not fetch via REST
+        if (!isRestoring) {
+            setShowLogs(true);
+            setIsPaused(false);
         }
+        setIsLoadingLogs(true); // Show loading indicator while waiting for first logs via WS
+        setLogs(''); // Clear previous logs
+
+        // Start the stream - backend should send initial logs + subsequent ones
+        streamActiveRef.current = true;
+        startLogStream(container.id);
+        setIsStreamActive(true);
+
+        // setIsLoadingLogs(false) will be handled implicitly when first logs arrive
+        // or potentially via a dedicated 'initial_logs_received' event from backend
+        // For simplicity, we can just set a timeout or remove the indicator after a delay
+        setTimeout(() => setIsLoadingLogs(false), 1500); // Example timeout
     }, [container.id, showLogs, startLogStream, stopLogStream]);
 
     // Start log streaming immediately when component mounts if logs should be shown

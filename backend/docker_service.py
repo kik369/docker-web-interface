@@ -1,6 +1,5 @@
 import logging
 import threading
-import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Generator, List, Optional, Tuple
@@ -48,8 +47,8 @@ class DockerService:
             raise
 
     def get_current_minute(self):
-        # Use datetime.now() for a naive local timestamp to match test keys
-        return datetime.now().replace(second=0, microsecond=0)
+        # Use timezone-aware UTC timestamp for rate limiting
+        return datetime.now(timezone.utc).replace(second=0, microsecond=0)
 
     def cleanup_request_counts(self):
         current_minute = self.get_current_minute()
@@ -173,6 +172,20 @@ class DockerService:
                     else:
                         computed_state = "stopped"
 
+                    created_str = container_info["Created"]
+                    try:
+                        # Handle potential 'Z' suffix for UTC
+                        if created_str.endswith("Z"):
+                            created_str = created_str[:-1] + "+00:00"
+                        created = datetime.fromisoformat(created_str)
+                        if created.tzinfo is None:
+                            created = created.replace(tzinfo=timezone.utc)
+                    except ValueError:
+                        logger.warning(
+                            f"Could not parse timestamp '{created_str}' for container {docker_container.id}. Falling back."
+                        )
+                        created = datetime.now(timezone.utc)
+
                     container = Container(
                         id=docker_container.id,
                         name=docker_container.name,
@@ -183,9 +196,7 @@ class DockerService:
                             "Status", "unknown"
                         ),  # Keep the detailed status
                         state=computed_state,  # Use the computed binary state
-                        created=datetime.strptime(
-                            container_info["Created"].split(".")[0], "%Y-%m-%dT%H:%M:%S"
-                        ),
+                        created=created,
                         ports=self._format_ports(container_info),
                         compose_project=compose_project,
                         compose_service=compose_service,
@@ -609,20 +620,16 @@ class DockerService:
             container = self.client.containers.get(container_id)
             container.start()
 
-            # Wait a short time for the container to fully start
-            time.sleep(0.5)
-
-            # Get the updated container state and emit it
-            self._emit_container_state(container_id, "running")
-
             return True, None
         except docker.errors.NotFound:
             error_msg = f"Container {container_id} not found"
             logger.error(error_msg)
+            self._emit_container_state(container_id, "error")
             return False, error_msg
         except Exception as e:
             error_msg = f"Failed to start container: {str(e)}"
             logger.error(error_msg)
+            self._emit_container_state(container_id, "error")
             return False, error_msg
 
     def stop_container(self, container_id: str) -> Tuple[bool, Optional[str]]:
@@ -634,20 +641,16 @@ class DockerService:
             container = self.client.containers.get(container_id)
             container.stop()
 
-            # Wait a short time for the container to fully stop
-            time.sleep(0.5)
-
-            # Get the updated container state and emit it
-            self._emit_container_state(container_id, "stopped")
-
             return True, None
         except docker.errors.NotFound:
             error_msg = f"Container {container_id} not found"
             logger.error(error_msg)
+            self._emit_container_state(container_id, "error")
             return False, error_msg
         except Exception as e:
             error_msg = f"Failed to stop container: {str(e)}"
             logger.error(error_msg)
+            self._emit_container_state(container_id, "error")
             return False, error_msg
 
     def restart_container(self, container_id: str) -> Tuple[bool, Optional[str]]:
@@ -659,20 +662,16 @@ class DockerService:
             container = self.client.containers.get(container_id)
             container.restart()
 
-            # Wait a short time for the container to fully restart
-            time.sleep(0.5)
-
-            # Get the updated container state and emit it
-            self._emit_container_state(container_id, "running")
-
             return True, None
         except docker.errors.NotFound:
             error_msg = f"Container {container_id} not found"
             logger.error(error_msg)
+            self._emit_container_state(container_id, "error")
             return False, error_msg
         except Exception as e:
             error_msg = f"Failed to restart container: {str(e)}"
             logger.error(error_msg)
+            self._emit_container_state(container_id, "error")
             return False, error_msg
 
     def rebuild_container(self, container_id: str) -> Tuple[bool, Optional[str]]:
@@ -766,21 +765,19 @@ class DockerService:
                     # Convert size from bytes to MB for better readability
                     size_mb = image_info.get("Size", 0) / (1024 * 1024)
 
-                    # Parse the creation timestamp correctly
                     created_str = image_info.get("Created", "")
                     try:
-                        # Try parsing ISO format first
-                        created = datetime.strptime(
-                            created_str.split(".")[0], "%Y-%m-%dT%H:%M:%S"
-                        )
+                        if created_str.endswith("Z"):
+                            created_str = created_str[:-1] + "+00:00"
+                        created = datetime.fromisoformat(created_str)
+                        if created.tzinfo is None:
+                            created = created.replace(tzinfo=timezone.utc)
                     except (ValueError, AttributeError):
                         try:
-                            # Fallback to timestamp if ISO format fails
                             created = datetime.fromtimestamp(
                                 float(created_str), timezone.utc
                             )
                         except (ValueError, TypeError):
-                            # Use current time as fallback if all parsing fails
                             logger.warning(
                                 f"Could not parse creation time for image {docker_image.id}, using current time"
                             )
@@ -789,7 +786,7 @@ class DockerService:
                     image = Image(
                         id=docker_image.id,
                         tags=docker_image.tags if docker_image.tags else [],
-                        size=round(size_mb, 2),  # Round to 2 decimal places
+                        size=round(size_mb, 2),
                         created=created,
                         repo_digests=image_info.get("RepoDigests", []),
                         parent_id=image_info.get("Parent", ""),
@@ -802,16 +799,11 @@ class DockerService:
                         f"Processed image: {image.id[:12]} with tags: {image.tags}"
                     )
                 except Exception as e:
-                    logger.error(f"Failed to process image {docker_image.id}: {e}")
-                    continue
-
-            logger.info(f"Successfully fetched {len(images)} Docker images")
+                    logger.error(f"Error processing image: {e}")
             return images, None
-
         except Exception as e:
-            error_msg = f"Failed to get images: {str(e)}"
-            logger.error(error_msg)
-            return None, error_msg
+            logger.error(f"Error fetching images: {e}")
+            return None, str(e)
 
     def delete_image(
         self, image_id: str, force: bool = False
