@@ -180,13 +180,6 @@ The pre-commit hook will run pytest with coverage for backend code automatically
     -   Rate limiting functionality
     -   Docker event subscriptions
 
-## To-Do List and Pending Work
-
--   [ ] Implement real-time container metrics updates
--   [ ] Add container resource usage tracking
--   [ ] Expand test coverage for all backend modules
--   [ ] Implement container log search functionality
-
 ## Developer Documentation
 
 -   **Backend:** Built with Flask and Gunicorn. Core modules include:
