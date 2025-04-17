@@ -22,6 +22,7 @@ interface UseWebSocketProps {
     onError?: (error: string) => void;
     enabled?: boolean;
     isInView?: boolean;
+    logFlushDelay?: number; // Optional parameter to configure log flush delay
 }
 
 interface WebSocketError {
@@ -43,124 +44,132 @@ const initializeSocket = () => {
     if (globalSocket || isInitializing) return;
 
     isInitializing = true;
-    logger.info('Initializing WebSocket connection...');
+    try {
+        logger.info('Initializing WebSocket connection...');
 
-    globalSocket = io(config.API_URL, {
-        transports: ['websocket'],
-        reconnection: true,
-        reconnectionAttempts: Infinity,
-        reconnectionDelay: 1000,
-        reconnectionDelayMax: 5000,
-        timeout: 60000,
-        forceNew: false,
-        autoConnect: true,
-    });
-
-    // Global error handlers
-    globalSocket.on('connect_error', (error) => {
-        logger.error('Connection error:', error);
-        globalHandlers.forEach(handler => handler.onError?.(`Connection error: ${error.message}`));
-    });
-
-    globalSocket.on('error', (error: WebSocketError) => {
-        logger.error('Socket error:', new Error(error.error));
-        globalHandlers.forEach(handler => handler.onError?.(error.error));
-    });
-
-    globalSocket.on('connect', () => {
-        logger.info('Connected to WebSocket server');
-        isInitializing = false;
-    });
-
-    globalSocket.on('connection_established', (data: { message: string }) => {
-        logger.info('WebSocket connection established:', data);
-    });
-
-    globalSocket.on('disconnect', (reason) => {
-        logger.info('Disconnected from WebSocket server:', { reason });
-        if (reason === 'io server disconnect' || reason === 'transport close' || reason === 'ping timeout') {
-            setTimeout(() => {
-                if (globalSocket && !globalSocket.connected && activeSubscriptions > 0) {
-                    logger.info('Attempting to reconnect...');
-                    globalSocket.connect();
-                }
-            }, 1000);
-        }
-    });
-
-    // Initialize event handlers for container state updates
-    globalSocket.on('container_state_change', (data: ContainerState) => {
-        logger.info('Received container state change:', data);
-        globalHandlers.forEach(handler => handler.onContainerStateChange?.(data));
-    });
-
-    // Also handle the alternative event name for backward compatibility
-    globalSocket.on('container_state_changed', (data: ContainerState) => {
-        logger.info('Received container state changed (legacy event):', data);
-        globalHandlers.forEach(handler => handler.onContainerStateChange?.(data));
-    });
-
-    // Handle initial state
-    globalSocket.on('initial_state', (data: { containers: ContainerState[] }) => {
-        logger.info(`Received initial container states: ${data.containers.length}`);
-        globalHandlers.forEach(handler => handler.onInitialState?.(data.containers));
-    });
-
-    // Handle log updates with improved buffering for more responsive streaming
-    globalSocket.on('log_update', (data: { container_id: string; log: string }) => {
-        // Enhanced logging to debug real-time updates
-        logger.debug('Received log update:', {
-            containerId: data.container_id,
-            logLength: data.log.length,
-            logSample: data.log.substring(0, 50) + (data.log.length > 50 ? '...' : '')
+        globalSocket = io(config.API_URL, {
+            transports: ['websocket'],
+            reconnection: true,
+            reconnectionAttempts: Infinity,
+            reconnectionDelay: 1000,
+            reconnectionDelayMax: 5000,
+            timeout: 60000,
+            forceNew: false,
+            autoConnect: true,
         });
 
-        // Group log updates by container ID to minimize re-renders
-        const containerId = data.container_id;
-        const logBuffer = logBuffers.get(containerId) || '';
-        const newBuffer = logBuffer + data.log;
-        logBuffers.set(containerId, newBuffer);
+        // Global error handlers
+        globalSocket.on('connect_error', (error: any) => {
+            logger.error('Connection error:', error);
+            globalHandlers.forEach(handler => handler.onError?.(`Connection error: ${error?.message || 'Unknown error'}`));
+        });
 
-        // If there's a pending flush, don't schedule another one
-        if (!pendingFlushes.has(containerId)) {
-            pendingFlushes.add(containerId);
+        globalSocket.on('error', (error: WebSocketError) => {
+            logger.error('Socket error:', new Error(error.error));
+            globalHandlers.forEach(handler => handler.onError?.(error.error));
+        });
 
-            // Use a longer delay for better performance
-            // This significantly reduces the number of React re-renders
-            setTimeout(() => {
-                const bufferToFlush = logBuffers.get(containerId) || '';
-                if (bufferToFlush.length > 0) {
-                    // Clear the buffer right away before processing
-                    logBuffers.set(containerId, '');
-                    pendingFlushes.delete(containerId);
+        globalSocket.on('connect', () => {
+            logger.info('Connected to WebSocket server');
+            isInitializing = false;
+        });
 
-                    // Log more details to help debug streaming issues
-                    logger.debug('Flushing log buffer:', {
-                        containerId,
-                        bufferLength: bufferToFlush.length,
-                        lineCount: (bufferToFlush.match(/\n/g) || []).length + 1
-                    });
+        globalSocket.on('connection_established', (data: { message: string }) => {
+            logger.info('WebSocket connection established:', data);
+        });
 
-                    // Notify all registered handlers about the log update
-                    globalHandlers.forEach(handler => {
-                        if (handler.onLogUpdate) {
-                            try {
-                                handler.onLogUpdate(containerId, bufferToFlush);
-                            } catch (error) {
-                                logger.error('Error in log update handler:', error instanceof Error ? error : new Error(String(error)));
-                            }
-                        }
-                    });
-                } else {
-                    // Buffer was empty, just clear the pending status
-                    pendingFlushes.delete(containerId);
+        globalSocket.on('disconnect', (reason: any) => {
+            logger.info('Disconnected from WebSocket server:', { reason });
+            if (reason === 'io server disconnect' || reason === 'transport close' || reason === 'ping timeout') {
+                setTimeout(() => {
+                    if (globalSocket !== null && !globalSocket.connected && activeSubscriptions > 0) {
+                        logger.info('Attempting to reconnect...');
+                        globalSocket.connect();
+                    }
+                }, 1000);
+            }
+        });
+
+        // Initialize event handlers for container state updates
+        globalSocket.on('container_state_change', (data: ContainerState) => {
+            logger.info('Received container state change:', data);
+            globalHandlers.forEach(handler => handler.onContainerStateChange?.(data));
+        });
+
+        // Also handle the alternative event name for backward compatibility
+        globalSocket.on('container_state_changed', (data: ContainerState) => {
+            logger.info('Received container state changed (legacy event):', data);
+            globalHandlers.forEach(handler => handler.onContainerStateChange?.(data));
+        });
+
+        // Handle initial state
+        globalSocket.on('initial_state', (data: { containers: ContainerState[] }) => {
+            logger.info(`Received initial container states: ${data.containers.length}`);
+            globalHandlers.forEach(handler => handler.onInitialState?.(data.containers));
+        });
+
+        // Handle log updates with improved buffering for more responsive streaming
+        globalSocket.on('log_update', (data: { container_id: string; log: string }) => {
+            logger.debug('Received log update:', {
+                containerId: data.container_id,
+                logLength: data.log.length,
+                logSample: data.log.substring(0, 50) + (data.log.length > 50 ? '...' : '')
+            });
+
+            const containerId = data.container_id;
+            const logBuffer = logBuffers.get(containerId) || '';
+            const newBuffer = logBuffer + data.log;
+            logBuffers.set(containerId, newBuffer);
+
+            if (!pendingFlushes.has(containerId)) {
+                pendingFlushes.add(containerId);
+                // Find a logFlushDelay from any handler, fallback to 200ms
+                let logFlushDelay = 200;
+                for (const handler of globalHandlers) {
+                    if (handler.logFlushDelay !== undefined) {
+                        logFlushDelay = handler.logFlushDelay;
+                        break;
+                    }
                 }
-            }, 200); // Increased to 200ms for better performance with multiple log streams
-        }
-    });
+                setTimeout(() => {
+                    const bufferToFlush = logBuffers.get(containerId) || '';
+                    if (bufferToFlush.length > 0) {
+                        logBuffers.set(containerId, '');
+                        pendingFlushes.delete(containerId);
+                        logger.debug('Flushing log buffer:', {
+                            containerId,
+                            bufferLength: bufferToFlush.length,
+                            lineCount: (bufferToFlush.match(/\n/g) || []).length + 1
+                        });
+                        globalHandlers.forEach(handler => {
+                            if (handler.onLogUpdate) {
+                                try {
+                                    handler.onLogUpdate(containerId, bufferToFlush);
+                                } catch (error: any) {
+                                    logger.error('Error in log update handler:', error instanceof Error ? error : new Error(String(error)));
+                                }
+                            }
+                        });
+                    } else {
+                        pendingFlushes.delete(containerId);
+                    }
+                }, logFlushDelay);
+            }
+        });
 
-    globalSocket.connect();
+        globalSocket.connect();
+    } catch (error: any) {
+        logger.error('Error during WebSocket initialization:', error instanceof Error ? error : new Error(String(error)));
+    } finally {
+        isInitializing = false;
+    }
 };
+
+interface UseWebSocketReturn {
+    startLogStream: (containerId: string, isVisible?: boolean) => void;
+    stopLogStream: (containerId: string) => void;
+    isConnected: boolean;
+}
 
 export const useWebSocket = ({
     onLogUpdate,
@@ -168,15 +177,17 @@ export const useWebSocket = ({
     onInitialState,
     onError,
     enabled = true,
-    isInView = true
-}: UseWebSocketProps) => {
+    isInView = true,
+    logFlushDelay
+}: UseWebSocketProps): UseWebSocketReturn => {
     // Create a handler ref to keep it stable between renders
     const handlers = useRef<UseWebSocketProps>({
         onLogUpdate,
         onContainerStateChange,
         onInitialState,
         onError,
-        isInView
+        isInView,
+        logFlushDelay
     });
 
     const [isConnected, setIsConnected] = useState(false);
@@ -188,60 +199,48 @@ export const useWebSocket = ({
             onContainerStateChange,
             onInitialState,
             onError,
-            isInView
+            isInView,
+            logFlushDelay
         };
-    }, [onLogUpdate, onContainerStateChange, onInitialState, onError, isInView]);
+    }, [onLogUpdate, onContainerStateChange, onInitialState, onError, isInView, logFlushDelay]);
 
     useEffect(() => {
-        if (!enabled) return;
-
-        // Add the current handlers to the global set
         globalHandlers.add(handlers.current);
         activeSubscriptions++;
-
-        // Initialize socket if needed
         initializeSocket();
-
-        // Update connection status when socket connects/disconnects
         const handleConnect = () => setIsConnected(true);
         const handleDisconnect = () => setIsConnected(false);
-
-        if (globalSocket) {
+        if (globalSocket !== null) {
             globalSocket.on('connect', handleConnect);
             globalSocket.on('disconnect', handleDisconnect);
-            setIsConnected(globalSocket.connected);
         }
-
         return () => {
             activeSubscriptions--;
             globalHandlers.delete(handlers.current);
-
-            if (globalSocket) {
+            if (globalSocket !== null) {
                 globalSocket.off('connect', handleConnect);
                 globalSocket.off('disconnect', handleDisconnect);
-            }
-
-            if (activeSubscriptions === 0 && globalSocket) {
-                logger.info('Cleaning up last WebSocket connection');
-                globalSocket.disconnect();
-                globalSocket = null;
-                isInitializing = false;
+                if (activeSubscriptions <= 0) {
+                    logger.info('Cleaning up last WebSocket connection');
+                    globalSocket.disconnect();
+                    globalSocket = null;
+                    isInitializing = false;
+                    activeSubscriptions = 0;
+                }
             }
         };
     }, [enabled]);
 
-    const startLogStream = useCallback((containerId: string) => {
+    const startLogStream = useCallback((containerId: string, isVisible: boolean = true) => {
         if (globalSocket && enabled) {
-            // Clear any existing buffer for this container
-            logBuffers.set(containerId, '');
-            if (pendingFlushes.has(containerId)) {
-                pendingFlushes.delete(containerId);
+            if (!pendingFlushes.has(containerId)) {
+                logBuffers.set(containerId, '');
+            } else {
+                logger.warn('Skipping buffer clear due to pending flush', { containerId });
             }
 
-            // Set initial visibility state
-            containerVisibility.set(containerId, handlers.current.isInView || true);
+            containerVisibility.set(containerId, isVisible);
 
-            // Start the stream
             globalSocket.emit('start_log_stream', { container_id: containerId });
             logger.info('Started log stream for container', { containerId });
         } else {
@@ -252,27 +251,11 @@ export const useWebSocket = ({
         }
     }, [enabled]);
 
-    // Update container visibility when isInView changes
-    useEffect(() => {
-        if (enabled && handlers.current.onLogUpdate) {
-            // This effect runs when isInView changes
-            // We'll update the visibility map for any active containers
-            const updateVisibility = (containerId: string, isVisible: boolean) => {
-                containerVisibility.set(containerId, isVisible);
-                logger.debug('Updated container visibility', { containerId, isVisible });
-            };
-
-            // For now, we don't know which container this hook instance is for
-            // The actual visibility will be set when startLogStream is called
-        }
-    }, [isInView, enabled]);
-
     const stopLogStream = useCallback((containerId: string) => {
         if (globalSocket && enabled) {
             globalSocket.emit('stop_log_stream', { container_id: containerId });
             logger.info('Stopped log stream for container', { containerId });
 
-            // Clear any buffered logs for this container
             logBuffers.set(containerId, '');
             if (pendingFlushes.has(containerId)) {
                 pendingFlushes.delete(containerId);
