@@ -6,6 +6,8 @@ interface ContainerState {
     containers: Container[];
     isLoading: boolean;
     error: string | null;
+    areAllLogsOpen: boolean; // Added for global log visibility
+    initialLogsVisibility?: boolean; // Added as per task
 }
 
 type ContainerAction =
@@ -13,12 +15,25 @@ type ContainerAction =
     | { type: 'UPDATE_CONTAINER'; payload: Container }
     | { type: 'DELETE_CONTAINER'; payload: string }
     | { type: 'SET_LOADING'; payload: boolean }
-    | { type: 'SET_ERROR'; payload: string | null };
+    | { type: 'SET_ERROR'; payload: string | null }
+    | { type: 'SET_ALL_LOGS_VISIBILITY'; payload: boolean }; // Added action type
+
+// Helper to get initial log visibility from localStorage
+const getInitialAllLogsOpen = (): boolean => {
+    try {
+        const storedValue = localStorage.getItem('dockerWebInterface_allLogsVisible');
+        return storedValue === 'true';
+    } catch (e) {
+        logger.error('Failed to read dockerWebInterface_allLogsVisible from localStorage', e);
+        return false;
+    }
+};
 
 const initialState: ContainerState = {
     containers: [],
     isLoading: false,
     error: null,
+    areAllLogsOpen: getInitialAllLogsOpen(), // Initialize from localStorage
 };
 
 const ContainerContext = createContext<{
@@ -32,6 +47,17 @@ const ContainerContext = createContext<{
 const containerReducer = (state: ContainerState, action: ContainerAction): ContainerState => {
     switch (action.type) {
         case 'SET_CONTAINERS':
+            // When containers are set, ensure their individual log visibility matches the global state
+            // This is important if the global state was toggled while no containers were loaded
+            if (state.areAllLogsOpen) {
+                try {
+                    action.payload.forEach(container => {
+                        localStorage.setItem(`dockerWebInterface_logsViewed_${container.id}`, 'true');
+                    });
+                } catch (e) {
+                    logger.error('Failed to set initial individual log visibility in localStorage', e);
+                }
+            }
             return {
                 ...state,
                 containers: action.payload,
@@ -73,6 +99,20 @@ const containerReducer = (state: ContainerState, action: ContainerAction): Conta
                 isLoading: false,
             };
 
+        case 'SET_ALL_LOGS_VISIBILITY':
+            try {
+                // Side effect: Update individual container log visibility in localStorage
+                state.containers.forEach(container => {
+                    localStorage.setItem(`dockerWebInterface_logsViewed_${container.id}`, action.payload.toString());
+                });
+            } catch (e) {
+                logger.error('Failed to update individual log visibility in localStorage', e);
+            }
+            return {
+                ...state,
+                areAllLogsOpen: action.payload,
+            };
+
         default:
             return state;
     }
@@ -98,7 +138,7 @@ export const useContainerContext = () => {
 
 // Helper hooks for common container operations
 export const useContainerOperations = () => {
-    const { dispatch } = useContainerContext();
+    const { state: containerState, dispatch } = useContainerContext();
 
     const setContainers = (containers: Container[]) => {
         logger.info('Setting containers:', { containers });
@@ -126,11 +166,24 @@ export const useContainerOperations = () => {
         dispatch({ type: 'SET_ERROR', payload: error });
     };
 
+    const setAllLogsVisibility = (isVisible: boolean) => {
+        try {
+            // Update the global localStorage key
+            localStorage.setItem('dockerWebInterface_allLogsVisible', isVisible.toString());
+        } catch (e) {
+            logger.error('Failed to set dockerWebInterface_allLogsVisible in localStorage', e);
+        }
+        // Dispatch the action to update state and individual container localStorage items
+        dispatch({ type: 'SET_ALL_LOGS_VISIBILITY', payload: isVisible });
+    };
+
     return {
         setContainers,
         updateContainer,
         deleteContainer,
         setLoading,
         setError,
+        setAllLogsVisibility,
+        areAllLogsOpen: containerState.areAllLogsOpen, // Expose the state
     };
 };
