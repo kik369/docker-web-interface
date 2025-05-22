@@ -9,6 +9,7 @@ import { logger } from '../services/logging';
 import { config } from '../config';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useTheme } from '../context/ThemeContext';
+import { useContainerContext } from '../context/ContainerContext'; // Added
 import LogContainer from './LogContainer';
 import { CopyableText } from './CopyableText';
 
@@ -176,94 +177,7 @@ const PortDisplay: React.FC<{ portsString: string }> = ({ portsString }) => {
     );
 };
 
-// Tooltip component that uses ReactDOM.createPortal to avoid positioning issues
-interface TooltipProps {
-    children: React.ReactNode;
-    text: React.ReactNode;
-}
-
-const Tooltip: React.FC<TooltipProps> = ({ children, text }) => {
-    const [showTooltip, setShowTooltip] = useState(false);
-    const [position, setPosition] = useState({ top: 0, left: 0 });
-    const triggerRef = useRef<HTMLDivElement>(null);
-    const { theme } = useTheme();
-
-    const updateTooltipPosition = () => {
-        if (triggerRef.current) {
-            const rect = triggerRef.current.getBoundingClientRect();
-            setPosition({
-                top: rect.top - 10,
-                left: rect.left + rect.width / 2
-            });
-        }
-    };
-
-    const handleMouseEnter = () => {
-        updateTooltipPosition();
-        setShowTooltip(true);
-    };
-
-    const handleMouseLeave = () => {
-        setShowTooltip(false);
-    };
-
-    useEffect(() => {
-        if (showTooltip) {
-            window.addEventListener('scroll', updateTooltipPosition);
-            window.addEventListener('resize', updateTooltipPosition);
-        }
-
-        return () => {
-            window.removeEventListener('scroll', updateTooltipPosition);
-            window.removeEventListener('resize', updateTooltipPosition);
-        };
-    }, [showTooltip]);
-
-    return (
-        <>
-            <div
-                ref={triggerRef}
-                onMouseEnter={handleMouseEnter}
-                onMouseLeave={handleMouseLeave}
-                className="cursor-help inline-flex"
-            >
-                {children}
-            </div>
-
-            {showTooltip && document.body && ReactDOM.createPortal(
-                <div
-                    className={`fixed ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-500'} text-white p-2 rounded
-                    shadow-xl z-[1000] text-xs whitespace-nowrap min-w-min
-                    ${theme === 'dark' ? 'shadow-black/50 border border-gray-700' : 'shadow-gray-700/50'}
-                    backdrop-blur-sm backdrop-filter`}
-                    style={{
-                        top: `${position.top}px`,
-                        left: `${position.left}px`,
-                        transform: 'translate(-50%, -100%)',
-                        boxShadow: theme === 'dark'
-                            ? '0 4px 8px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.3)'
-                            : '0 4px 8px rgba(0, 0, 0, 0.25), 0 2px 4px rgba(0, 0, 0, 0.15)'
-                    }}
-                >
-                    <div className="relative">
-                        {text}
-                        <div
-                            className={`absolute w-0 h-0 border-l-6 border-r-6 border-t-6 border-transparent
-                            ${theme === 'dark' ? 'border-t-gray-800' : 'border-t-gray-500'}`}
-                            style={{
-                                bottom: '-12px',
-                                left: '50%',
-                                transform: 'translateX(-50%)',
-                                filter: theme === 'dark' ? 'drop-shadow(0 2px 2px rgba(0, 0, 0, 0.5))' : 'drop-shadow(0 2px 2px rgba(0, 0, 0, 0.25))'
-                            }}
-                        />
-                    </div>
-                </div>,
-                document.body
-            )}
-        </>
-    );
-};
+import Tooltip from './shared/Tooltip'; // Added import
 
 export const ContainerRow: React.FC<ContainerRowProps> = ({
     container,
@@ -274,16 +188,19 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
     isHighlighted,
     highlightTimestamp
 }) => {
-    // State for log streaming
+    const { state: { areAllLogsOpen } } = useContainerContext(); // Access global state
+
+    // State for log streaming - Renamed showLogs to isLogVisible
     const [logs, setLogs] = useState('');
-    const [showLogs, setShowLogs] = useState(() => {
+    const [isLogVisible, setIsLogVisible] = useState(() => { // Renamed
         try {
-            // Initialize from localStorage on component mount
+            // Initialize from localStorage on component mount.
+            // The global state (areAllLogsOpen) will be applied by an effect if it differs.
             const saved = localStorage.getItem(`${LOGS_STORAGE_KEY_PREFIX}${container.id}`);
             return saved === 'true';
         } catch (err) {
             logger.error('Failed to load log view state from localStorage:', err instanceof Error ? err : new Error(String(err)));
-            return false;
+            return false; // Default to false on error
         }
     });
     const [isLoadingLogs, setIsLoadingLogs] = useState(false);
@@ -293,85 +210,15 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
     const [isInView, setIsInView] = useState(false);
 
     // Create stable refs to track state across renders
-    const showLogsRef = useRef(showLogs);
+    const isLogVisibleRef = useRef(isLogVisible); // Renamed
     const streamActiveRef = useRef(false);
     const logContainerRef = useRef<HTMLDivElement>(null);
     const logContainerObserver = useRef<IntersectionObserver | null>(null);
     const { theme } = useTheme();
 
-    // Update refs when state changes
-    useEffect(() => {
-        showLogsRef.current = showLogs;
-    }, [showLogs]);
-
-    useEffect(() => {
-        streamActiveRef.current = isStreamActive;
-    }, [isStreamActive]);
-
-    // Set up intersection observer to detect when logs are in/out of viewport
-    useEffect(() => {
-        if (showLogs && logContainerRef.current) {
-            // Set up intersection observer to detect when logs are in/out of viewport
-            logContainerObserver.current = new IntersectionObserver(
-                (entries) => {
-                    entries.forEach((entry) => {
-                        setIsInView(entry.isIntersecting);
-                    });
-                },
-                { threshold: 0.1 } // 10% visibility threshold
-            );
-
-            logContainerObserver.current.observe(logContainerRef.current);
-        }
-
-        return () => {
-            if (logContainerObserver.current) {
-                logContainerObserver.current.disconnect();
-            }
-        };
-    }, [showLogs]);
-
-    // Pause/resume streaming based on isPaused state
-    useEffect(() => {
-        // Pause/resume streaming based on isPaused state
-        if (showLogs && isPaused && isStreamActive) {
-            // Temporarily stop streaming
-            stopLogStream(container.id);
-            setIsStreamActive(false);
-        } else if (showLogs && !isPaused && !isStreamActive) {
-            // Resume streaming
-            startLogStream(container.id);
-            setIsStreamActive(true);
-        }
-    }, [showLogs, isPaused, isStreamActive, container.id]);
-
-    // Handle highlight effect
-    useEffect(() => {
-        if (isHighlighted && highlightTimestamp) {
-            // Activate highlight
-            setHighlightActive(true);
-
-            // Deactivate highlight after 2 seconds
-            const timer = setTimeout(() => {
-                setHighlightActive(false);
-            }, 2000);
-
-            return () => clearTimeout(timer);
-        }
-    }, [isHighlighted, highlightTimestamp]);
-
-    // Save log view state to localStorage whenever it changes
-    useEffect(() => {
-        try {
-            localStorage.setItem(`${LOGS_STORAGE_KEY_PREFIX}${container.id}`, showLogs.toString());
-        } catch (err) {
-            logger.error('Failed to save log view state to localStorage:', err instanceof Error ? err : new Error(String(err)));
-        }
-    }, [showLogs, container.id]);
-
     const { startLogStream, stopLogStream } = useWebSocket({
         onLogUpdate: (containerId, log) => {
-            if (containerId === container.id && showLogsRef.current) {
+            if (containerId === container.id && isLogVisibleRef.current) { // Renamed
                 // Log the update for debugging
                 logger.debug('Updating logs in ContainerRow:', {
                     containerId,
@@ -379,6 +226,10 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                     currentLogsLength: logs.length,
                     lineCount: (log.match(/\n/g) || []).length + 1
                 });
+
+                if (isLoadingLogs) {
+                    setIsLoadingLogs(false);
+                }
 
                 // Use a functional update to avoid closure issues
                 // This is more efficient than capturing the previous logs in the closure
@@ -406,10 +257,10 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
             setIsLoadingLogs(false);
 
             // Try to restart the stream if it fails
-            if (showLogsRef.current && streamActiveRef.current) {
+            if (isLogVisibleRef.current && streamActiveRef.current) { // Renamed
                 logger.info('Attempting to restart log stream after error', { containerId: container.id });
                 setTimeout(() => {
-                    if (showLogsRef.current) {
+                    if (isLogVisibleRef.current) { // Renamed
                         startLogStream(container.id);
                     }
                 }, 2000); // Wait 2 seconds before trying to reconnect
@@ -419,71 +270,122 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
         isInView: isInView // Pass visibility state to control update frequency
     });
 
-    // Toggle log display
-    const handleToggleLogs = useCallback(async (isRestoring: boolean = false) => {
-        if (showLogs && !isRestoring) {
-            // Logs are being hidden, stop streaming
+    // Update refs when state changes
+    useEffect(() => {
+        isLogVisibleRef.current = isLogVisible; // Renamed
+    }, [isLogVisible]);
+
+    useEffect(() => {
+        streamActiveRef.current = isStreamActive;
+    }, [isStreamActive]);
+
+    // Effect to synchronize with global areAllLogsOpen state
+    useEffect(() => {
+        // When areAllLogsOpen changes, update local state and localStorage for this specific container
+        // This ensures the row reacts to global commands.
+        if (isLogVisible !== areAllLogsOpen) { // Only update if different to avoid loop with local storage effect
+             setIsLogVisible(areAllLogsOpen);
+             try {
+                 localStorage.setItem(`${LOGS_STORAGE_KEY_PREFIX}${container.id}`, areAllLogsOpen.toString());
+             } catch (err) {
+                 logger.error('Failed to save log view state to localStorage from global sync:', err instanceof Error ? err : new Error(String(err)));
+             }
+        }
+    }, [areAllLogsOpen, container.id]); // isLogVisible removed from deps
+
+    // Set up intersection observer to detect when logs are in/out of viewport
+    useEffect(() => {
+        if (isLogVisible && logContainerRef.current) { // Renamed showLogs
+            // Set up intersection observer to detect when logs are in/out of viewport
+            logContainerObserver.current = new IntersectionObserver(
+                (entries) => {
+                    entries.forEach((entry) => {
+                        setIsInView(entry.isIntersecting);
+                    });
+                },
+                { threshold: 0.1 } // 10% visibility threshold
+            );
+
+            logContainerObserver.current.observe(logContainerRef.current);
+        }
+
+        return () => {
+            if (logContainerObserver.current) {
+                logContainerObserver.current.disconnect();
+            }
+        };
+    }, [isLogVisible]); // Renamed showLogs
+
+    // Pause/resume streaming based on isPaused state
+    useEffect(() => {
+        if (isLogVisible && isPaused && isStreamActive) { // Renamed showLogs
             stopLogStream(container.id);
             setIsStreamActive(false);
-            setShowLogs(false);
-            setIsPaused(false);
-            streamActiveRef.current = false;
-            setLogs(''); // Clear logs when hiding
-            return;
-        }
-
-        // Only show logs and start streaming, do not fetch via REST
-        if (!isRestoring) {
-            setShowLogs(true);
-            setIsPaused(false);
-        }
-        setIsLoadingLogs(true); // Show loading indicator while waiting for first logs via WS
-        setLogs(''); // Clear previous logs
-
-        // Start the stream - backend should send initial logs + subsequent ones
-        streamActiveRef.current = true;
-        startLogStream(container.id);
-        setIsStreamActive(true);
-
-        // setIsLoadingLogs(false) will be handled implicitly when first logs arrive
-        // or potentially via a dedicated 'initial_logs_received' event from backend
-        // For simplicity, we can just set a timeout or remove the indicator after a delay
-        setTimeout(() => setIsLoadingLogs(false), 1500); // Example timeout
-    }, [container.id, showLogs, startLogStream, stopLogStream]);
-
-    // Start log streaming immediately when component mounts if logs should be shown
-    useEffect(() => {
-        if (showLogs) {
-            handleToggleLogs(true);
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
-
-    // Start or stop log streaming based on showLogs state
-    useEffect(() => {
-        // When logs become visible
-        if (showLogs && !streamActiveRef.current) {
-            streamActiveRef.current = true;
-            logger.info('Starting log stream due to showLogs change', { containerId: container.id });
+        } else if (isLogVisible && !isPaused && !isStreamActive) { // Renamed showLogs
             startLogStream(container.id);
             setIsStreamActive(true);
         }
+    }, [isLogVisible, isPaused, isStreamActive, container.id, stopLogStream, startLogStream]); // Renamed showLogs & added dependencies
 
-        // Cleanup function will handle the case when logs are hidden
-        return () => {
-            if (!showLogs && streamActiveRef.current) {
-                streamActiveRef.current = false;
+    // Handle highlight effect
+    useEffect(() => {
+        if (isHighlighted && highlightTimestamp) {
+            // Activate highlight
+            setHighlightActive(true);
+
+            // Deactivate highlight after 2 seconds
+            const timer = setTimeout(() => {
+                setHighlightActive(false);
+            }, 2000);
+
+            return () => clearTimeout(timer);
+        }
+    }, [isHighlighted, highlightTimestamp]);
+
+    // Save log view state to localStorage whenever it changes
+    useEffect(() => {
+        // This effect ensures that local changes to isLogVisible (e.g., from user interaction)
+        // are persisted to localStorage.
+        try {
+            localStorage.setItem(`${LOGS_STORAGE_KEY_PREFIX}${container.id}`, isLogVisible.toString());
+        } catch (err) {
+            logger.error('Failed to save log view state to localStorage on local change:', err instanceof Error ? err : new Error(String(err)));
+        }
+    }, [isLogVisible, container.id]); // Runs when isLogVisible or container.id changes.
+
+    // Toggle log display (handles local user interaction)
+    const handleToggleLogs = useCallback(() => {
+        // This updates the local isLogVisible state.
+        // The useEffect watching isLogVisible will then handle localStorage update & stream control.
+        setIsLogVisible(prev => !prev);
+    }, []); // No dependencies needed as it only uses setIsLogVisible
+
+    // Effect for managing log stream when isLogVisible changes (either by global or local action)
+    useEffect(() => {
+        if (isLogVisible) {
+            if (!streamActiveRef.current) { // Only start if not already active
+                setIsPaused(false); // Ensure not paused when starting
+                setIsLoadingLogs(true);
+                setLogs(''); // Clear previous logs
+                streamActiveRef.current = true;
+                startLogStream(container.id);
+                setIsStreamActive(true);
+                // setTimeout(() => setIsLoadingLogs(false), 1500); // Removed this line
+            }
+        } else {
+            if (streamActiveRef.current) { // Only stop if active
                 stopLogStream(container.id);
                 setIsStreamActive(false);
-                logger.info('Log stream inactive due to showLogs change', { containerId: container.id });
+                streamActiveRef.current = false;
+                setLogs(''); // Clear logs when hiding
             }
-        };
-    }, [showLogs, container.id, startLogStream, stopLogStream]);
+        }
+    }, [isLogVisible, container.id, startLogStream, stopLogStream]); // Dependencies for controlling the stream
 
     // Cleanup when component unmounts
     useEffect(() => {
         return () => {
-            if (streamActiveRef.current) {
+            if (streamActiveRef.current) { // Check if stream was active
                 stopLogStream(container.id);
                 logger.info('Log stream stopped due to component unmount', { containerId: container.id });
             }
@@ -491,13 +393,11 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
     }, [container.id, stopLogStream]);
 
     const handleCloseLogs = useCallback(() => {
-        stopLogStream(container.id);
-        setShowLogs(false);
-        streamActiveRef.current = false;
-        setIsStreamActive(false);
-        setIsPaused(false);
-        logger.info('Logs closed by user', { containerId: container.id });
-    }, [container.id, stopLogStream]);
+        // This function is called by LogContainer child, effectively a manual toggle off for this row.
+        // It updates the local isLogVisible state.
+        // The useEffect watching isLogVisible will then handle localStorage update & stream control.
+        setIsLogVisible(false);
+    }, []); // No dependencies needed as it only uses setIsLogVisible
 
     const handleAction = async (action: string) => {
         try {
@@ -675,14 +575,14 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                         <button
                             onClick={(e) => {
                                 e.stopPropagation();
-                                handleToggleLogs();
+                                handleToggleLogs(); // This now handles local state
                             }}
                             className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700 hover:bg-gray-600' : 'bg-gray-200 hover:bg-gray-300'} rounded-md px-3 py-1.5 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} transition-colors`}
                             disabled={isLoadingLogs}
-                            title={showLogs ? "Hide logs" : "Show logs"}
+                            title={isLogVisible ? "Hide logs" : "Show logs"} // Renamed
                         >
-                            <DocumentIcon className={`h-4 w-4 mr-1.5 ${showLogs ? 'text-blue-400' : 'text-gray-400'}`} />
-                            <span className="hidden sm:inline">{showLogs ? 'Hide Logs' : 'Show Logs'}</span>
+                            <DocumentIcon className={`h-4 w-4 mr-1.5 ${isLogVisible ? 'text-blue-400' : 'text-gray-400'}`} /> {/* Renamed */}
+                            <span className="hidden sm:inline">{isLogVisible ? 'Hide Logs' : 'Show Logs'}</span> {/* Renamed */}
                         </button>
 
                         <button
@@ -726,7 +626,7 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                     </div>
                 </div>
             </div>
-            {showLogs && (
+            {isLogVisible && ( // Renamed
                 <div className={`px-4 py-3 ${theme === 'dark' ? 'bg-gray-800' : 'bg-gray-50'}`}>
                     {renderLogs()}
                 </div>

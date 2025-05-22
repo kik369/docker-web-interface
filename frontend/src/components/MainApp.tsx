@@ -53,7 +53,15 @@ const CommandPalettePortal: React.FC<{
 
 function MainApp() {
     const { state: { containers, isLoading: containersLoading, error: containersError } } = useContainerContext();
-    const { setContainers, updateContainer, deleteContainer, setLoading, setError } = useContainerOperations();
+    const {
+        setContainers,
+        updateContainer,
+        deleteContainer,
+        setLoading,
+        setError,
+        setAllLogsVisibility, // Added
+        areAllLogsOpen,       // Added
+    } = useContainerOperations();
     const { images, refresh: refreshImages } = useImages();
     const [activeTab, setActiveTab] = useState<'containers' | 'images'>(loadActiveTab);
     const [wsError, setWsError] = useState<string | null>(null);
@@ -155,22 +163,8 @@ function MainApp() {
             icon: 'container',
             status: container.state === 'running' ? 'running' : 'stopped',
             action: () => {
-                // Close all logs first
-                const LOGS_STORAGE_KEY_PREFIX = 'dockerWebInterface_logsViewed_';
-
-                // Get all keys from localStorage
-                const keys = [];
-                for (let i = 0; i < localStorage.length; i++) {
-                    const key = localStorage.key(i);
-                    if (key && key.startsWith(LOGS_STORAGE_KEY_PREFIX)) {
-                        keys.push(key);
-                    }
-                }
-
-                // Set all log view states to false
-                keys.forEach(key => {
-                    localStorage.setItem(key, 'false');
-                });
+                // Close all logs first using the new context operation
+                setAllLogsVisibility(false);
 
                 // Then navigate to the container
                 handleTabSwitch('containers', true);
@@ -180,15 +174,10 @@ function MainApp() {
                     id: container.id,
                     timestamp: Date.now()
                 });
-
-                // Force a re-render to apply log changes
-                setLoading(true);
-                setTimeout(() => setLoading(false), 100);
-
-                logger.info('Closed all logs when selecting container from command palette');
+                logger.info('Closed all logs (via context) when selecting container from command palette');
             }
         }));
-    }, [containers, setLoading]);
+    }, [containers, setAllLogsVisibility]);
 
     const imageOptions = useMemo(() => {
         if (!images || images.length === 0) return [];
@@ -200,22 +189,8 @@ function MainApp() {
             category: 'Images',
             icon: 'image',
             action: () => {
-                // Close all logs first
-                const LOGS_STORAGE_KEY_PREFIX = 'dockerWebInterface_logsViewed_';
-
-                // Get all keys from localStorage
-                const keys = [];
-                for (let i = 0; i < localStorage.length; i++) {
-                    const key = localStorage.key(i);
-                    if (key && key.startsWith(LOGS_STORAGE_KEY_PREFIX)) {
-                        keys.push(key);
-                    }
-                }
-
-                // Set all log view states to false
-                keys.forEach(key => {
-                    localStorage.setItem(key, 'false');
-                });
+                // Close all logs first using the new context operation
+                setAllLogsVisibility(false);
 
                 // Then navigate to the image
                 handleTabSwitch('images', true);
@@ -225,79 +200,10 @@ function MainApp() {
                     id: image.id,
                     timestamp: Date.now()
                 });
-
-                // Force a re-render to apply log changes
-                setLoading(true);
-                setTimeout(() => setLoading(false), 100);
-
-                logger.info('Closed all logs when selecting image from command palette');
+                logger.info('Closed all logs (via context) when selecting image from command palette');
             }
         }));
-    }, [images, setLoading]);
-
-    // Helper function to check if any logs are open
-    const areAnyLogsOpen = useCallback(() => {
-        const LOGS_STORAGE_KEY_PREFIX = 'dockerWebInterface_logsViewed_';
-        const keys = [];
-        for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (key && key.startsWith(LOGS_STORAGE_KEY_PREFIX)) {
-                const isOpen = localStorage.getItem(key) === 'true';
-                if (isOpen) return true;
-            }
-        }
-        return false;
-    }, []);
-
-    // Helper function to show all logs
-    const showAllLogs = useCallback(() => {
-        const LOGS_STORAGE_KEY_PREFIX = 'dockerWebInterface_logsViewed_';
-
-        // Get all container IDs from localStorage
-        const keys = [];
-        for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (key && key.startsWith(LOGS_STORAGE_KEY_PREFIX)) {
-                keys.push(key);
-            }
-        }
-
-        // Set all log view states to true
-        keys.forEach(key => {
-            localStorage.setItem(key, 'true');
-        });
-
-        // Force a re-render of the container list to apply changes
-        setLoading(true);
-        setTimeout(() => setLoading(false), 100);
-
-        logger.info('Opened all container logs');
-    }, [setLoading]);
-
-    // Helper function to close all logs
-    const closeAllLogs = useCallback(() => {
-        const LOGS_STORAGE_KEY_PREFIX = 'dockerWebInterface_logsViewed_';
-
-        // Get all keys from localStorage
-        const keys = [];
-        for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (key && key.startsWith(LOGS_STORAGE_KEY_PREFIX)) {
-                keys.push(key);
-            }
-        }
-
-        // Set all log view states to false
-        keys.forEach(key => {
-            localStorage.setItem(key, 'false');
-        });
-
-        // Force a re-render of the container list to apply changes
-        setLoading(true);
-        setTimeout(() => setLoading(false), 100);
-
-        logger.info('Closed all container logs');
-    }, [setLoading]);
+    }, [images, setAllLogsVisibility]);
 
     // Define commands for the command palette
     const commands = useMemo(() => [
@@ -332,16 +238,12 @@ function MainApp() {
         },
         {
             id: 'toggle-all-logs',
-            name: areAnyLogsOpen() ? 'Close All Logs' : 'Show All Logs',
+            name: areAllLogsOpen ? 'Close All Logs' : 'Show All Logs', // Updated
             shortcut: 'Ctrl + Shift + L',
             category: 'Actions',
             icon: 'logs',
             action: () => {
-                if (areAnyLogsOpen()) {
-                    closeAllLogs();
-                } else {
-                    showAllLogs();
-                }
+                setAllLogsVisibility(!areAllLogsOpen); // Updated
             }
         },
         // Docker Maintenance commands
@@ -357,7 +259,6 @@ function MainApp() {
                 if (success) {
                     // Force refresh of containers list if successful
                     setLoading(true);
-                    setTimeout(() => setLoading(false), 100);
                 }
             }
         },
@@ -390,7 +291,6 @@ function MainApp() {
                 if (success) {
                     // Force refresh of containers list since volumes affect containers
                     setLoading(true);
-                    setTimeout(() => setLoading(false), 100);
                 }
             }
         },
@@ -406,7 +306,6 @@ function MainApp() {
                 if (success) {
                     // Force refresh of containers list since networks affect containers
                     setLoading(true);
-                    setTimeout(() => setLoading(false), 100);
                 }
             }
         },
@@ -422,12 +321,9 @@ function MainApp() {
                 if (success) {
                     // Refresh both containers and images
                     setLoading(true);
-                    setTimeout(() => {
-                        setLoading(false);
-                        if (activeTab === 'images') {
-                            refreshImages();
-                        }
-                    }, 100);
+                    if (activeTab === 'images') {
+                        refreshImages();
+                    }
                 }
             }
         },
@@ -438,9 +334,11 @@ function MainApp() {
         containerOptions,
         imageOptions,
         setLoading,
-        areAnyLogsOpen,
-        closeAllLogs,
-        showAllLogs,
+        // areAnyLogsOpen, // Removed
+        // closeAllLogs, // Removed
+        // showAllLogs, // Removed
+        areAllLogsOpen, // Added
+        setAllLogsVisibility, // Added
         pruneContainers,
         pruneImages,
         pruneVolumes,
@@ -491,12 +389,8 @@ function MainApp() {
             // Ctrl+Shift+L for toggling logs
             if (event.ctrlKey && event.shiftKey && event.key === 'L') {
                 event.preventDefault();
-                if (areAnyLogsOpen()) {
-                    closeAllLogs();
-                } else {
-                    showAllLogs();
-                }
-                logger.info('Toggled all container logs via keyboard shortcut');
+                setAllLogsVisibility(!areAllLogsOpen); // Updated
+                logger.info('Toggled all container logs (via context) via keyboard shortcut');
             }
         };
 
@@ -504,7 +398,7 @@ function MainApp() {
         return () => {
             window.removeEventListener('keydown', handleKeyDown);
         };
-    }, [activeTab, refreshImages, setLoading, toggleTheme, toggleCommandPalette, areAnyLogsOpen, closeAllLogs, showAllLogs]);
+    }, [activeTab, refreshImages, setLoading, toggleTheme, toggleCommandPalette, areAllLogsOpen, setAllLogsVisibility]);
 
     return (
         <div className="flex flex-col h-screen">
