@@ -24,7 +24,7 @@ const getInitialAllLogsOpen = (): boolean => {
         const storedValue = localStorage.getItem('dockerWebInterface_allLogsVisible');
         return storedValue === 'true';
     } catch (e) {
-        logger.error('Failed to read dockerWebInterface_allLogsVisible from localStorage', e);
+        logger.error('Failed to read dockerWebInterface_allLogsVisible from localStorage', e instanceof Error ? e : new Error(String(e)));
         return false;
     }
 };
@@ -55,7 +55,7 @@ const containerReducer = (state: ContainerState, action: ContainerAction): Conta
                         localStorage.setItem(`dockerWebInterface_logsViewed_${container.id}`, 'true');
                     });
                 } catch (e) {
-                    logger.error('Failed to set initial individual log visibility in localStorage', e);
+                    logger.error('Failed to set initial individual log visibility in localStorage', e instanceof Error ? e : new Error(String(e)));
                 }
             }
             return {
@@ -106,7 +106,7 @@ const containerReducer = (state: ContainerState, action: ContainerAction): Conta
                     localStorage.setItem(`dockerWebInterface_logsViewed_${container.id}`, action.payload.toString());
                 });
             } catch (e) {
-                logger.error('Failed to update individual log visibility in localStorage', e);
+                logger.error('Failed to update individual log visibility in localStorage', e instanceof Error ? e : new Error(String(e)));
             }
             return {
                 ...state,
@@ -171,7 +171,7 @@ export const useContainerOperations = () => {
             // Update the global localStorage key
             localStorage.setItem('dockerWebInterface_allLogsVisible', isVisible.toString());
         } catch (e) {
-            logger.error('Failed to set dockerWebInterface_allLogsVisible in localStorage', e);
+            logger.error('Failed to set dockerWebInterface_allLogsVisible in localStorage', e instanceof Error ? e : new Error(String(e)));
         }
         // Dispatch the action to update state and individual container localStorage items
         dispatch({ type: 'SET_ALL_LOGS_VISIBILITY', payload: isVisible });

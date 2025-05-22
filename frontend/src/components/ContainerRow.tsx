@@ -216,14 +216,65 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
     const logContainerObserver = useRef<IntersectionObserver | null>(null);
     const { theme } = useTheme();
 
+    // Move useWebSocket hook here so startLogStream/stopLogStream are declared before useEffect hooks
+    const { startLogStream, stopLogStream } = useWebSocket({
+        onLogUpdate: (containerId, log) => {
+            if (containerId === container.id && isLogVisibleRef.current) { // Renamed
+                // Log the update for debugging
+                logger.debug('Updating logs in ContainerRow:', {
+                    containerId,
+                    logLength: log.length,
+                    currentLogsLength: logs.length,
+                    lineCount: (log.match(/\n/g) || []).length + 1
+                });
+
+                if (isLoadingLogs) {
+                    setIsLoadingLogs(false);
+                }
+
+                // Use a functional update to avoid closure issues
+                // This is more efficient than capturing the previous logs in the closure
+                setLogs(prevLogs => {
+                    // First check if log is empty to avoid unnecessary processing
+                    if (!log) return prevLogs;
+
+                    // Add new log content
+                    const combinedLogs = prevLogs + log;
+
+                    // Only process if we might be exceeding the limit (optimization)
+                    if (combinedLogs.length > 500000) { // Rough estimate - 100 chars per line * 5000 lines
+                        // Split by newline, keep only the last 5000 lines
+                        const lines = combinedLogs.split('\n');
+                        return lines.slice(Math.max(0, lines.length - 5000)).join('\n');
+                    }
+
+                    return combinedLogs;
+                });
+            }
+        },
+        onError: (error) => {
+            logger.error('Error streaming logs:', new Error(error));
+            console.error('Failed to stream logs:', error);
+            setIsLoadingLogs(false);
+
+            // Try to restart the stream if it fails
+            if (isLogVisibleRef.current && streamActiveRef.current) { // Renamed
+                logger.info('Attempting to restart log stream after error', { containerId: container.id });
+                setTimeout(() => {
+                    if (isLogVisibleRef.current) { // Renamed
+                        startLogStream(container.id);
+                    }
+                }, 2000); // Wait 2 seconds before trying to reconnect
+            }
+        },
+        enabled: true, // Always keep WebSocket connection enabled
+        isInView: isInView // Pass visibility state to control update frequency
+    });
+
     // Update refs when state changes
     useEffect(() => {
         isLogVisibleRef.current = isLogVisible; // Renamed
     }, [isLogVisible]);
-
-    useEffect(() => {
-        streamActiveRef.current = isStreamActive;
-    }, [isStreamActive]);
 
     // Effect to synchronize with global areAllLogsOpen state
     useEffect(() => {
@@ -298,60 +349,6 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
             logger.error('Failed to save log view state to localStorage on local change:', err instanceof Error ? err : new Error(String(err)));
         }
     }, [isLogVisible, container.id]); // Runs when isLogVisible or container.id changes.
-
-    const { startLogStream, stopLogStream } = useWebSocket({
-        onLogUpdate: (containerId, log) => {
-            if (containerId === container.id && isLogVisibleRef.current) { // Renamed
-                // Log the update for debugging
-                logger.debug('Updating logs in ContainerRow:', {
-                    containerId,
-                    logLength: log.length,
-                    currentLogsLength: logs.length,
-                    lineCount: (log.match(/\n/g) || []).length + 1
-                });
-
-                if (isLoadingLogs) {
-                    setIsLoadingLogs(false);
-                }
-
-                // Use a functional update to avoid closure issues
-                // This is more efficient than capturing the previous logs in the closure
-                setLogs(prevLogs => {
-                    // First check if log is empty to avoid unnecessary processing
-                    if (!log) return prevLogs;
-
-                    // Add new log content
-                    const combinedLogs = prevLogs + log;
-
-                    // Only process if we might be exceeding the limit (optimization)
-                    if (combinedLogs.length > 500000) { // Rough estimate - 100 chars per line * 5000 lines
-                        // Split by newline, keep only the last 5000 lines
-                        const lines = combinedLogs.split('\n');
-                        return lines.slice(Math.max(0, lines.length - 5000)).join('\n');
-                    }
-
-                    return combinedLogs;
-                });
-            }
-        },
-        onError: (error) => {
-            logger.error('Error streaming logs:', new Error(error));
-            console.error('Failed to stream logs:', error);
-            setIsLoadingLogs(false);
-
-            // Try to restart the stream if it fails
-            if (isLogVisibleRef.current && streamActiveRef.current) { // Renamed
-                logger.info('Attempting to restart log stream after error', { containerId: container.id });
-                setTimeout(() => {
-                    if (isLogVisibleRef.current) { // Renamed
-                        startLogStream(container.id);
-                    }
-                }, 2000); // Wait 2 seconds before trying to reconnect
-            }
-        },
-        enabled: true, // Always keep WebSocket connection enabled
-        isInView: isInView // Pass visibility state to control update frequency
-    });
 
     // Toggle log display (handles local user interaction)
     const handleToggleLogs = useCallback(() => {
