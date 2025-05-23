@@ -886,33 +886,39 @@ class FlaskApp:
                                 )
                             return
 
-                        # Send initial logs to the client
-                        if initial_logs:
-                            try:
-                                logger.debug(
-                                    "Sending initial logs to client",
-                                    extra={
-                                        "event": "log_stream_initial",
-                                        "container_id": container_id,
-                                        "log_length": len(initial_logs),
-                                        "lines": initial_logs.count("\n"),
-                                        "sid": sid,
-                                    },
-                                )
-                                self.socketio.emit(
-                                    "log_update",
-                                    {"container_id": container_id, "log": initial_logs},
-                                    room=sid,
-                                )
-                            except Exception as e:
-                                logger.debug(
-                                    f"Failed to send initial logs due to socket error: {str(e)}",
-                                    extra={
-                                        "event": "socket_error",
-                                        "sid": sid,
-                                    },
-                                )
-                                return
+                        # Send initial logs to the client (always send, even if empty)
+                        try:
+                            logger.debug(
+                                "Sending initial logs to client",
+                                extra={
+                                    "event": "log_stream_initial",
+                                    "container_id": container_id,
+                                    "log_length": len(initial_logs)
+                                    if initial_logs
+                                    else 0,
+                                    "lines": initial_logs.count("\n")
+                                    if initial_logs
+                                    else 0,
+                                    "sid": sid,
+                                },
+                            )
+                            self.socketio.emit(
+                                "log_update",
+                                {
+                                    "container_id": container_id,
+                                    "log": initial_logs or "",
+                                },
+                                room=sid,
+                            )
+                        except Exception as e:
+                            logger.debug(
+                                f"Failed to send initial logs due to socket error: {str(e)}",
+                                extra={
+                                    "event": "socket_error",
+                                    "sid": sid,
+                                },
+                            )
+                            return
 
                         # Extract timestamp from the last log line to avoid duplicate logs
                         last_log_time = None
