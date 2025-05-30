@@ -210,8 +210,8 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
     const [isInView, setIsInView] = useState(false);
 
     // Create stable refs to track state across renders
-    const isLogVisibleRef = useRef(isLogVisible); // Renamed
-    const streamActiveRef = useRef(false);
+    const isLogVisibleRef = useRef(isLogVisible);
+    const actualStreamIsRunning = useRef(false); // Ref to track if the stream is actually running
     const logContainerRef = useRef<HTMLDivElement>(null);
     const logContainerObserver = useRef<IntersectionObserver | null>(null);
     const { theme } = useTheme();
@@ -273,7 +273,7 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
 
     // Update refs when state changes
     useEffect(() => {
-        isLogVisibleRef.current = isLogVisible; // Renamed
+        isLogVisibleRef.current = isLogVisible;
     }, [isLogVisible]);
 
     // Effect to synchronize with global areAllLogsOpen state
@@ -313,16 +313,7 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
         };
     }, [isLogVisible]); // Renamed showLogs
 
-    // Pause/resume streaming based on isPaused state
-    useEffect(() => {
-        if (isLogVisible && isPaused && isStreamActive) { // Renamed showLogs
-            stopLogStream(container.id);
-            setIsStreamActive(false);
-        } else if (isLogVisible && !isPaused && !isStreamActive) { // Renamed showLogs
-            startLogStream(container.id);
-            setIsStreamActive(true);
-        }
-    }, [isLogVisible, isPaused, isStreamActive, container.id, stopLogStream, startLogStream]); // Renamed showLogs & added dependencies
+    // Pause/resume streaming based on isPaused state - This specific effect is removed, logic merged below.
 
     // Handle highlight effect
     useEffect(() => {
@@ -357,32 +348,34 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
         setIsLogVisible(prev => !prev);
     }, []); // No dependencies needed as it only uses setIsLogVisible
 
-    // Effect for managing log stream when isLogVisible changes (either by global or local action)
+    // Effect for managing log stream when isLogVisible or isPaused changes
     useEffect(() => {
-        if (isLogVisible) {
-            if (!streamActiveRef.current) { // Only start if not already active
-                setIsPaused(false); // Ensure not paused when starting
+        const shouldStreamBeActive = isLogVisible && !isPaused;
+
+        if (shouldStreamBeActive) {
+            if (!actualStreamIsRunning.current) {
                 setIsLoadingLogs(true);
-                setLogs(''); // Clear previous logs
-                streamActiveRef.current = true;
+                setLogs(''); // Clear logs when starting a new viewing session or resuming if logs were cleared on hide
                 startLogStream(container.id);
-                setIsStreamActive(true);
-                // setTimeout(() => setIsLoadingLogs(false), 1500); // Removed this line
+                actualStreamIsRunning.current = true;
+                setIsStreamActive(true); // Update UI state reflecting intent
             }
-        } else {
-            if (streamActiveRef.current) { // Only stop if active
+        } else { // Not visible or is paused
+            if (actualStreamIsRunning.current) {
                 stopLogStream(container.id);
-                setIsStreamActive(false);
-                streamActiveRef.current = false;
-                setLogs(''); // Clear logs when hiding
+                actualStreamIsRunning.current = false;
+                setIsStreamActive(false); // Update UI state reflecting intent
+                if (!isLogVisible) { // Only clear logs if hiding, not if pausing
+                    setLogs('');
+                }
             }
         }
-    }, [isLogVisible, container.id, startLogStream, stopLogStream]); // Dependencies for controlling the stream
+    }, [isLogVisible, isPaused, container.id, startLogStream, stopLogStream]);
 
     // Cleanup when component unmounts
     useEffect(() => {
         return () => {
-            if (streamActiveRef.current) { // Check if stream was active
+            if (actualStreamIsRunning.current) { // Check if stream was actually running
                 stopLogStream(container.id);
                 logger.info('Log stream stopped due to component unmount', { containerId: container.id });
             }

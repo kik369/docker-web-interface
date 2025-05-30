@@ -39,6 +39,7 @@ let globalHandlers: Set<UseWebSocketProps> = new Set();
 const logBuffers = new Map<string, string>();
 const pendingFlushes = new Set<string>();
 const containerVisibility = new Map<string, boolean>();
+const activeTimeouts = new Map<string, NodeJS.Timeout>(); // Added for managing timeouts
 
 const initializeSocket = () => {
     if (globalSocket || isInitializing) return;
@@ -131,11 +132,11 @@ const initializeSocket = () => {
                         break;
                     }
                 }
-                setTimeout(() => {
+                const timeoutId = setTimeout(() => {
                     const bufferToFlush = logBuffers.get(containerId) || '';
                     if (bufferToFlush.length > 0) {
-                        logBuffers.set(containerId, '');
-                        pendingFlushes.delete(containerId);
+                        logBuffers.set(containerId, ''); // Clear buffer for this container
+                        // No longer delete from pendingFlushes here, as it's handled by activeTimeouts
                         logger.debug('Flushing log buffer:', {
                             containerId,
                             bufferLength: bufferToFlush.length,
@@ -150,10 +151,11 @@ const initializeSocket = () => {
                                 }
                             }
                         });
-                    } else {
-                        pendingFlushes.delete(containerId);
                     }
+                    pendingFlushes.delete(containerId); // Remove from set after processing
+                    activeTimeouts.delete(containerId); // Clean up the timeout ID from the map
                 }, logFlushDelay);
+                activeTimeouts.set(containerId, timeoutId); // Store the timeout ID
             }
         });
 
@@ -256,10 +258,14 @@ export const useWebSocket = ({
             globalSocket.emit('stop_log_stream', { container_id: containerId });
             logger.info('Stopped log stream for container', { containerId });
 
-            logBuffers.set(containerId, '');
-            if (pendingFlushes.has(containerId)) {
-                pendingFlushes.delete(containerId);
+            const timeoutId = activeTimeouts.get(containerId);
+            if (timeoutId) {
+                clearTimeout(timeoutId);
+                activeTimeouts.delete(containerId);
             }
+
+            logBuffers.set(containerId, ''); // Clear buffer
+            pendingFlushes.delete(containerId); // Remove from set
         }
     }, [enabled]);
 

@@ -30,17 +30,10 @@ const LogContainer: React.FC<LogContainerProps> = React.memo(({
     const logContainerRef = useRef<HTMLDivElement>(null);
     const [autoScroll, setAutoScroll] = useState(true);
     const [isFullScreen, setIsFullScreen] = useState(false);
-    const prevLogsLengthRef = useRef<number>(0);
+    // const prevLogsLengthRef = useRef<number>(0); // Removed as it was unused
     const { theme } = useTheme();
     const [logLines, setLogLines] = useState<string[]>([]);
     const isAutoScrolling = useRef(false);
-
-    // Detect when logs change to update tracking
-    useEffect(() => {
-        if (logs && logs.length !== prevLogsLengthRef.current) {
-            prevLogsLengthRef.current = logs.length;
-        }
-    }, [logs]);
 
     // Process logs into lines for optimized rendering
     useEffect(() => {
