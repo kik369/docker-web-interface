@@ -44,6 +44,9 @@ const ContainerContext = createContext<{
     dispatch: () => null,
 });
 
+// Export ContainerContext directly for testing purposes
+export { ContainerContext };
+
 const containerReducer = (state: ContainerState, action: ContainerAction): ContainerState => {
     switch (action.type) {
         case 'SET_CONTAINERS':

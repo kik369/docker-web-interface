@@ -10,6 +10,9 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
+// Export ThemeContext directly for testing purposes
+export { ThemeContext };
+
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     // Check for saved theme or system preference
     const getInitialTheme = (): Theme => {
