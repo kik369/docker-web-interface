@@ -36,7 +36,7 @@ const initialState: ContainerState = {
     areAllLogsOpen: getInitialAllLogsOpen(), // Initialize from localStorage
 };
 
-const ContainerContext = createContext<{
+export const ContainerContext = createContext<{
     state: ContainerState;
     dispatch: React.Dispatch<ContainerAction>;
 }>({

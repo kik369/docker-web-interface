@@ -10,6 +10,7 @@ import { config } from '../config';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useTheme } from '../context/ThemeContext';
 import { useContainerContext } from '../context/ContainerContext'; // Added
+import Tooltip from './shared/Tooltip'; // Added import
 import LogContainer from './LogContainer';
 import { CopyableText } from './CopyableText';
 
@@ -177,8 +178,6 @@ const PortDisplay: React.FC<{ portsString: string }> = ({ portsString }) => {
     );
 };
 
-import Tooltip from './shared/Tooltip'; // Added import
-
 export const ContainerRow: React.FC<ContainerRowProps> = ({
     container,
     isExpanded,
@@ -258,7 +257,7 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
             setIsLoadingLogs(false);
 
             // Try to restart the stream if it fails
-            if (isLogVisibleRef.current && streamActiveRef.current) { // Renamed
+            if (isLogVisibleRef.current && actualStreamIsRunning.current) { // Renamed
                 logger.info('Attempting to restart log stream after error', { containerId: container.id });
                 setTimeout(() => {
                     if (isLogVisibleRef.current) { // Renamed

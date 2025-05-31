@@ -81,6 +81,7 @@ describe('ContainerRow Log Streaming', () => {
         onAction={jest.fn()}
         isExpanded={false}
         onToggleExpand={jest.fn()}
+        actionInProgress={null}
       />
     );
 
@@ -102,6 +103,7 @@ describe('ContainerRow Log Streaming', () => {
         onAction={jest.fn()}
         isExpanded={false}
         onToggleExpand={jest.fn()}
+        actionInProgress={null}
       />
     );
 
@@ -142,6 +144,7 @@ describe('ContainerRow Log Streaming', () => {
         onAction={jest.fn()}
         isExpanded={false}
         onToggleExpand={jest.fn()}
+        actionInProgress={null}
       />
     );
 
@@ -180,6 +183,7 @@ describe('ContainerRow Log Streaming', () => {
         onAction={jest.fn()}
         isExpanded={false}
         onToggleExpand={jest.fn()}
+        actionInProgress={null}
       />
     );
 
@@ -247,6 +251,7 @@ describe('ContainerRow Log Streaming', () => {
         onAction={jest.fn()}
         isExpanded={false}
         onToggleExpand={jest.fn()}
+        actionInProgress={null}
       />
     );
 
@@ -280,6 +285,7 @@ describe('ContainerRow Log Streaming', () => {
         onAction={jest.fn()}
         isExpanded={false}
         onToggleExpand={jest.fn()}
+        actionInProgress={null}
       />
     );
 
