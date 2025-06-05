@@ -61,7 +61,6 @@ graph TD
     C -->|Image Operations| D
 ```
 
-> ℹ️ **Note:** Real-time container metrics updates and resource usage tracking are planned features.
 
 ## Installation and Setup
 
