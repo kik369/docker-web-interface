@@ -1,5 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
-import ReactDOM from 'react-dom';
+import React, { useState, useEffect } from 'react';
 import { IconBaseProps } from 'react-icons';
 import { HiTrash, HiOutlineTemplate, HiOutlineClock, HiOutlineScale } from 'react-icons/hi';
 import { useImages } from '../hooks/useImages';

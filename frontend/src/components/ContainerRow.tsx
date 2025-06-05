@@ -1,12 +1,10 @@
 /// <reference types="react" />
 import React, { useRef, useEffect, useCallback, useState } from 'react';
-import ReactDOM from 'react-dom';
 import { IconBaseProps } from 'react-icons';
 import { HiPlay, HiStop, HiRefresh, HiTrash, HiOutlineTemplate, HiOutlineStatusOnline, HiOutlineInformationCircle, HiOutlineDocumentText } from 'react-icons/hi';
 import { HiOutlineDesktopComputer, HiOutlineServer } from 'react-icons/hi';
 import { ContainerRowProps } from '../types/docker';
 import { logger } from '../services/logging';
-import { config } from '../config';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useTheme } from '../context/ThemeContext';
 import { useContainerContext } from '../context/ContainerContext'; // Added
@@ -227,9 +225,9 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                     lineCount: (log.match(/\n/g) || []).length + 1
                 });
 
-                if (isLoadingLogs) {
-                    setIsLoadingLogs(false);
-                }
+                // Always clear loading state when we receive any log update (even empty)
+                logger.debug('Setting isLoadingLogs to false after receiving log update', { containerId });
+                setIsLoadingLogs(false);
 
                 // Use a functional update to avoid closure issues
                 // This is more efficient than capturing the previous logs in the closure
@@ -287,7 +285,8 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                  logger.error('Failed to save log view state to localStorage from global sync:', err instanceof Error ? err : new Error(String(err)));
              }
         }
-    }, [areAllLogsOpen, container.id]); // isLogVisible removed from deps
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [areAllLogsOpen, container.id]); // isLogVisible intentionally excluded to prevent loops
 
     // Set up intersection observer to detect when logs are in/out of viewport
     useEffect(() => {
@@ -358,6 +357,12 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                 startLogStream(container.id);
                 actualStreamIsRunning.current = true;
                 setIsStreamActive(true); // Update UI state reflecting intent
+                
+                // Add a fallback timeout to clear loading state if WebSocket doesn't respond
+                setTimeout(() => {
+                    logger.debug('Fallback: clearing loading state after timeout', { containerId: container.id });
+                    setIsLoadingLogs(false);
+                }, 5000); // 5 second timeout
             }
         } else { // Not visible or is paused
             if (actualStreamIsRunning.current) {
@@ -591,25 +596,25 @@ export const ContainerRow: React.FC<ContainerRowProps> = ({
                 <div className="mt-2 space-y-1">
                     <div className="grid grid-cols-[80px_auto] gap-y-1">
                         <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Image:</p>
-                        <p><CopyableText text={container.image}>
+                        <div><CopyableText text={container.image}>
                             <span className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} font-mono`}>
                                 <HiOutlineTemplate className="mr-1 text-purple-300" />
                                 {container.image}
                             </span>
-                        </CopyableText></p>
+                        </CopyableText></div>
 
                         <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Status:</p>
-                        <p><span className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} font-mono`}>
+                        <div><span className={`inline-flex items-center ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-200'} rounded px-2 py-1 text-xs ${theme === 'dark' ? 'text-white' : 'text-gray-800'} font-mono`}>
                             <HiOutlineStatusOnline className="mr-1 text-blue-300" />
                             {getStatusText()}
-                        </span></p>
+                        </span></div>
 
                         {container.ports && (
                             <>
                                 <p className={`text-sm ${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'}`}>Ports:</p>
-                                <p><span className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} inline-flex`}>
+                                <div><span className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-700'} inline-flex`}>
                                     <PortDisplay portsString={container.ports} />
-                                </span></p>
+                                </span></div>
                             </>
                         )}
                     </div>

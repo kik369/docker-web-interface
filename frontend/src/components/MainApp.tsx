@@ -75,8 +75,10 @@ function MainApp() {
         pruneVolumes,
         pruneNetworks,
         pruneAll,
-        isLoading: maintenanceLoading,
-        formatBytes
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        isLoading: _maintenanceLoading,
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        formatBytes: _formatBytes
     } = useDockerMaintenance();
 
     // Set up WebSocket handlers
@@ -345,7 +347,8 @@ function MainApp() {
         pruneNetworks,
         pruneAll,
         refreshImages,
-        activeTab
+        activeTab,
+        toggleTheme
     ]);
 
     // Add keyboard shortcuts

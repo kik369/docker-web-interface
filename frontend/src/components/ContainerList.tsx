@@ -3,7 +3,7 @@ import type { Container } from '../types/docker';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { useContainers } from '../hooks/useContainers';
 import { ContainerRow } from './ContainerRow';
-import { HiChevronDown, HiChevronRight, HiPlay, HiStop, HiRefresh, HiCog, HiTrash, HiOutlineTemplate, HiOutlineCube } from 'react-icons/hi';
+import { HiChevronDown, HiChevronRight, HiPlay, HiStop, HiRefresh, HiCog, HiTrash, HiOutlineCube } from 'react-icons/hi';
 import { useTheme } from '../context/ThemeContext';
 import DeleteConfirmationDialog from './DeleteConfirmationDialog';
 

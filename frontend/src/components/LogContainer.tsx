@@ -37,7 +37,8 @@ const LogContainer: React.FC<LogContainerProps> = React.memo(({
 
     // Process logs into lines for optimized rendering
     useEffect(() => {
-        if (logs) {
+        // Process logs even if empty string (logs !== null && logs !== undefined)
+        if (logs !== null && logs !== undefined) {
             // Split logs into lines
             const lines = logs.split('\n');
 
@@ -279,7 +280,7 @@ const LogContainer: React.FC<LogContainerProps> = React.memo(({
                     className={preClasses}
                     style={{ padding: isFullScreen ? '16px' : undefined }}
                 >
-                    {logs ? (
+                    {logLines.length > 0 ? (
                         // Render logs with optimized approach - only show the last 5000 lines
                         logLines.map((line, index) => (
                             <div
@@ -297,7 +298,9 @@ const LogContainer: React.FC<LogContainerProps> = React.memo(({
                             </div>
                         ))
                     ) : (
-                        'No logs available'
+                        <div className={`${theme === 'dark' ? 'text-gray-400' : 'text-gray-500'} text-sm italic p-4`}>
+                            {isStreamActive ? 'Waiting for logs...' : 'No logs available'}
+                        </div>
                     )}
                 </div>
             )}

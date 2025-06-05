@@ -14,7 +14,8 @@ const ModalPortal: React.FC<ModalPortalProps> = ({
     onClose,
     children
 }) => {
-    const { theme } = useTheme();
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { theme: _theme } = useTheme();
 
     if (!isOpen) return null;
 
