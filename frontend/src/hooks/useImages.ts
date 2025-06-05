@@ -2,6 +2,12 @@ import { useState, useEffect, useCallback } from 'react';
 import { Image, ApiResponse } from '../types/docker';
 import { config } from '../config';
 
+// Global event system for triggering image refreshes across all hook instances
+const imageRefreshEventTarget = new EventTarget();
+export const triggerImagesRefresh = () => {
+    imageRefreshEventTarget.dispatchEvent(new CustomEvent('refresh'));
+};
+
 export const useImages = () => {
     const [images, setImages] = useState<Image[]>([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -96,6 +102,19 @@ export const useImages = () => {
 
     useEffect(() => {
         fetchImages();
+    }, [fetchImages]);
+
+    // Listen for global refresh events
+    useEffect(() => {
+        const handleRefresh = () => {
+            fetchImages();
+        };
+        
+        imageRefreshEventTarget.addEventListener('refresh', handleRefresh);
+        
+        return () => {
+            imageRefreshEventTarget.removeEventListener('refresh', handleRefresh);
+        };
     }, [fetchImages]);
 
     return {

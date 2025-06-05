@@ -4,7 +4,7 @@ import { ContainerList } from './ContainerList';
 import { ImageList } from './ImageList';
 import Background from './Background';
 import { ErrorBoundary } from './ErrorBoundary';
-import { useImages } from '../hooks/useImages';
+import { useImages, triggerImagesRefresh } from '../hooks/useImages';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { logger } from '../services/logging';
 import { useContainerContext, useContainerOperations } from '../context/ContainerContext';
@@ -274,10 +274,8 @@ function MainApp() {
                 logger.info('Pruning images from command palette');
                 const success = await pruneImages();
                 if (success) {
-                    // Refresh images if we're on the images tab
-                    if (activeTab === 'images') {
-                        refreshImages();
-                    }
+                    // Trigger refresh across all useImages hook instances
+                    triggerImagesRefresh();
                 }
             }
         },
@@ -323,9 +321,7 @@ function MainApp() {
                 if (success) {
                     // Refresh both containers and images
                     setLoading(true);
-                    if (activeTab === 'images') {
-                        refreshImages();
-                    }
+                    triggerImagesRefresh();
                 }
             }
         },
@@ -346,7 +342,6 @@ function MainApp() {
         pruneVolumes,
         pruneNetworks,
         pruneAll,
-        refreshImages,
         activeTab,
         toggleTheme
     ]);
@@ -361,7 +356,7 @@ function MainApp() {
                     setLoading(true);
                     // The WebSocket will handle the refresh through the initial_state event
                 } else {
-                    refreshImages();
+                    triggerImagesRefresh();
                 }
             }
 
@@ -401,7 +396,7 @@ function MainApp() {
         return () => {
             window.removeEventListener('keydown', handleKeyDown);
         };
-    }, [activeTab, refreshImages, setLoading, toggleTheme, toggleCommandPalette, areAllLogsOpen, setAllLogsVisibility]);
+    }, [activeTab, setLoading, toggleTheme, toggleCommandPalette, areAllLogsOpen, setAllLogsVisibility]);
 
     return (
         <div className="flex flex-col h-screen">
