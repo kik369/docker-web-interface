@@ -55,10 +55,12 @@ Docker Web Interface is a comprehensive system for monitoring and managing Docke
 
 ```mermaid
 graph TD
-    A[Frontend React] -->|REST API & WebSocket| B[Backend Flask]
+    A[Frontend React] -->|REST API| B[Backend Flask]
+    A <-->|WebSocket| B
     B -->|Docker SDK| C[Docker Engine]
-    B -->|Image Management API| D[Docker Registry]
-    C -->|Image Operations| D
+    C -->|Docker Events| B
+    C -->|Log Streams| B
+    B -->|Real-time Updates| A
 ```
 
 
@@ -217,15 +219,13 @@ The pre-commit hook will run pytest with coverage for backend code automatically
     -   Frontend uses a custom React hook with the Socket.IO client
     -   Efficient log streaming with buffering system
     -   Proper resource cleanup and connection management
-    -   See [WEBSOCKET.md](WEBSOCKET.md) for detailed documentation
 
--   **Data Flow Diagrams**: Visual representations of key data flows using Mermaid diagrams:
+-   **Data Flow**: The application follows a clear data flow pattern:
 
     -   Core data flow between system components
     -   Container operations sequence
     -   Log streaming process
     -   Error handling flow
-    -   See [DATA_FLOW.md](DATA_FLOW.md) for all diagrams
 
 -   **Logging:** Implemented using Python's logging module with custom JSON formatting and request ID tracking, ensuring detailed monitoring and debugging.
 
