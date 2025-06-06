@@ -283,6 +283,154 @@ describe('ContainerRow Log Streaming', () => {
     expect(true).toBe(true);
   });
 
+  describe('Timeout cleanup scenarios', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    test('should clear timeouts when component unmounts', async () => {
+      const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout');
+      
+      const { unmount } = renderWithProviders(
+        <ContainerRow
+          container={mockContainer}
+          onAction={jest.fn()}
+          isExpanded={false}
+          onToggleExpand={jest.fn()}
+          actionInProgress={null}
+        />
+      );
+
+      // Start log stream to potentially create timeouts
+      const showLogsButton = screen.getByRole('button', { name: /show logs/i });
+      fireEvent.click(showLogsButton);
+
+      // Simulate timeout creation scenario (fallback timeout in ContainerRow)
+      act(() => {
+        jest.advanceTimersByTime(1000);
+      });
+
+      // Unmount component
+      unmount();
+
+      // Verify cleanup was attempted (component should try to clear any internal timeouts)
+      expect(clearTimeoutSpy).toHaveBeenCalled();
+      clearTimeoutSpy.mockRestore();
+    });
+
+    test('should handle rapid show/hide log operations without timeout leaks', async () => {
+      renderWithProviders(
+        <ContainerRow
+          container={mockContainer}
+          onAction={jest.fn()}
+          isExpanded={false}
+          onToggleExpand={jest.fn()}
+          actionInProgress={null}
+        />
+      );
+
+      // Rapidly show and hide logs multiple times
+      for (let i = 0; i < 5; i++) {
+        const showButton = screen.getByRole('button', { name: /show logs/i });
+        fireEvent.click(showButton);
+        
+        await waitFor(() => {
+          expect(mockStartLogStream).toHaveBeenCalledWith(mockContainer.id);
+        });
+
+        const hideButton = screen.getByRole('button', { name: /hide logs/i });
+        fireEvent.click(hideButton);
+        
+        await waitFor(() => {
+          expect(mockStopLogStream).toHaveBeenCalledWith(mockContainer.id);
+        });
+      }
+
+      // Should have properly managed start/stop calls
+      expect(mockStartLogStream).toHaveBeenCalledTimes(5);
+      expect(mockStopLogStream).toHaveBeenCalledTimes(5);
+    });
+
+    test('should clear loading timeout when logs are received', async () => {
+      const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout');
+      
+      renderWithProviders(
+        <ContainerRow
+          container={mockContainer}
+          onAction={jest.fn()}
+          isExpanded={false}
+          onToggleExpand={jest.fn()}
+          actionInProgress={null}
+        />
+      );
+
+      // Start log stream
+      const showLogsButton = screen.getByRole('button', { name: /show logs/i });
+      fireEvent.click(showLogsButton);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('log-container')).toBeVisible();
+        expect(screen.getByText('Loading logs...')).toBeInTheDocument();
+      });
+
+      // Simulate receiving logs (should clear loading timeout)
+      act(() => {
+        if (mockOnLogUpdateCallback) {
+          mockOnLogUpdateCallback(mockContainer.id, 'Test log line\n');
+        }
+      });
+
+      await waitFor(() => {
+        expect(screen.queryByText('Loading logs...')).not.toBeInTheDocument();
+      });
+
+      // Loading timeout should have been cleared when logs were received
+      expect(clearTimeoutSpy).toHaveBeenCalled();
+      clearTimeoutSpy.mockRestore();
+    });
+
+    test('should handle error-triggered timeout cleanup', async () => {
+      const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout');
+      
+      renderWithProviders(
+        <ContainerRow
+          container={mockContainer}
+          onAction={jest.fn()}
+          isExpanded={false}
+          onToggleExpand={jest.fn()}
+          actionInProgress={null}
+        />
+      );
+
+      // Start log stream
+      const showLogsButton = screen.getByRole('button', { name: /show logs/i });
+      fireEvent.click(showLogsButton);
+
+      await waitFor(() => {
+        expect(screen.getByTestId('log-container')).toBeVisible();
+      });
+
+      // Trigger error (should clear loading timeout)
+      act(() => {
+        if (mockOnErrorCallback) {
+          mockOnErrorCallback('Test error');
+        }
+      });
+
+      await waitFor(() => {
+        expect(screen.queryByText('Loading logs...')).not.toBeInTheDocument();
+      });
+
+      // Error handling should have cleared loading timeout
+      expect(clearTimeoutSpy).toHaveBeenCalled();
+      clearTimeoutSpy.mockRestore();
+    });
+  });
+
   test.skip('Original onError test', async () => {
     renderWithProviders(
       <ContainerRow

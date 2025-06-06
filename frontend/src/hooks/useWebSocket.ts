@@ -81,6 +81,15 @@ const initializeSocket = () => {
 
         globalSocket.on('disconnect', (reason: any) => {
             logger.info('Disconnected from WebSocket server:', { reason });
+            
+            // Clear all pending timeouts on disconnect to prevent memory leaks
+            for (const [containerId, timeoutId] of activeTimeouts) {
+                clearTimeout(timeoutId);
+                logger.debug('Cleared timeout for container on disconnect:', { containerId });
+            }
+            activeTimeouts.clear();
+            pendingFlushes.clear();
+            
             if (reason === 'io server disconnect' || reason === 'transport close' || reason === 'ping timeout') {
                 setTimeout(() => {
                     if (globalSocket !== null && !globalSocket.connected && activeSubscriptions > 0) {
@@ -224,6 +233,17 @@ export const useWebSocket = ({
                 globalSocket.off('disconnect', handleDisconnect);
                 if (activeSubscriptions <= 0) {
                     logger.info('Cleaning up last WebSocket connection');
+                    
+                    // Clear all pending timeouts when cleaning up the last subscription
+                    for (const [containerId, timeoutId] of activeTimeouts) {
+                        clearTimeout(timeoutId);
+                        logger.debug('Cleared timeout for container on cleanup:', { containerId });
+                    }
+                    activeTimeouts.clear();
+                    pendingFlushes.clear();
+                    logBuffers.clear();
+                    containerVisibility.clear();
+                    
                     globalSocket.disconnect();
                     globalSocket = null;
                     isInitializing = false;

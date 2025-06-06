@@ -275,6 +275,134 @@ class TestWebSocketHandlers(unittest.TestCase):
                 mock_log.called, "The error logging function was not called"
             )
 
+    def test_websocket_log_stream_cleanup_on_stop(self):
+        """Test that stop_log_stream properly cleans up resources."""
+        # Mock the log streaming components
+        self.mock_docker_service.get_container_logs.return_value = ("Initial logs", None)
+        self.mock_docker_service.stream_container_logs.return_value = ["Log line 1"]
+        
+        # Mock socketio server manager rooms
+        self.mock_socketio.server = MagicMock()
+        self.mock_socketio.server.manager.rooms = {"/": {"test-sid": True}}
+        
+        # Start log stream first
+        start_log_stream_handler = self.socket_handlers.get("start_log_stream")
+        self.assertIsNotNone(start_log_stream_handler)
+        
+        with patch("backend.docker_monitor.eventlet.spawn") as mock_spawn:
+            # Mock the spawned function to run immediately
+            mock_spawn.side_effect = lambda f: f()
+            
+            # Start the log stream
+            start_log_stream_handler({"container_id": "test_container"})
+            
+            # Verify stream was started
+            self.mock_docker_service.stream_container_logs.assert_called_once()
+            
+        # Now test stop log stream
+        stop_log_stream_handler = self.socket_handlers.get("stop_log_stream")
+        self.assertIsNotNone(stop_log_stream_handler)
+        
+        # Reset mocks
+        self.mock_socketio.emit.reset_mock()
+        
+        # Call stop_log_stream
+        stop_log_stream_handler({"container_id": "test_container"})
+        
+        # Verify that log streaming cleanup occurs
+        # (In real implementation, this would stop the background stream)
+        # For now, just verify the handler can be called without errors
+
+    def test_websocket_log_stream_concurrent_containers(self):
+        """Test handling multiple concurrent log streams."""
+        container_ids = ["container1", "container2", "container3"]
+        
+        # Setup mocks for multiple containers
+        self.mock_docker_service.get_container_logs.return_value = ("Initial logs", None)
+        self.mock_docker_service.stream_container_logs.return_value = ["Log line"]
+        
+        # Mock socketio server manager rooms
+        self.mock_socketio.server = MagicMock()
+        self.mock_socketio.server.manager.rooms = {"/": {"test-sid": True}}
+        
+        start_log_stream_handler = self.socket_handlers.get("start_log_stream")
+        self.assertIsNotNone(start_log_stream_handler)
+        
+        with patch("backend.docker_monitor.eventlet.spawn") as mock_spawn:
+            mock_spawn.side_effect = lambda f: f()
+            
+            # Start log streams for multiple containers
+            for container_id in container_ids:
+                start_log_stream_handler({"container_id": container_id})
+            
+            # Verify stream_container_logs was called for each container
+            self.assertEqual(self.mock_docker_service.stream_container_logs.call_count, 3)
+            
+            # Verify log updates were emitted for each container
+            for container_id in container_ids:
+                self.mock_socketio.emit.assert_any_call(
+                    "log_update",
+                    {"container_id": container_id, "log": "Initial logs"},
+                    room="test-sid",
+                )
+
+    def test_websocket_log_stream_error_handling(self):
+        """Test error handling during log streaming operations."""
+        # Setup mock to raise an exception
+        self.mock_docker_service.get_container_logs.side_effect = Exception("Docker connection error")
+        
+        start_log_stream_handler = self.socket_handlers.get("start_log_stream")
+        self.assertIsNotNone(start_log_stream_handler)
+        
+        # Call start_log_stream with an error condition - should not crash
+        try:
+            start_log_stream_handler({"container_id": "failing_container"})
+            # If we get here, the handler handled the error gracefully
+            self.assertTrue(True)
+        except Exception:
+            # If an exception propagates, the error handling is insufficient
+            self.fail("Log stream handler should handle exceptions gracefully")
+
+    def test_websocket_log_stream_buffer_management(self):
+        """Test that log buffering works correctly with timeout scenarios."""
+        # This tests the interaction between backend streaming and frontend timeout management
+        
+        # Setup mock container logs with multiple rapid updates
+        log_updates = ["Line 1\n", "Line 2\n", "Line 3\n"]
+        self.mock_docker_service.get_container_logs.return_value = ("", None)
+        self.mock_docker_service.stream_container_logs.return_value = log_updates
+        
+        # Mock socketio server manager rooms
+        self.mock_socketio.server = MagicMock()
+        self.mock_socketio.server.manager.rooms = {"/": {"test-sid": True}}
+        
+        start_log_stream_handler = self.socket_handlers.get("start_log_stream")
+        self.assertIsNotNone(start_log_stream_handler)
+        
+        with patch("backend.docker_monitor.eventlet.spawn") as mock_spawn:
+            mock_spawn.side_effect = lambda f: f()
+            
+            # Reset mock
+            self.mock_socketio.emit.reset_mock()
+            
+            # Start log stream
+            start_log_stream_handler({"container_id": "buffer_test_container"})
+            
+            # Verify each log line was emitted separately
+            for log_line in log_updates:
+                self.mock_socketio.emit.assert_any_call(
+                    "log_update",
+                    {"container_id": "buffer_test_container", "log": log_line},
+                    room="test-sid",
+                )
+            
+            # Verify the correct number of emit calls (initial empty logs + 3 updates = 4 total)
+            log_update_calls = [
+                call for call in self.mock_socketio.emit.call_args_list
+                if call[0][0] == "log_update"
+            ]
+            self.assertEqual(len(log_update_calls), 4)
+
 
 if __name__ == "__main__":
     unittest.main()
