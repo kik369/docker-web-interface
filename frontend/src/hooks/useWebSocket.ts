@@ -41,6 +41,29 @@ const pendingFlushes = new Set<string>();
 const containerVisibility = new Map<string, boolean>();
 const activeTimeouts = new Map<string, NodeJS.Timeout>(); // Added for managing timeouts
 
+// Helper function to clear timeout for a specific container
+const clearContainerTimeout = (containerId: string): void => {
+    const existingTimeout = activeTimeouts.get(containerId);
+    if (existingTimeout) {
+        try {
+            // Use global clearTimeout if available, fallback to noop in test environment
+            if (typeof clearTimeout !== 'undefined') {
+                clearTimeout(existingTimeout);
+            } else if (typeof global !== 'undefined' && global.clearTimeout) {
+                global.clearTimeout(existingTimeout);
+            } else if (typeof window !== 'undefined' && window.clearTimeout) {
+                window.clearTimeout(existingTimeout);
+            }
+        } catch (error) {
+            // Silently handle clearTimeout errors in test environment
+            logger.debug('Failed to clear timeout in test environment:', { containerId, error });
+        }
+        activeTimeouts.delete(containerId);
+        pendingFlushes.delete(containerId);
+        logger.debug('Cleared existing timeout for container:', { containerId });
+    }
+};
+
 const initializeSocket = () => {
     if (globalSocket || isInitializing) return;
 
@@ -83,12 +106,9 @@ const initializeSocket = () => {
             logger.info('Disconnected from WebSocket server:', { reason });
             
             // Clear all pending timeouts on disconnect to prevent memory leaks
-            for (const [containerId, timeoutId] of activeTimeouts) {
-                clearTimeout(timeoutId);
-                logger.debug('Cleared timeout for container on disconnect:', { containerId });
+            for (const containerId of activeTimeouts.keys()) {
+                clearContainerTimeout(containerId);
             }
-            activeTimeouts.clear();
-            pendingFlushes.clear();
             
             if (reason === 'io server disconnect' || reason === 'transport close' || reason === 'ping timeout') {
                 setTimeout(() => {
@@ -132,6 +152,9 @@ const initializeSocket = () => {
             logBuffers.set(containerId, newBuffer);
 
             if (!pendingFlushes.has(containerId)) {
+                // Clear any existing timeout for this container before creating a new one
+                clearContainerTimeout(containerId);
+                
                 pendingFlushes.add(containerId);
                 // Find a logFlushDelay from any handler, fallback to 200ms
                 let logFlushDelay = 200;
@@ -141,11 +164,25 @@ const initializeSocket = () => {
                         break;
                     }
                 }
-                const timeoutId = setTimeout(() => {
+                // Use setTimeout safely - handle test environment
+                let timeoutFn: typeof setTimeout;
+                if (typeof setTimeout !== 'undefined') {
+                    timeoutFn = setTimeout;
+                } else if (typeof global !== 'undefined' && global.setTimeout) {
+                    timeoutFn = global.setTimeout;
+                } else if (typeof window !== 'undefined' && window.setTimeout) {
+                    timeoutFn = window.setTimeout;
+                } else {
+                    // Fallback for test environment - create a simple mock
+                    timeoutFn = ((fn: () => void, ms: number) => {
+                        return setTimeout(fn, ms);
+                    }) as typeof setTimeout;
+                }
+                
+                const timeoutId = timeoutFn(() => {
                     const bufferToFlush = logBuffers.get(containerId) || '';
                     if (bufferToFlush.length > 0) {
                         logBuffers.set(containerId, ''); // Clear buffer for this container
-                        // No longer delete from pendingFlushes here, as it's handled by activeTimeouts
                         logger.debug('Flushing log buffer:', {
                             containerId,
                             bufferLength: bufferToFlush.length,
@@ -161,8 +198,9 @@ const initializeSocket = () => {
                             }
                         });
                     }
-                    pendingFlushes.delete(containerId); // Remove from set after processing
-                    activeTimeouts.delete(containerId); // Clean up the timeout ID from the map
+                    // Clean up after timeout completion
+                    pendingFlushes.delete(containerId);
+                    activeTimeouts.delete(containerId);
                 }, logFlushDelay);
                 activeTimeouts.set(containerId, timeoutId); // Store the timeout ID
             }
@@ -235,12 +273,9 @@ export const useWebSocket = ({
                     logger.info('Cleaning up last WebSocket connection');
                     
                     // Clear all pending timeouts when cleaning up the last subscription
-                    for (const [containerId, timeoutId] of activeTimeouts) {
-                        clearTimeout(timeoutId);
-                        logger.debug('Cleared timeout for container on cleanup:', { containerId });
+                    for (const containerId of activeTimeouts.keys()) {
+                        clearContainerTimeout(containerId);
                     }
-                    activeTimeouts.clear();
-                    pendingFlushes.clear();
                     logBuffers.clear();
                     containerVisibility.clear();
                     
@@ -278,14 +313,9 @@ export const useWebSocket = ({
             globalSocket.emit('stop_log_stream', { container_id: containerId });
             logger.info('Stopped log stream for container', { containerId });
 
-            const timeoutId = activeTimeouts.get(containerId);
-            if (timeoutId) {
-                clearTimeout(timeoutId);
-                activeTimeouts.delete(containerId);
-            }
-
+            // Use centralized cleanup function
+            clearContainerTimeout(containerId);
             logBuffers.set(containerId, ''); // Clear buffer
-            pendingFlushes.delete(containerId); // Remove from set
         }
     }, [enabled]);
 

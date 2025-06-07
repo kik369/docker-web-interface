@@ -48,7 +48,7 @@ describe('useWebSocket', () => {
         jest.clearAllTimers();
         jest.useFakeTimers();
         
-        // Mock global setTimeout/clearTimeout for test environment
+        // Ensure setTimeout and clearTimeout are available and properly mocked
         (global as any).setTimeout = jest.fn((fn, ms) => {
             return 'mock-timeout-id' as any;
         });
@@ -95,6 +95,8 @@ describe('useWebSocket', () => {
         });
 
         it('should clear all timeouts on disconnect', () => {
+            const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout');
+            
             const { result } = renderHook(() => useWebSocket({
                 onLogUpdate: jest.fn()
             }));
@@ -104,10 +106,6 @@ describe('useWebSocket', () => {
                 result.current.startLogStream('container1');
                 result.current.startLogStream('container2');
             });
-
-            // Use real timers temporarily to create actual timeouts
-            jest.useRealTimers();
-            const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout');
             
             // Simulate log updates for both containers to create timeouts
             act(() => {
@@ -121,20 +119,21 @@ describe('useWebSocket', () => {
                 });
             });
 
+            // Clear any previous calls before testing cleanup
+            clearTimeoutSpy.mockClear();
+
             // Simulate disconnect (this should trigger cleanup)
             act(() => {
                 eventHandlers['disconnect']('io server disconnect');
             });
 
-            // Should have cleared timeouts
+            // Should have cleared timeouts - expect at least one call 
             expect(clearTimeoutSpy).toHaveBeenCalled();
             clearTimeoutSpy.mockRestore();
-            jest.useFakeTimers(); // Restore fake timers
         });
 
         it('should clear all timeouts when hook unmounts', () => {
-            jest.useRealTimers();
-            const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout');
+            const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout').mockImplementation(() => {});
             
             const { result, unmount } = renderHook(() => useWebSocket({
                 onLogUpdate: jest.fn()
@@ -154,12 +153,10 @@ describe('useWebSocket', () => {
 
             expect(clearTimeoutSpy).toHaveBeenCalled();
             clearTimeoutSpy.mockRestore();
-            jest.useFakeTimers();
         });
 
         it('should not leak timeouts when component unmounts rapidly', () => {
-            jest.useRealTimers();
-            const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout');
+            const clearTimeoutSpy = jest.spyOn(global, 'clearTimeout').mockImplementation(() => {});
             
             // Mount and unmount multiple components rapidly
             for (let i = 0; i < 5; i++) {
@@ -181,7 +178,6 @@ describe('useWebSocket', () => {
             // Should have cleared timeouts for each unmount
             expect(clearTimeoutSpy).toHaveBeenCalled();
             clearTimeoutSpy.mockRestore();
-            jest.useFakeTimers();
         });
 
         it('should replace timeout when new log stream starts for same container', () => {
