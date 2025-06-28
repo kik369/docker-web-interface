@@ -93,7 +93,6 @@ def flask_app(mock_docker_service):
             patch("docker_monitor.DockerService", return_value=mock_docker_service),
             patch("docker_monitor.logging.getLogger"),
             patch("docker_monitor.set_request_id", return_value="test-request-id"),
-            patch("docker_monitor.RequestIdFilter"),
         ):
             # Create FlaskApp instance
             app_instance = FlaskApp()

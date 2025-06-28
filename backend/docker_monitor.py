@@ -6,10 +6,8 @@ from functools import wraps
 try:
     # For Docker environment
     from config import Config
-    from docker_service import Container, DockerService
+    from docker_service import DockerService
     from logging_utils import (
-        RequestIdFilter,
-        get_request_id,
         log_request,
         set_request_id,
         setup_logging,
@@ -850,7 +848,6 @@ class FlaskApp:
 
                 # Capture request context values before starting the background task
                 sid = request.sid
-                remote_addr = request.remote_addr
 
                 def stream_logs_background():
                     """Background task to stream container logs to the client."""
