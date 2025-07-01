@@ -7,6 +7,9 @@ import { ContainerContext } from '../context/ContainerContext';
 import { ThemeContext } from '../context/ThemeContext'; // Import ThemeContext
 import { Container } from '../types/docker';
 
+// Need to import `within` for querying inside LogContainer mock
+import { within } from '@testing-library/react';
+
 // Mock IntersectionObserver
 class MockIntersectionObserver implements IntersectionObserver {
   root: Element | Document | null = null;
@@ -141,16 +144,16 @@ describe('ContainerRow Log Streaming', () => {
     // Logs should be visible initially due to localStorage mock
     await waitFor(() => {
       expect(screen.getByTestId('log-container')).toBeVisible();
-      expect(mockStartLogStream).toHaveBeenCalledWith(mockContainer.id);
     });
+    expect(mockStartLogStream).toHaveBeenCalledWith(mockContainer.id);
 
     const hideLogsButton = screen.getByRole('button', { name: /hide logs/i });
     fireEvent.click(hideLogsButton);
 
     await waitFor(() => {
-      expect(mockStopLogStream).toHaveBeenCalledWith(mockContainer.id);
       expect(screen.queryByTestId('log-container')).not.toBeInTheDocument();
     });
+    expect(mockStopLogStream).toHaveBeenCalledWith(mockContainer.id);
 
     // Test close button within LogContainer mock
     fireEvent.click(screen.getByRole('button', { name: /show logs/i })); // Show again
@@ -161,9 +164,9 @@ describe('ContainerRow Log Streaming', () => {
     fireEvent.click(closeButtonInLogContainer);
 
     await waitFor(() => {
-      expect(mockStopLogStream).toHaveBeenCalledWith(mockContainer.id);
       expect(screen.queryByTestId('log-container')).not.toBeInTheDocument();
     });
+    expect(mockStopLogStream).toHaveBeenCalledWith(mockContainer.id);
   });
 
   test('4. Pause and Resume functionality', async () => {
@@ -189,7 +192,7 @@ describe('ContainerRow Log Streaming', () => {
     act(() => {
       mockOnLogUpdateCallback!(mockContainer.id, 'Initial log\n');
     });
-    await waitFor(() => expect(screen.getByTestId('log-container').querySelector('pre')).toHaveTextContent('Initial log'));
+    await screen.findByText('Initial log');
 
     // Pause logs
     const pauseButton = within(screen.getByTestId('log-container')).getByRole('button', { name: /pause/i });
@@ -198,10 +201,10 @@ describe('ContainerRow Log Streaming', () => {
     await waitFor(() => {
       // LogContainer should still be visible
       expect(screen.getByTestId('log-container')).toBeVisible();
-      // stopLogStream is called when pausing
-      expect(mockStopLogStream).toHaveBeenCalledWith(mockContainer.id);
-      expect(screen.getByText('Stream Active: No')).toBeInTheDocument(); // Check UI reflects paused stream
     });
+    // stopLogStream is called when pausing
+    expect(mockStopLogStream).toHaveBeenCalledWith(mockContainer.id);
+    expect(screen.getByText('Stream Active: No')).toBeInTheDocument(); // Check UI reflects paused stream
 
     // Try sending more logs while paused
     act(() => {
@@ -212,8 +215,8 @@ describe('ContainerRow Log Streaming', () => {
     // updates `logs` state. However, the stream is stopped, so new logs shouldn't arrive from the source.
     // The critical part is that `startLogStream` is not called again if already paused.
     // Our mock `onLogUpdateCallback` bypasses the actual stream, so we check if the content *doesn't* change.
-    await waitFor(() => expect(screen.getByTestId('log-container').querySelector('pre')).toHaveTextContent('Initial log'));
-    expect(screen.getByTestId('log-container').querySelector('pre')).not.toHaveTextContent('Log while paused');
+    await screen.findByText('Initial log');
+    expect(screen.queryByText('Log while paused')).not.toBeInTheDocument();
 
 
     // Resume logs
@@ -221,10 +224,10 @@ describe('ContainerRow Log Streaming', () => {
     fireEvent.click(resumeButton);
 
     await waitFor(() => {
-        // startLogStream is called when resuming
-        expect(mockStartLogStream).toHaveBeenCalledWith(mockContainer.id);
         expect(screen.getByText('Stream Active: Yes')).toBeInTheDocument();
     });
+    // startLogStream is called when resuming
+    expect(mockStartLogStream).toHaveBeenCalledWith(mockContainer.id);
 
     // Send logs after resuming
     act(() => {
@@ -233,10 +236,10 @@ describe('ContainerRow Log Streaming', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByTestId('log-container').querySelector('pre')).toHaveTextContent('Log after resume');
-      // Initial log should be cleared
-      expect(screen.getByTestId('log-container').querySelector('pre')).not.toHaveTextContent('Initial log');
+      expect(screen.getByText('Log after resume')).toBeInTheDocument();
     });
+    // Initial log should be cleared
+    expect(screen.queryByText('Initial log')).not.toBeInTheDocument();
   });
 
   test('5. isLoading state is handled', async () => {
@@ -260,9 +263,9 @@ describe('ContainerRow Log Streaming', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('log-container')).toBeVisible();
-      // LogContainer's mock displays "Loading logs..." when isLoading is true
-      expect(within(screen.getByTestId('log-container')).getByText('Loading logs...')).toBeInTheDocument();
     });
+    // LogContainer's mock displays "Loading logs..." when isLoading is true
+    expect(within(screen.getByTestId('log-container')).getByText('Loading logs...')).toBeInTheDocument();
 
     // Simulate receiving first log update
     act(() => {
@@ -274,8 +277,8 @@ describe('ContainerRow Log Streaming', () => {
     await waitFor(() => {
       // Loading message should disappear after logs are received
       expect(within(screen.getByTestId('log-container')).queryByText('Loading logs...')).not.toBeInTheDocument();
-      expect(screen.getByTestId('log-container').querySelector('pre')).toHaveTextContent('First log line');
     });
+    expect(screen.getByText('First log line')).toBeInTheDocument();
   });
 
   test('Handles onError callback from useWebSocket', async () => {
@@ -374,8 +377,8 @@ describe('ContainerRow Log Streaming', () => {
 
       await waitFor(() => {
         expect(screen.getByTestId('log-container')).toBeVisible();
-        expect(screen.getByText('Loading logs...')).toBeInTheDocument();
       });
+      expect(screen.getByText('Loading logs...')).toBeInTheDocument();
 
       // Simulate receiving logs (should clear loading timeout)
       act(() => {
@@ -446,11 +449,11 @@ describe('ContainerRow Log Streaming', () => {
     fireEvent.click(showLogsButton);
 
     await waitFor(() => {
-      expect(mockStartLogStream).toHaveBeenCalledWith(mockContainer.id);
       expect(screen.getByTestId('log-container')).toBeVisible();
-      // Initial loading state
-      expect(screen.getByText('Loading logs...')).toBeInTheDocument();
     });
+    expect(mockStartLogStream).toHaveBeenCalledWith(mockContainer.id);
+    // Initial loading state
+    expect(screen.getByText('Loading logs...')).toBeInTheDocument();
 
     expect(mockOnErrorCallback).not.toBeNull();
     act(() => {
@@ -483,6 +486,3 @@ describe('ContainerRow Log Streaming', () => {
 
   });
 });
-
-// Need to import `within` for querying inside LogContainer mock
-import { within } from '@testing-library/react';

@@ -62,7 +62,7 @@ function MainApp() {
         setAllLogsVisibility, // Added
         areAllLogsOpen,       // Added
     } = useContainerOperations();
-    const { images, refresh: refreshImages } = useImages();
+    const { images } = useImages();
     const [activeTab, setActiveTab] = useState<'containers' | 'images'>(loadActiveTab);
     const [wsError, setWsError] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState<string>('');
@@ -342,7 +342,6 @@ function MainApp() {
         pruneVolumes,
         pruneNetworks,
         pruneAll,
-        activeTab,
         toggleTheme
     ]);
 
