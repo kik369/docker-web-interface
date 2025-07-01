@@ -12,7 +12,6 @@ interface State {
     error?: Error;
 }
 
-// Create a functional error component that can use hooks
 const ErrorDisplay: React.FC<{ error?: Error }> = ({ error }) => {
     const { theme } = useTheme();
 

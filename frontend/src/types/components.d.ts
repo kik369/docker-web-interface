@@ -1,4 +1,3 @@
-// Type declarations for component modules
 import { Container } from './docker';
 
 declare module './components/ContainerList' {

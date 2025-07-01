@@ -44,12 +44,10 @@ const DeleteConfirmationDialog: React.FC<DeleteConfirmationDialogProps> = ({
                         : '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 2px 5px 0 rgba(0, 0, 0, 0.08), 0 1px 1px 0 rgba(0, 0, 0, 0.05)'
                 }}
             >
-                {/* Header section with title */}
                 <div className={`flex items-center px-4 py-3 ${theme === 'dark' ? 'bg-gray-700' : 'bg-gray-100'} border-b ${theme === 'dark' ? 'border-gray-600' : 'border-gray-200'}`}>
                     <h3 className={`text-lg font-semibold ${theme === 'dark' ? 'text-white' : 'text-gray-800'}`}>{title}</h3>
                 </div>
 
-                {/* Content section */}
                 <div className="p-5">
                     <div className="mb-4">
                         <p className={`${theme === 'dark' ? 'text-gray-300' : 'text-gray-600'} mb-2`}>

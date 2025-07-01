@@ -190,7 +190,6 @@ export const useDockerMaintenance = () => {
         }
     }, []);
 
-    // Format bytes to human-readable
     const formatBytes = (bytes: number): string => {
         if (bytes === 0) return '0 Bytes';
         const k = 1024;

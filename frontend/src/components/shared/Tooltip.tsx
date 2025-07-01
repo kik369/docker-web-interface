@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
-import { useTheme } from '../../context/ThemeContext'; // Adjusted path
+import { useTheme } from '../../context/ThemeContext';
 
-// Tooltip component that uses ReactDOM.createPortal to avoid positioning issues
 interface TooltipProps {
     children: React.ReactNode;
     text: React.ReactNode;

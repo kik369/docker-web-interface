@@ -332,11 +332,8 @@ function MainApp() {
         containerOptions,
         imageOptions,
         setLoading,
-        // areAnyLogsOpen, // Removed
-        // closeAllLogs, // Removed
-        // showAllLogs, // Removed
-        areAllLogsOpen, // Added
-        setAllLogsVisibility, // Added
+        areAllLogsOpen,
+        setAllLogsVisibility,
         pruneContainers,
         pruneImages,
         pruneVolumes,
@@ -348,7 +345,6 @@ function MainApp() {
     // Add keyboard shortcuts
     useEffect(() => {
         const handleKeyDown = (event: KeyboardEvent) => {
-            // Ctrl+R for refresh
             if ((event.ctrlKey || event.metaKey) && event.key === 'r') {
                 event.preventDefault();
                 if (activeTab === 'containers') {

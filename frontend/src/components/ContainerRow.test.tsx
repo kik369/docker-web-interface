@@ -4,10 +4,9 @@ import '@testing-library/jest-dom';
 import { ContainerRow } from './ContainerRow';
 import { useWebSocket } from '../hooks/useWebSocket';
 import { ContainerContext } from '../context/ContainerContext';
-import { ThemeContext } from '../context/ThemeContext'; // Import ThemeContext
+import { ThemeContext } from '../context/ThemeContext';
 import { Container } from '../types/docker';
 
-// Need to import `within` for querying inside LogContainer mock
 import { within } from '@testing-library/react';
 
 // Mock IntersectionObserver
