@@ -42,7 +42,7 @@ pytest-socket==0.6.0
 python-dotenv==0.19.0
 python-engineio==4.11.2
 python-json-logger==3.2.1
-python-socketio==5.12.1
+python-socketio==5.14.0
 PyYAML==6.0.2
 requests==2.32.4
 simple-websocket==1.1.0
