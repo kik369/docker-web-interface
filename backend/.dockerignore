@@ -1,0 +1,126 @@
+# ========================================================
+# Python Cache and Compiled Files
+# ========================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# ========================================================
+# Testing and Coverage
+# ========================================================
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+*.cover
+.cache
+
+# ========================================================
+# Virtual Environments
+# ========================================================
+venv/
+env/
+ENV/
+.venv
+env.bak/
+venv.bak/
+
+# ========================================================
+# Build Artifacts
+# ========================================================
+build/
+dist/
+*.egg-info/
+.eggs/
+*.egg
+.installed.cfg
+
+# ========================================================
+# IDE and Editor Files
+# ========================================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+.cursor/
+.cursorrules
+.cursorignore
+
+# ========================================================
+# Version Control
+# ========================================================
+.git/
+.gitignore
+.gitattributes
+.github/
+
+# ========================================================
+# Documentation
+# ========================================================
+*.md
+README*
+CHANGELOG*
+docs/
+LICENSE
+
+# ========================================================
+# Environment and Configuration Files
+# ========================================================
+.env
+.env.local
+.env.*.local
+.env.development
+.env.development.local
+.env.test
+.env.test.local
+.env.production
+.env.production.local
+
+# Allow example files
+!.env.example
+
+# ========================================================
+# Logs
+# ========================================================
+logs/
+*.log
+pip-log.txt
+pip-delete-this-directory.txt
+
+# ========================================================
+# Pre-commit and CI/CD
+# ========================================================
+.pre-commit-config.yaml
+.pre-commit/
+
+# ========================================================
+# Docker Files (not needed inside container)
+# ========================================================
+Dockerfile
+Dockerfile.*
+.dockerignore
+docker-compose*.yml
+.docker/
+
+# ========================================================
+# Database Files
+# ========================================================
+*.db
+*.sqlite
+*.sqlite3
+
+# ========================================================
+# Misc
+# ========================================================
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
