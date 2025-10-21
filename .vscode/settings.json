@@ -1,5 +1,6 @@
 {
     "python.testing.pytestArgs": ["backend"],
     "python.testing.unittestEnabled": false,
-    "python.testing.pytestEnabled": true
+    "python.testing.pytestEnabled": true,
+    "chatgpt.openOnStartup": false
 }
