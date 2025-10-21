@@ -1,0 +1,142 @@
+# ========================================================
+# Dependencies
+# ========================================================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+.npm
+.yarn
+.pnp
+.pnp.js
+
+# ========================================================
+# Build Output
+# ========================================================
+build/
+dist/
+.next/
+out/
+.nuxt
+.cache
+.parcel-cache
+
+# ========================================================
+# Testing and Coverage
+# ========================================================
+coverage/
+.nyc_output
+*.test.js
+*.test.jsx
+*.test.ts
+*.test.tsx
+*.spec.js
+*.spec.jsx
+*.spec.ts
+*.spec.tsx
+__tests__/
+__mocks__/
+jest-results.json
+
+# ========================================================
+# IDE and Editor Files
+# ========================================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+.cursor/
+.cursorrules
+.cursorignore
+*.sublime-project
+*.sublime-workspace
+
+# ========================================================
+# Version Control
+# ========================================================
+.git/
+.gitignore
+.gitattributes
+.github/
+
+# ========================================================
+# Documentation
+# ========================================================
+*.md
+README*
+CHANGELOG*
+LICENSE
+docs/
+
+# ========================================================
+# Environment Files
+# ========================================================
+.env
+.env.local
+.env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Allow example files
+!.env.example
+
+# ========================================================
+# Docker Files (not needed inside container)
+# ========================================================
+Dockerfile
+Dockerfile.*
+.dockerignore
+docker-compose*.yml
+.docker/
+
+# ========================================================
+# Logs
+# ========================================================
+logs/
+*.log
+
+# ========================================================
+# Cache Files
+# ========================================================
+.cache/
+.eslintcache
+.stylelintcache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
+
+# ========================================================
+# TypeScript and Build Configuration
+# ========================================================
+tsconfig.tsbuildinfo
+*.tsbuildinfo
+
+# ========================================================
+# Linting and Formatting Configuration
+# (These are not needed at runtime)
+# ========================================================
+.prettierignore
+.prettierrc*
+.eslintrc*
+.eslintignore
+.stylelintrc*
+jest.config.js
+jest.config.ts
+.babelrc
+.babelrc.js
+babel.config.js
+
+# ========================================================
+# Misc
+# ========================================================
+.turbo
+storybook-static
+*.local
+.vercel
+.netlify
