@@ -132,5 +132,7 @@ LOGGING_CONFIG = {
 }
 
 # Initialize logging configuration
-os.makedirs(os.path.dirname(Config.LOG_FILE), exist_ok=True)
+log_dir = os.path.dirname(Config.LOG_FILE)
+if log_dir:
+    os.makedirs(log_dir, exist_ok=True)
 logging.config.dictConfig(LOGGING_CONFIG)
