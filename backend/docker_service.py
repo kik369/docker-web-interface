@@ -849,9 +849,26 @@ class DockerService:
             logger.info(f"Successfully deleted image: {image_id}")
             return True, None
         except docker.errors.ImageNotFound:
-            error_msg = f"Image {image_id} not found"
-            logger.error(error_msg)
-            return False, error_msg
+            # If the prefixed ID is not found, try the unprefixed version
+            if image_id.startswith("sha256:"):
+                unprefixed_id = image_id.replace("sha256:", "")
+                logger.info(f"Image not found with prefix, trying without: {unprefixed_id}")
+                try:
+                    self.client.images.remove(unprefixed_id, force=force)
+                    logger.info(f"Successfully deleted image: {unprefixed_id}")
+                    return True, None
+                except docker.errors.ImageNotFound:
+                    error_msg = f"Image {image_id} not found (tried with and without prefix)"
+                    logger.error(error_msg)
+                    return False, error_msg
+                except Exception as e:
+                    error_msg = f"Unexpected error deleting image: {str(e)}"
+                    logger.error(error_msg)
+                    return False, error_msg
+            else:
+                error_msg = f"Image {image_id} not found"
+                logger.error(error_msg)
+                return False, error_msg
         except docker.errors.APIError as e:
             error_msg = f"Failed to delete image: {str(e)}"
             logger.error(error_msg)

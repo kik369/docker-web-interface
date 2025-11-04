@@ -328,6 +328,30 @@ class TestDockerService:
         assert success is True
         assert error is None
 
+    def test_delete_image_with_sha256_prefix_and_fallback(self, docker_service, mock_docker_client):
+        """Test deleting an image with a sha256 prefix that requires fallback."""
+        prefixed_id = "sha256:12345"
+        unprefixed_id = "12345"
+
+        def remove_side_effect(image_id, force=False):
+            if image_id == prefixed_id:
+                raise docker.errors.ImageNotFound("not found")
+            elif image_id == unprefixed_id:
+                return  # success
+            else:
+                pytest.fail(f"Unexpected image_id in remove: {image_id}")
+
+        mock_docker_client.images.remove.side_effect = remove_side_effect
+
+        success, error = docker_service.delete_image(prefixed_id)
+
+        assert success is True
+        assert error is None
+
+        # Verify that remove was called with both prefixed and unprefixed IDs
+        mock_docker_client.images.remove.assert_any_call(prefixed_id, force=False)
+        mock_docker_client.images.remove.assert_any_call(unprefixed_id, force=False)
+
     def test_rebuild_container(self, docker_service, mock_docker_client):
         """Test comprehensive rebuild container functionality."""
         # Setup more detailed mocks for the complex rebuild operation
