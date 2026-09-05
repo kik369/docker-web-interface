@@ -46,7 +46,7 @@
     },
     "overrides": {
         "nth-check": "^3.0.1",
-        "svgo": "^4.0.1",
+        "svgo": "^4.1.0",
         "webpack-dev-server": "^5.2.3",
         "resolve-url-loader": "^5.0.0"
     },
